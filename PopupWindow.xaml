@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window
+    x:Class="FolderDock.PopupWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:FolderDock">
+
+    <Grid x:Name="Root" RequestedTheme="Default"
+          CornerRadius="8"
+          BorderThickness="1"
+          BorderBrush="{ThemeResource SurfaceStrokeColorDefaultBrush}">
+        <Grid.Background>
+            <SolidColorBrush Color="{ThemeResource SolidBackgroundFillColorBase}" Opacity="0.97"/>
+        </Grid.Background>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Заголовок -->
+        <Grid Grid.Row="0" Padding="14,10,8,6">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock x:Name="TitleText" Grid.Column="0"
+                       Style="{ThemeResource BodyStrongTextBlockStyle}"
+                       VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+            <Button x:Name="ViewToggle" Grid.Column="1" Margin="6,0,0,0"
+                    Padding="6" Background="Transparent" BorderThickness="0"
+                    Click="OnToggleView" ToolTipService.ToolTip="Сетка / список">
+                <FontIcon x:Name="ViewToggleIcon" Glyph="&#xE8FD;" FontSize="14"/>
+            </Button>
+            <Button Grid.Column="2" Margin="2,0,0,0"
+                    Padding="6" Background="Transparent" BorderThickness="0"
+                    Click="OnOpenInExplorer" ToolTipService.ToolTip="Открыть в Проводнике">
+                <FontIcon Glyph="&#xE838;" FontSize="14"/>
+            </Button>
+        </Grid>
+
+        <!-- Сетка -->
+        <GridView x:Name="ItemsGrid" Grid.Row="1"
+                  Padding="10,0,10,10"
+                  SelectionMode="None"
+                  IsItemClickEnabled="True"
+                  ItemClick="OnItemClick"
+                  CanDragItems="True"
+                  DragItemsStarting="OnDragItemsStarting"
+                  Visibility="Visible">
+            <GridView.ItemTemplate>
+                <DataTemplate x:DataType="local:FolderEntry">
+                    <StackPanel Width="92" Padding="4,8" Spacing="4"
+                                ToolTipService.ToolTip="{x:Bind Name}">
+                        <StackPanel.ContextFlyout>
+                            <MenuFlyout>
+                                <MenuFlyoutItem Text="Открыть" Click="OnOpenItem">
+                                    <MenuFlyoutItem.Icon>
+                                        <FontIcon Glyph="&#xE8E5;"/>
+                                    </MenuFlyoutItem.Icon>
+                                </MenuFlyoutItem>
+                                <MenuFlyoutItem Text="Копировать" Click="OnCopyItem">
+                                    <MenuFlyoutItem.Icon>
+                                        <FontIcon Glyph="&#xE8C8;"/>
+                                    </MenuFlyoutItem.Icon>
+                                </MenuFlyoutItem>
+                                <MenuFlyoutItem Text="Поделиться" Click="OnShareItem">
+                                    <MenuFlyoutItem.Icon>
+                                        <FontIcon Glyph="&#xE72D;"/>
+                                    </MenuFlyoutItem.Icon>
+                                </MenuFlyoutItem>
+                                <MenuFlyoutSeparator/>
+                                <MenuFlyoutItem Text="Показать в Проводнике" Click="OnRevealItem">
+                                    <MenuFlyoutItem.Icon>
+                                        <FontIcon Glyph="&#xE838;"/>
+                                    </MenuFlyoutItem.Icon>
+                                </MenuFlyoutItem>
+                            </MenuFlyout>
+                        </StackPanel.ContextFlyout>
+                        <Image Source="{x:Bind Thumbnail, Mode=OneWay}" Width="48" Height="48"
+                               HorizontalAlignment="Center"/>
+                        <TextBlock Text="{x:Bind Name}" FontSize="12"
+                                   TextAlignment="Center" TextTrimming="CharacterEllipsis"
+                                   TextWrapping="Wrap" MaxLines="2" Height="32"/>
+                    </StackPanel>
+                </DataTemplate>
+            </GridView.ItemTemplate>
+        </GridView>
+
+        <!-- Список -->
+        <ListView x:Name="ItemsList" Grid.Row="1"
+                  Padding="6,0,6,10"
+                  SelectionMode="None"
+                  IsItemClickEnabled="True"
+                  ItemClick="OnItemClick"
+                  CanDragItems="True"
+                  DragItemsStarting="OnDragItemsStarting"
+                  Visibility="Collapsed">
+            <ListView.ItemTemplate>
+                <DataTemplate x:DataType="local:FolderEntry">
+                    <StackPanel Orientation="Horizontal" Spacing="10" Padding="2,4">
+                        <StackPanel.ContextFlyout>
+                            <MenuFlyout>
+                                <MenuFlyoutItem Text="Открыть" Click="OnOpenItem">
+                                    <MenuFlyoutItem.Icon>
+                                        <FontIcon Glyph="&#xE8E5;"/>
+                                    </MenuFlyoutItem.Icon>
+                                </MenuFlyoutItem>
+                                <MenuFlyoutItem Text="Копировать" Click="OnCopyItem">
+                                    <MenuFlyoutItem.Icon>
+                                        <FontIcon Glyph="&#xE8C8;"/>
+                                    </MenuFlyoutItem.Icon>
+                                </MenuFlyoutItem>
+                                <MenuFlyoutItem Text="Поделиться" Click="OnShareItem">
+                                    <MenuFlyoutItem.Icon>
+                                        <FontIcon Glyph="&#xE72D;"/>
+                                    </MenuFlyoutItem.Icon>
+                                </MenuFlyoutItem>
+                                <MenuFlyoutSeparator/>
+                                <MenuFlyoutItem Text="Показать в Проводнике" Click="OnRevealItem">
+                                    <MenuFlyoutItem.Icon>
+                                        <FontIcon Glyph="&#xE838;"/>
+                                    </MenuFlyoutItem.Icon>
+                                </MenuFlyoutItem>
+                            </MenuFlyout>
+                        </StackPanel.ContextFlyout>
+                        <Image Source="{x:Bind Thumbnail, Mode=OneWay}" Width="20" Height="20"/>
+                        <TextBlock Text="{x:Bind Name}" VerticalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis"/>
+                    </StackPanel>
+                </DataTemplate>
+            </ListView.ItemTemplate>
+        </ListView>
+
+        <TextBlock x:Name="EmptyText" Grid.Row="1" Text="Папка пуста"
+                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                   Opacity="0.6" Visibility="Collapsed"/>
+    </Grid>
+</Window>
