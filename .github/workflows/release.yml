@@ -64,6 +64,16 @@ jobs:
           Compress-Archive -Path "bin\ARM64\Release\$env:TFM\win-arm64\publish\*" `
             -DestinationPath "FolderDock-$v-win-arm64.zip"
 
+      # Inno Setup предустановлен на windows-latest (ISCC в PATH)
+      - name: Build installers (Inno Setup)
+        shell: pwsh
+        run: |
+          $v = "${{ steps.semver.outputs.new_version }}"
+          iscc installer\FolderDock.iss /DVersion=$v /DArch=x64 `
+            /DSourceDir="bin\x64\Release\$env:TFM\win-x64\publish"
+          iscc installer\FolderDock.iss /DVersion=$v /DArch=arm64 `
+            /DSourceDir="bin\ARM64\Release\$env:TFM\win-arm64\publish"
+
       - name: Create tag
         id: tag
         uses: mathieudutour/github-tag-action@v6.2
@@ -81,3 +91,4 @@ jobs:
           files: |
             FolderDock-*-win-x64.zip
             FolderDock-*-win-arm64.zip
+            FolderDock-Setup-*.exe
