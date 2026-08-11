@@ -53,6 +53,9 @@ public sealed partial class PopupWindow : Window
         // Идентичность окна на панели задач — закреплённая (корневая) папка,
         // навигация внутрь вложенных папок её не меняет
         WindowAumid.Apply(_chrome.Hwnd, FolderAumid.For(_currentFolder));
+        // Привязка к точке клика по значку панели задач: последующие Reload
+        // (навигация по папкам) не должны двигать окно за курсором
+        _chrome.AnchorToCursor();
         SetTitle(_currentFolder);
         Reload();
         _shownAt = DateTime.UtcNow;

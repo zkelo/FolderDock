@@ -43,18 +43,32 @@ public sealed class PopupChrome
 
     public void MoveToTaskbarArea()
     {
-        Native.GetCursorPos(out var cursor);
-        var workArea = DisplayArea.GetFromPoint(
-            new Windows.Graphics.PointInt32(cursor.X, cursor.Y),
-            DisplayAreaFallback.Nearest).WorkArea;
+        // Якорь — точка клика по значку панели задач, зафиксированная в момент
+        // показа попапа. Навигация по папкам вызывает Reload → MoveToTaskbarArea,
+        // когда курсор уже ВНУТРИ попапа: без якоря окно «уезжало» за курсором
+        // (и клампом прижималось к левому краю экрана).
+        var anchor = _anchor ?? CursorPoint();
+        var workArea = DisplayArea.GetFromPoint(anchor, DisplayAreaFallback.Nearest).WorkArea;
         var size = AppWindow.Size;
 
         var minX = workArea.X + 8;
         var maxX = Math.Max(minX, workArea.X + workArea.Width - size.Width - 8);
-        var x = Math.Clamp(cursor.X - size.Width / 2, minX, maxX);
+        var x = Math.Clamp(anchor.X - size.Width / 2, minX, maxX);
         var y = Math.Max(workArea.Y + 8, workArea.Y + workArea.Height - size.Height - 12);
 
         AppWindow.Move(new Windows.Graphics.PointInt32(x, y));
+    }
+
+    /// Зафиксировать точку привязки попапа по текущей позиции курсора.
+    /// Вызывать при показе (клик по значку панели задач), до Reload.
+    public void AnchorToCursor() => _anchor = CursorPoint();
+
+    private Windows.Graphics.PointInt32? _anchor;
+
+    private static Windows.Graphics.PointInt32 CursorPoint()
+    {
+        Native.GetCursorPos(out var cursor);
+        return new Windows.Graphics.PointInt32(cursor.X, cursor.Y);
     }
 
     public DataTransferManager GetShareManager()
