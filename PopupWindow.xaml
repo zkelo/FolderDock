@@ -18,21 +18,28 @@
         </Grid.RowDefinitions>
 
         <!-- Заголовок -->
-        <Grid Grid.Row="0" Padding="14,10,8,6">
+        <Grid Grid.Row="0" Padding="8,10,8,6">
             <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
-            <TextBlock x:Name="TitleText" Grid.Column="0"
+            <Button x:Name="BackButton" Grid.Column="0" Margin="0,0,6,0"
+                    Padding="6" Background="Transparent" BorderThickness="0"
+                    Visibility="Collapsed"
+                    Click="OnNavigateBack" ToolTipService.ToolTip="Назад">
+                <FontIcon Glyph="&#xE72B;" FontSize="14"/>
+            </Button>
+            <TextBlock x:Name="TitleText" Grid.Column="1"
                        Style="{ThemeResource BodyStrongTextBlockStyle}"
                        VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
-            <Button x:Name="ViewToggle" Grid.Column="1" Margin="6,0,0,0"
+            <Button x:Name="ViewToggle" Grid.Column="2" Margin="6,0,0,0"
                     Padding="6" Background="Transparent" BorderThickness="0"
                     Click="OnToggleView" ToolTipService.ToolTip="Сетка / список">
                 <FontIcon x:Name="ViewToggleIcon" Glyph="&#xE8FD;" FontSize="14"/>
             </Button>
-            <Button Grid.Column="2" Margin="2,0,0,0"
+            <Button Grid.Column="3" Margin="2,0,0,0"
                     Padding="6" Background="Transparent" BorderThickness="0"
                     Click="OnOpenInExplorer" ToolTipService.ToolTip="Открыть в Проводнике">
                 <FontIcon Glyph="&#xE838;" FontSize="14"/>

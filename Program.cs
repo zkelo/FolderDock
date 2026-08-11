@@ -37,10 +37,12 @@ public static class Program
 
     private static void ApplyTaskbarIdentity(string? folder)
     {
-        if (folder is null) return;
         try
         {
-            Native.SetCurrentProcessExplicitAppUserModelID(FolderAumid.For(folder));
+            // Без --folder (меню Пуск, прямой запуск) процесс — «само приложение»,
+            // иначе окна группировались бы под значком последней закреплённой папки
+            Native.SetCurrentProcessExplicitAppUserModelID(
+                folder is null ? WindowAumid.AppId : FolderAumid.For(folder));
         }
         catch { }
     }

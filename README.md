@@ -1,78 +1,93 @@
 # FolderDock
 
-Папки на панели задач Windows 11 — как в Dock на macOS. Клик по закреплённому значку папки → всплывающее окно с содержимым (сетка или список) прямо над панелью задач, без Проводника.
+**English** | [Русский](README.ru.md)
 
-## Возможности
+Folders on the Windows 11 taskbar — like the macOS Dock. Click a pinned folder icon → a popup with its contents (grid or list) right above the taskbar, no File Explorer needed.
 
-- **Закрепление любой папки** на панели задач через ярлык с собственным AppUserModelID — каждая папка получает отдельную кнопку, они не группируются между собой.
-- **Popup над панелью задач**: сетка с миниатюрами (изображения — превью) или компактный список. Переключение кнопкой в заголовке.
-- Клик по файлу → открытие приложением по умолчанию, popup закрывается.
-- Клик по подпапке → навигация внутрь прямо в popup.
-- **Типизированный drag-and-drop**: пакет данных содержит несколько представлений — картинки дополнительно кладутся как Bitmap (вставка «как картинка» в Paint/Word/мессенджеры), текстовые файлы — как Text (вставка содержимого в редактор), и всегда StorageItems (файлы для Проводника и всего остального). Приложение-приёмник само выбирает формат, который понимает.
-- **Контекстное меню** (ПКМ по элементу): Открыть, Копировать (в буфер с теми же типизированными форматами: Ctrl+V в Paint вставит картинку, в блокноте — текст, в Проводнике — файл), Поделиться (системная панель Share Windows — почта, Bluetooth, OneDrive, мессенджеры), Показать в Проводнике.
-- Кнопка «Открыть в Проводнике».
-- Клик мимо окна → popup закрывается (поведение флайаута).
-- Повторный клик по значку → toggle (закрыть).
-- Тёмная/светлая тема — системная. Скруглённые углы Win11, поверх окон, нет в Alt-Tab.
-- Single-instance: повторные запуски перенаправляются работающему экземпляру (AppInstance redirect).
+## Features
 
-## Сборка (на Windows)
+- **Pin any folder** to the taskbar via a shortcut with its own AppUserModelID — every folder gets a separate button, they never group with each other.
+- **Popup above the taskbar**: a grid with thumbnails (images get previews) or a compact list. Toggle with a button in the header.
+- Click a file → opens with the default app, popup closes.
+- Click a subfolder → navigate inside right in the popup; a **Back** button returns to the parent folder.
+- **Typed drag-and-drop**: the data package carries multiple representations — images are additionally added as Bitmap (paste "as picture" into Paint/Word/messengers), text files as Text (paste content into an editor), and always StorageItems (files for Explorer and everything else). The receiving app picks the format it understands.
+- **Context menu** (right-click an item): Open, Copy (to clipboard with the same typed formats: Ctrl+V in Paint pastes a picture, in Notepad — text, in Explorer — a file), Share (the Windows Share pane — mail, Bluetooth, OneDrive, messengers), Reveal in Explorer.
+- "Open in Explorer" button.
+- Click outside the window → popup closes (flyout behavior).
+- Click the icon again → toggle (close).
+- The manager shows only pins that still exist: shortcuts whose target folder was deleted are filtered out on every window activation.
+- Launching from the app's own shortcut (Start Menu) keeps its own taskbar identity — it never masquerades as one of the pinned folders.
+- Dark/light theme — follows the system. Win11 rounded corners, always on top, hidden from Alt-Tab.
+- Single-instance: repeated launches are redirected to the running instance (AppInstance redirect).
 
-Требования:
+## Installation
+
+Grab `FolderDock-Setup-<version>-<arch>.exe` from [Releases](https://github.com/zkelo/FolderDock/releases) and run it. The installer lets you pick the install folder, optionally creates a Start Menu group, and silently removes a previously installed version before upgrading.
+
+## Building (on Windows)
+
+Requirements:
 - Windows 10 17763+ / Windows 11
 - [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
-- Visual Studio 2022 с workload **Windows application development** — или только SDK + командная строка
+- Visual Studio 2022 with the **Windows application development** workload — or just the SDK + command line
 
-Командная строка:
+Command line:
 
 ```powershell
 cd FolderDock
 dotnet build -c Release -p:Platform=x64
-# или сразу готовый exe (self-contained, WindowsAppSDKSelfContained — MSIX не нужен):
+# or a ready-to-run exe (self-contained, WindowsAppSDKSelfContained — no MSIX needed):
 dotnet publish -c Release -r win-x64 -p:Platform=x64
 ```
 
-Результат: `bin\x64\Release\net8.0-windows10.0.19041.0\win-x64\publish\FolderDock.exe`
+Output: `bin\x64\Release\net8.0-windows10.0.19041.0\win-x64\publish\FolderDock.exe`
 
-> WinUI 3 не собирается на Linux/macOS (XamlCompiler.exe — только Windows). Собирать на Windows.
+> WinUI 3 does not build on Linux/macOS (XamlCompiler.exe is Windows-only). Build on Windows.
 
-## Использование
+## Usage
 
-1. Запусти `FolderDock.exe` без аргументов → окно-менеджер.
-2. «Добавить папку» → выбери папку → создаётся ярлык в `%LOCALAPPDATA%\FolderDock\Shortcuts` и открывается Проводник с ним.
-3. ПКМ по ярлыку → «Показать дополнительные параметры» → **«Закрепить на панели задач»**.
-4. Клик по закреплённому значку → popup с содержимым папки.
+1. Run `FolderDock.exe` with no arguments → the manager window.
+2. "Add folder" → pick a folder → a shortcut is created in `%LOCALAPPDATA%\FolderDock\Shortcuts` and Explorer opens next to it.
+3. Right-click the shortcut → "Show more options" → **"Pin to taskbar"**.
+4. Click the pinned icon → a popup with the folder contents.
 
-Так можно закрепить сколько угодно папок — у каждой свой значок.
+Pin as many folders as you like — each one gets its own icon.
 
-## Как это работает
+## How it works
 
-- Windows 11 не даёт закрепить папку на панель задач напрямую и не имеет API для popup «из панели». Обход: ярлык на `FolderDock.exe --folder "<путь>"` с записанным в property store ярлыка `System.AppUserModel.ID`, уникальным для каждой папки (SHA1 от пути). Процесс при старте ставит себе тот же AUMID через `SetCurrentProcessExplicitAppUserModelID` — панель задач сопоставляет окно с нужным закреплённым значком.
-- Один фоновый процесс: `AppInstance.FindOrRegisterForKey` + `RedirectActivationToAsync`. Клик по любому ярлыку попадает в живой экземпляр → мгновенный popup без холодного старта.
-- Popup — WinUI 3 `Window` c `OverlappedPresenter.CreateForContextMenu()` (без рамки), `IsAlwaysOnTop`, `WS_EX_TOOLWINDOW` (нет в Alt-Tab), `DWMWA_WINDOW_CORNER_PREFERENCE=ROUND`. Позиционирование — по курсору, прижат к верхнему краю рабочей области над панелью задач.
-- Миниатюры — `StorageFile.GetThumbnailAsync` (те же превью, что в Проводнике), грузятся асинхронно после показа окна.
+- Windows 11 does not allow pinning a folder to the taskbar directly and has no API for a "taskbar popup". Workaround: a shortcut to `FolderDock.exe --folder "<path>"` with `System.AppUserModel.ID` written into the shortcut's property store, unique per folder (SHA1 of the path). On start the process sets the same AUMID via `SetCurrentProcessExplicitAppUserModelID` — the taskbar matches the window to the right pinned icon. Launched without `--folder`, the process (and each window via `SHGetPropertyStoreForWindow`) uses the app's own AUMID instead.
+- One background process: `AppInstance.FindOrRegisterForKey` + `RedirectActivationToAsync`. A click on any shortcut lands in the live instance → instant popup with no cold start.
+- The popup is a WinUI 3 `Window` with `OverlappedPresenter.CreateForContextMenu()` (frameless), `IsAlwaysOnTop`, `WS_EX_TOOLWINDOW` (not in Alt-Tab), `DWMWA_WINDOW_CORNER_PREFERENCE=ROUND`. Positioned at the cursor, snapped to the top edge of the work area above the taskbar.
+- Thumbnails — `StorageFile.GetThumbnailAsync` (the same previews as Explorer), loaded asynchronously after the window is shown.
 
-## Структура
+## Structure
 
-| Файл | Назначение |
+| File | Purpose |
 |---|---|
-| `Program.cs` | Точка входа: single-instance, redirect активаций |
-| `CommandLine.cs` | Разбор `--folder` из аргументов |
-| `App.xaml(.cs)` | Роутинг активаций: popup или менеджер |
-| `PopupWindow.xaml(.cs)` | Всплывающее окно: события UI, toggle, Share |
-| `PopupChrome.cs` | Оформление окна: presenter, DWM, позиционирование, Share interop |
-| `FolderEntry.cs` | Модель элемента папки |
-| `FolderReader.cs` | Чтение содержимого папки |
-| `ThumbnailLoader.cs` | Асинхронные миниатюры Проводника |
-| `TypedDataPackage.cs` | DataPackage: Bitmap/Text/StorageItems по типу файла |
-| `ManagerWindow.xaml(.cs)` | Менеджер: добавление папок, создание ярлыков |
-| `ShortcutFactory.cs` | COM IShellLink + IPropertyStore: .lnk с AUMID |
-| `FolderAumid.cs` | AppUserModelID из пути папки |
-| `Shell.cs` | Запуск файлов и Проводника |
-| `Native.cs` | Win32/COM: DWM, курсор, DPI, стили окна, Share interop |
+| `Program.cs` | Entry point: single-instance, activation redirect, process AUMID |
+| `CommandLine.cs` | Parsing `--folder` from arguments |
+| `App.xaml(.cs)` | Activation routing: popup or manager |
+| `PopupWindow.xaml(.cs)` | Popup window: UI events, toggle, Share, back navigation |
+| `PopupChrome.cs` | Window chrome: presenter, DWM, positioning, Share interop |
+| `FolderEntry.cs` | Folder item model |
+| `FolderReader.cs` | Reading folder contents |
+| `ThumbnailLoader.cs` | Async Explorer thumbnails |
+| `TypedDataPackage.cs` | DataPackage: Bitmap/Text/StorageItems by file type |
+| `ManagerWindow.xaml(.cs)` | Manager: adding folders, creating shortcuts, filtering dead pins |
+| `ShortcutFactory.cs` | COM IShellLink + IPropertyStore: .lnk with AUMID, reading args back |
+| `FolderAumid.cs` | AppUserModelID from a folder path |
+| `WindowAumid.cs` | Per-window AUMID via SHGetPropertyStoreForWindow |
+| `PropertyStoreInterop.cs` | Shared COM types: IPropertyStore, PropertyKey, PropVariant |
+| `Shell.cs` | Launching files and Explorer |
+| `Native.cs` | Win32/COM: DWM, cursor, DPI, window styles, Share interop |
+| `installer/FolderDock.iss` | Inno Setup script (install dir, Start Menu, MIT license, upgrade) |
 
-## Ограничения
+## Limitations
 
-- Закрепление на панель — вручную через ПКМ (программный pin Windows не разрешает сторонним приложениям).
-- Первый клик после перезагрузки — холодный старт (~1–2 с), дальше мгновенно.
-- Иконка ярлыка — стандартная папка из shell32; можно сменить в свойствах ярлыка.
+- Pinning to the taskbar is manual via right-click (Windows does not allow programmatic pinning for third-party apps).
+- The first click after a reboot is a cold start (~1–2 s), instant afterwards.
+- The shortcut icon is the standard folder icon from imageres; you can change it in the shortcut properties.
+
+## License
+
+[MIT](LICENSE)

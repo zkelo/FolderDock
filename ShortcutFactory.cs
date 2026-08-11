@@ -31,6 +31,24 @@ public static class ShortcutFactory
         return lnkPath;
     }
 
+    /// Читает путь папки из аргументов существующего ярлыка (--folder "...").
+    /// null — ярлык не читается или не содержит --folder.
+    public static string? ReadFolderFromShortcut(string lnkPath)
+    {
+        try
+        {
+            var link = (IShellLinkW)new CShellLink();
+            ((IPersistFile)link).Load(lnkPath, 0 /* STGM_READ */);
+            var args = new StringBuilder(1024);
+            link.GetArguments(args, args.Capacity);
+            return CommandLine.FolderFrom(args.ToString());
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     private static string UniqueShortcutPath(
         string folderPath, string argumentPath, string outputDir)
     {
@@ -84,52 +102,5 @@ public static class ShortcutFactory
         void SetRelativePath([MarshalAs(UnmanagedType.LPWStr)] string pszPathRel, uint dwReserved);
         void Resolve(IntPtr hwnd, uint fFlags);
         void SetPath([MarshalAs(UnmanagedType.LPWStr)] string pszFile);
-    }
-
-    [StructLayout(LayoutKind.Sequential, Pack = 4)]
-    private struct PropertyKey
-    {
-        public Guid fmtid;
-        public uint pid;
-
-        public static PropertyKey AppUserModelId => new()
-        {
-            fmtid = new Guid("9F4C2855-9F79-4B39-A8D0-E1D42DE1D5F3"),
-            pid = 5
-        };
-    }
-
-    [StructLayout(LayoutKind.Explicit)]
-    private sealed class PropVariant : IDisposable
-    {
-        [FieldOffset(0)] private ushort vt;
-        [FieldOffset(8)] private IntPtr ptr;
-
-        public static PropVariant FromString(string value) => new()
-        {
-            vt = 31,
-            ptr = Marshal.StringToCoTaskMemUni(value)
-        };
-
-        public void Dispose()
-        {
-            if (ptr != IntPtr.Zero)
-            {
-                Marshal.FreeCoTaskMem(ptr);
-                ptr = IntPtr.Zero;
-            }
-            vt = 0;
-        }
-    }
-
-    [ComImport, InterfaceType(ComInterfaceType.InterfaceIsIUnknown),
-     Guid("886D8EEB-8CF2-4446-8D02-CDBA1DBDCF99")]
-    private interface IPropertyStore
-    {
-        void GetCount(out uint cProps);
-        void GetAt(uint iProp, out PropertyKey pkey);
-        void GetValue(ref PropertyKey key, [Out] PropVariant pv);
-        void SetValue(ref PropertyKey key, [In] PropVariant pv);
-        void Commit();
     }
 }

@@ -26,9 +26,19 @@ public sealed partial class ManagerWindow : Window
     public ManagerWindow()
     {
         InitializeComponent();
+        WindowAumid.Apply(WindowNative.GetWindowHandle(this), WindowAumid.AppId);
         PinsList.ItemsSource = _pins;
         LoadExistingShortcuts();
         AppWindow.Resize(new Windows.Graphics.SizeInt32(720, 560));
+        Activated += OnActivated;
+    }
+
+    private void OnActivated(object sender, WindowActivatedEventArgs e)
+    {
+        // Актуализируем список при каждом возврате к окну:
+        // ярлыки и папки могли удалить, пока менеджер был в фоне
+        if (e.WindowActivationState != WindowActivationState.Deactivated)
+            LoadExistingShortcuts();
     }
 
     private void LoadExistingShortcuts()
@@ -38,10 +48,14 @@ public sealed partial class ManagerWindow : Window
 
         foreach (var lnk in Directory.EnumerateFiles(ShortcutsDir, "*.lnk"))
         {
+            // Показываем только ярлыки, чья целевая папка существует на диске
+            var folder = ShortcutFactory.ReadFolderFromShortcut(lnk);
+            if (folder is null || !Directory.Exists(folder)) continue;
+
             _pins.Add(new PinInfo
             {
                 Name = Path.GetFileNameWithoutExtension(lnk),
-                Folder = "(ярлык создан ранее)",
+                Folder = folder,
                 Lnk = lnk
             });
         }

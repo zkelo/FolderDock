@@ -18,6 +18,7 @@ public sealed partial class PopupWindow : Window
     private readonly PopupChrome _chrome;
     private readonly ThumbnailLoader _thumbnails = new();
     private readonly ObservableCollection<FolderEntry> _entries = new();
+    private readonly Stack<string> _navigationStack = new();
 
     private string? _currentFolder;
     private bool _gridMode = true;
@@ -48,6 +49,10 @@ public sealed partial class PopupWindow : Window
     public void ShowForFolder(string folder)
     {
         _currentFolder = Path.GetFullPath(folder);
+        _navigationStack.Clear();
+        // Идентичность окна на панели задач — закреплённая (корневая) папка,
+        // навигация внутрь вложенных папок её не меняет
+        WindowAumid.Apply(_chrome.Hwnd, FolderAumid.For(_currentFolder));
         SetTitle(_currentFolder);
         Reload();
         _shownAt = DateTime.UtcNow;
@@ -85,6 +90,10 @@ public sealed partial class PopupWindow : Window
             _entries.Add(entry);
 
         EmptyText.Visibility = entries.Count == 0
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+
+        BackButton.Visibility = _navigationStack.Count > 0
             ? Visibility.Visible
             : Visibility.Collapsed;
 
@@ -133,6 +142,8 @@ public sealed partial class PopupWindow : Window
     {
         if (entry.IsDirectory)
         {
+            if (_currentFolder is not null)
+                _navigationStack.Push(_currentFolder);
             _currentFolder = entry.FullPath;
             TitleText.Text = entry.Name;
             Reload();
@@ -140,6 +151,14 @@ public sealed partial class PopupWindow : Window
         }
         Shell.Open(entry.FullPath);
         Dismiss();
+    }
+
+    private void OnNavigateBack(object sender, RoutedEventArgs e)
+    {
+        if (_navigationStack.Count == 0) return;
+        _currentFolder = _navigationStack.Pop();
+        SetTitle(_currentFolder);
+        Reload();
     }
 
     private async void OnDragItemsStarting(object sender, DragItemsStartingEventArgs e)
