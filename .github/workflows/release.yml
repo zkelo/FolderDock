@@ -70,9 +70,9 @@ jobs:
         run: |
           $v = "${{ steps.semver.outputs.new_version }}"
           iscc installer\FolderDock.iss /DVersion=$v /DArch=x64 `
-            /DSourceDir="bin\x64\Release\$env:TFM\win-x64\publish"
+            /DSourceDir="$env:GITHUB_WORKSPACE\bin\x64\Release\$env:TFM\win-x64\publish"
           iscc installer\FolderDock.iss /DVersion=$v /DArch=arm64 `
-            /DSourceDir="bin\ARM64\Release\$env:TFM\win-arm64\publish"
+            /DSourceDir="$env:GITHUB_WORKSPACE\bin\ARM64\Release\$env:TFM\win-arm64\publish"
 
       - name: Create tag
         id: tag
