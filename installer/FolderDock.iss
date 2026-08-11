@@ -38,6 +38,9 @@ AllowNoIcons=yes
 ; Лицензия (MIT) — страница принятия лицензии
 LicenseFile=..\LICENSE
 
+; Иконка самого установщика (у установленного exe — своя, вкомпилированная)
+SetupIconFile=..\Assets\FolderDock.ico
+
 OutputDir=..
 OutputBaseFilename=FolderDock-Setup-{#Version}-{#Arch}
 Compression=lzma2

@@ -27,10 +27,22 @@ public sealed partial class ManagerWindow : Window
     {
         InitializeComponent();
         WindowAumid.Apply(WindowNative.GetWindowHandle(this), WindowAumid.AppId);
+        SetAppIcon();
         PinsList.ItemsSource = _pins;
         LoadExistingShortcuts();
         AppWindow.Resize(new Windows.Graphics.SizeInt32(720, 560));
         Activated += OnActivated;
+    }
+
+    private void SetAppIcon()
+    {
+        // Иконка заголовка/панели задач: .ico лежит рядом с exe (Content copy)
+        try
+        {
+            var ico = Path.Combine(AppContext.BaseDirectory, "Assets", "FolderDock.ico");
+            if (File.Exists(ico)) AppWindow.SetIcon(ico);
+        }
+        catch { }
     }
 
     private void OnActivated(object sender, WindowActivatedEventArgs e)
