@@ -16,6 +16,7 @@ Folders on the Windows 11 taskbar — like the macOS Dock. Click a pinned folder
 - Click outside the window → popup closes (flyout behavior).
 - Click the icon again → toggle (close).
 - The manager shows only pins that still exist: shortcuts whose target folder was deleted are filtered out on every window activation.
+- **Updates from GitHub Releases**: a "Check for updates" button and an auto-check-on-launch toggle (stored in `%LOCALAPPDATA%\FolderDock\settings.json`). When a newer version is found, the app offers to download the installer for your architecture and runs a silent upgrade.
 - Launching from the app's own shortcut (Start Menu) keeps its own taskbar identity — it never masquerades as one of the pinned folders.
 - Dark/light theme — follows the system. Win11 rounded corners, always on top, hidden from Alt-Tab.
 - Single-instance: repeated launches are redirected to the running instance (AppInstance redirect).
@@ -79,6 +80,8 @@ Pin as many folders as you like — each one gets its own icon.
 | `ManagerWindow.xaml(.cs)` | Manager: adding folders, creating shortcuts, filtering dead pins |
 | `PinInfo.cs` | Manager list row model |
 | `AppInfo.cs` | Version, build timestamp, repository URL for the UI |
+| `Settings.cs` | JSON settings in `%LOCALAPPDATA%\FolderDock` |
+| `UpdateService.cs` | Update check via GitHub Releases API, installer download |
 | `ShortcutFactory.cs` | COM IShellLink + IPropertyStore: .lnk with AUMID, reading args back |
 | `FolderAumid.cs` | AppUserModelID from a folder path |
 | `WindowAumid.cs` | Per-window AUMID via SHGetPropertyStoreForWindow |

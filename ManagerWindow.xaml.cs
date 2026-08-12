@@ -15,6 +15,8 @@ public sealed partial class ManagerWindow : Window
     private const int DefaultHeight = 560;
 
     private readonly ObservableCollection<PinInfo> _pins = new();
+    private readonly Settings _settings = Settings.Load();
+    private bool _updateCheckRunning;
 
     private static string ShortcutsDir => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
@@ -26,10 +28,102 @@ public sealed partial class ManagerWindow : Window
         WindowAumid.Apply(WindowNative.GetWindowHandle(this), WindowAumid.AppId);
         SetAppIcon();
         ApplyAppInfo();
+        ApplySettings();
         PinsList.ItemsSource = _pins;
         LoadExistingShortcuts();
         AppWindow.Resize(new Windows.Graphics.SizeInt32(DefaultWidth, DefaultHeight));
         Activated += OnActivated;
+
+        if (_settings.AutoCheckUpdates)
+            _ = CheckForUpdatesAsync(silentWhenUpToDate: true);
+    }
+
+    private void ApplySettings()
+    {
+        // Toggled подписан в XAML и сработает на этой установке IsOn,
+        // но запишет то же самое значение — безвредно
+        AutoUpdateToggle.IsOn = _settings.AutoCheckUpdates;
+    }
+
+    private void OnAutoUpdateToggled(object sender, RoutedEventArgs e)
+    {
+        if (_settings.AutoCheckUpdates == AutoUpdateToggle.IsOn) return;
+        _settings.AutoCheckUpdates = AutoUpdateToggle.IsOn;
+        _settings.Save();
+    }
+
+    private async void OnCheckUpdates(object sender, RoutedEventArgs e) =>
+        await CheckForUpdatesAsync(silentWhenUpToDate: false);
+
+    private async Task CheckForUpdatesAsync(bool silentWhenUpToDate)
+    {
+        if (_updateCheckRunning) return;
+        _updateCheckRunning = true;
+        CheckUpdatesButton.IsEnabled = false;
+        ShowUpdateStatus("Проверка обновлений…");
+        try
+        {
+            var result = await UpdateService.CheckAsync();
+
+            if (result.Error is not null)
+            {
+                ShowUpdateStatus(result.Error);
+                if (!silentWhenUpToDate)
+                    await ShowDialogAsync("Проверка обновлений", result.Error);
+                return;
+            }
+
+            if (!result.UpdateAvailable)
+            {
+                ShowUpdateStatus($"Установлена последняя версия (v{AppInfo.Version})");
+                if (!silentWhenUpToDate)
+                    await ShowDialogAsync("Проверка обновлений",
+                        $"У вас последняя версия — v{AppInfo.Version}.");
+                return;
+            }
+
+            ShowUpdateStatus($"Доступна версия v{result.LatestVersion}");
+            await OfferUpdateAsync(result);
+        }
+        finally
+        {
+            _updateCheckRunning = false;
+            CheckUpdatesButton.IsEnabled = true;
+        }
+    }
+
+    private async Task OfferUpdateAsync(UpdateCheckResult update)
+    {
+        var dialog = new ContentDialog
+        {
+            Title = "Доступно обновление",
+            Content = $"Вышла версия v{update.LatestVersion} (у вас v{AppInfo.Version}).\n\n" +
+                      "Скачать и установить? Приложение будет перезапущено.",
+            PrimaryButtonText = "Обновить",
+            CloseButtonText = "Позже",
+            DefaultButton = ContentDialogButton.Primary,
+            XamlRoot = Content.XamlRoot
+        };
+        if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
+
+        ShowUpdateStatus($"Скачивание v{update.LatestVersion}…");
+        try
+        {
+            await UpdateService.DownloadAndInstallAsync(update);
+            // Установщик убьёт процесс сам (taskkill в PrepareToInstall)
+            ShowUpdateStatus("Установка запущена…");
+        }
+        catch (Exception ex)
+        {
+            ShowUpdateStatus("Не удалось скачать обновление");
+            await ShowDialogAsync("Ошибка обновления", ex.Message);
+        }
+    }
+
+    private void ShowUpdateStatus(string text)
+    {
+        UpdateStatusText.Text = text;
+        UpdateStatusText.Visibility = Visibility.Visible;
     }
 
     private void ApplyAppInfo()
