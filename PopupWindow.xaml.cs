@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
-using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Windows.ApplicationModel.DataTransfer;
@@ -12,51 +11,65 @@ namespace FolderDock;
 
 public sealed partial class PopupWindow : Window
 {
+    /// Показ ранее 300 мс: SetForegroundWindow из фонового процесса может быть
+    /// отклонён Windows → ложный Deactivated сразу после Show.
     private static readonly TimeSpan DismissGracePeriod = TimeSpan.FromMilliseconds(300);
-    private static readonly TimeSpan ToggleWindow = TimeSpan.FromMilliseconds(600);
+
+    /// Дебаунс повторного клика по значку: light-dismiss прячет попап ДО того,
+    /// как придёт перенаправленная активация, иначе toggle мгновенно переоткрывает.
+    private static readonly TimeSpan ToggleDebounceInterval = TimeSpan.FromMilliseconds(600);
+
+    // Segoe Fluent Icons; дублируют стартовые Glyph в PopupWindow.xaml
+    private const string GridModeGlyph = "\uE8FD"; // ViewAll (сетка)
+    private const string ListModeGlyph = "\uE80A"; // ViewList (список)
 
     private readonly PopupChrome _chrome;
+    private readonly ShareCoordinator _share;
     private readonly ThumbnailLoader _thumbnails = new();
     private readonly ObservableCollection<FolderEntry> _entries = new();
     private readonly Stack<string> _navigationStack = new();
 
+    /// Закреплённая (корневая) папка попапа. Задаёт идентичность окна на панели
+    /// задач и участвует в toggle-логике; навигация вглубь её НЕ меняет.
+    private string? _rootFolder;
+
+    /// Папка, содержимое которой сейчас показано (меняется при навигации).
     private string? _currentFolder;
+
     private bool _gridMode = true;
+    private bool _isActive;
     private string? _lastDismissedFolder;
     private DateTime _lastDismissedAt;
     private DateTime _shownAt;
-
-    private DataTransferManager? _shareManager;
-    private FolderEntry? _shareEntry;
-    private bool _shareInProgress;
 
     public PopupWindow()
     {
         InitializeComponent();
         _chrome = new PopupChrome(this);
+        _share = new ShareCoordinator(_chrome, shareFinished: HideIfInactive);
         ItemsGrid.ItemsSource = _entries;
         ItemsList.ItemsSource = _entries;
         Activated += OnActivationChanged;
     }
 
     public bool IsOpenFor(string folder) =>
-        _chrome.IsVisible && PathsEqual(_currentFolder, folder);
+        _chrome.IsVisible && PathsEqual(_rootFolder, folder);
 
     public bool WasJustDismissed(string folder) =>
         PathsEqual(_lastDismissedFolder, folder) &&
-        DateTime.UtcNow - _lastDismissedAt < ToggleWindow;
+        DateTime.UtcNow - _lastDismissedAt < ToggleDebounceInterval;
 
     public void ShowForFolder(string folder)
     {
-        _currentFolder = Path.GetFullPath(folder);
+        _rootFolder = Path.GetFullPath(folder);
+        _currentFolder = _rootFolder;
         _navigationStack.Clear();
-        // Идентичность окна на панели задач — закреплённая (корневая) папка,
-        // навигация внутрь вложенных папок её не меняет
-        WindowAumid.Apply(_chrome.Hwnd, FolderAumid.For(_currentFolder));
+        // Идентичность окна на панели задач — закреплённая (корневая) папка
+        WindowAumid.Apply(_chrome.Hwnd, FolderAumid.For(_rootFolder));
         // Привязка к точке клика по значку панели задач: последующие Reload
         // (навигация по папкам) не должны двигать окно за курсором
         _chrome.AnchorToCursor();
-        SetTitle(_currentFolder);
+        SetTitle(_rootFolder);
         Reload();
         _shownAt = DateTime.UtcNow;
         _chrome.Show();
@@ -67,9 +80,12 @@ public sealed partial class PopupWindow : Window
     {
         if (_chrome.IsVisible)
         {
-            _lastDismissedFolder = _currentFolder;
+            // Для toggle-дебаунса запоминаем КОРНЕВУЮ папку: повторный клик
+            // по значку приходит с ней, даже если внутри попапа ушли вглубь
+            _lastDismissedFolder = _rootFolder;
             _lastDismissedAt = DateTime.UtcNow;
         }
+        _thumbnails.CancelPending(); // не грузим миниатюры скрытому окну
         _chrome.Hide();
     }
 
@@ -88,51 +104,66 @@ public sealed partial class PopupWindow : Window
         _entries.Clear();
         if (_currentFolder is null) return;
 
-        var entries = FolderReader.Read(_currentFolder);
-        foreach (var entry in entries)
+        var contents = FolderReader.Read(_currentFolder);
+        foreach (var entry in contents.Entries)
             _entries.Add(entry);
 
-        EmptyText.Visibility = entries.Count == 0
-            ? Visibility.Visible
-            : Visibility.Collapsed;
+        UpdateEmptyState(contents);
 
         BackButton.Visibility = _navigationStack.Count > 0
             ? Visibility.Visible
             : Visibility.Collapsed;
 
-        _ = _thumbnails.LoadAsync(entries);
-        ResizeToFit(entries.Count);
+        // Fire-and-forget осознанно: LoadAsync глотает ошибки по-элементно
+        // и отменяется следующим вызовом / Dismiss
+        _ = _thumbnails.LoadAsync(contents.Entries);
+        ResizeToFit(contents.Entries.Count);
         _chrome.MoveToTaskbarArea();
+    }
+
+    private void UpdateEmptyState(FolderContents contents)
+    {
+        EmptyText.Text = contents.Failed ? "Нет доступа к папке" : "Папка пуста";
+        EmptyText.Visibility = contents.Entries.Count == 0
+            ? Visibility.Visible
+            : Visibility.Collapsed;
     }
 
     private void ResizeToFit(int count)
     {
-        var (width, height) = _gridMode
-            ? GridDimensions(count)
-            : ListDimensions(count);
+        var (width, height) = PopupLayout.Measure(count, _gridMode);
         var scale = _chrome.Scale;
         _chrome.Resize((int)(width * scale), (int)(height * scale));
     }
 
-    private static (int Width, int Height) GridDimensions(int count)
-    {
-        var columns = Math.Clamp((int)Math.Ceiling(Math.Sqrt(Math.Max(count, 1))), 3, 6);
-        var rows = Math.Clamp((int)Math.Ceiling(count / (double)columns), 1, 5);
-        return (columns * 100 + 40, rows * 96 + 60);
-    }
-
-    private static (int Width, int Height) ListDimensions(int count) =>
-        (340, Math.Clamp(count, 1, 14) * 36 + 60);
-
     private void OnActivationChanged(object sender, WindowActivatedEventArgs e)
     {
         var deactivated = e.WindowActivationState == WindowActivationState.Deactivated;
+        _isActive = !deactivated;
 
-        if (deactivated && !_shareInProgress && DateTime.UtcNow - _shownAt > DismissGracePeriod)
+        if (deactivated && !_share.IsShareInProgress &&
+            DateTime.UtcNow - _shownAt > DismissGracePeriod)
             Dismiss();
 
         if (!deactivated)
-            _shareInProgress = false;
+            _share.Reset();
+    }
+
+    private void HideIfInactive()
+    {
+        // Share завершён (панель закрыта / данные переданы): если фокус так и
+        // не вернулся к попапу, не оставляем always-on-top окно на экране
+        DispatchToUi(() =>
+        {
+            if (!_isActive && _chrome.IsVisible)
+                Dismiss();
+        });
+    }
+
+    private void DispatchToUi(Action action)
+    {
+        if (DispatcherQueue.HasThreadAccess) action();
+        else DispatcherQueue.TryEnqueue(() => action());
     }
 
     private void OnItemClick(object sender, ItemClickEventArgs e)
@@ -164,23 +195,17 @@ public sealed partial class PopupWindow : Window
         Reload();
     }
 
-    private async void OnDragItemsStarting(object sender, DragItemsStartingEventArgs e)
+    private void OnDragItemsStarting(object sender, DragItemsStartingEventArgs e)
     {
-        try
-        {
-            var entries = e.Items.OfType<FolderEntry>().ToList();
-            var items = await TypedDataPackage.ResolveStorageItemsAsync(entries);
-            if (items.Count == 0)
-            {
-                e.Cancel = true;
-                return;
-            }
-            TypedDataPackage.Fill(e.Data, entries, items);
-        }
-        catch
+        // Событие синхронное: e.Data заполняется до первого await,
+        // иначе драг стартует с пустым пакетом (см. TypedDataPackage.FillForDrag)
+        var entries = e.Items.OfType<FolderEntry>().ToList();
+        if (entries.Count == 0)
         {
             e.Cancel = true;
+            return;
         }
+        TypedDataPackage.FillForDrag(e.Data, entries);
     }
 
     private static FolderEntry? EntryFrom(object sender) =>
@@ -204,58 +229,18 @@ public sealed partial class PopupWindow : Window
             Clipboard.SetContent(package);
             Clipboard.Flush();
         }
-        catch { }
+        catch
+        {
+            // Буфер занят другим приложением или файл исчез — сообщаем,
+            // а не делаем вид, что скопировалось
+            TitleText.Text = "Не удалось скопировать";
+        }
     }
 
     private void OnShareItem(object sender, RoutedEventArgs e)
     {
         if (EntryFrom(sender) is not { } entry) return;
-
-        _shareEntry = entry;
-        _shareInProgress = true;
-        try
-        {
-            if (_shareManager is null)
-            {
-                _shareManager = _chrome.GetShareManager();
-                _shareManager.DataRequested += OnShareDataRequested;
-            }
-            _chrome.ShowShareUI();
-        }
-        catch
-        {
-            _shareInProgress = false;
-        }
-    }
-
-    private void OnShareDataRequested(DataTransferManager sender, DataRequestedEventArgs args)
-    {
-        if (_shareEntry is not { } entry)
-        {
-            args.Request.FailWithDisplayText("Нет элемента для отправки");
-            return;
-        }
-        var deferral = args.Request.GetDeferral();
-        _ = FillShareRequestAsync(args.Request, entry, deferral);
-    }
-
-    private static async Task FillShareRequestAsync(
-        DataRequest request, FolderEntry entry, DataRequestDeferral deferral)
-    {
-        try
-        {
-            var entries = new List<FolderEntry> { entry };
-            var items = await TypedDataPackage.ResolveStorageItemsAsync(entries);
-            TypedDataPackage.Fill(request.Data, entries, items);
-        }
-        catch (Exception ex)
-        {
-            request.FailWithDisplayText(ex.Message);
-        }
-        finally
-        {
-            deferral.Complete();
-        }
+        _share.Share(entry);
     }
 
     private void OnRevealItem(object sender, RoutedEventArgs e)
@@ -270,7 +255,7 @@ public sealed partial class PopupWindow : Window
         _gridMode = !_gridMode;
         ItemsGrid.Visibility = _gridMode ? Visibility.Visible : Visibility.Collapsed;
         ItemsList.Visibility = _gridMode ? Visibility.Collapsed : Visibility.Visible;
-        ViewToggleIcon.Glyph = _gridMode ? "\uE8FD" : "\uE80A";
+        ViewToggleIcon.Glyph = _gridMode ? GridModeGlyph : ListModeGlyph;
         ResizeToFit(_entries.Count);
         _chrome.MoveToTaskbarArea();
     }

@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 
@@ -9,7 +8,7 @@ public static class FolderReader
 {
     private const int MaxEntries = 500;
 
-    public static IReadOnlyList<FolderEntry> Read(string folder)
+    public static FolderContents Read(string folder)
     {
         try
         {
@@ -18,16 +17,22 @@ public static class FolderReader
             var files = Directory.EnumerateFiles(folder)
                 .Select(path => FolderEntry.File(path));
 
-            return directories.Concat(files)
+            var entries = directories.Concat(files)
                 .Where(entry => !IsHidden(entry.FullPath))
                 .OrderByDescending(entry => entry.IsDirectory)
                 .ThenBy(entry => entry.Name, StringComparer.CurrentCultureIgnoreCase)
                 .Take(MaxEntries)
                 .ToArray();
+
+            return new FolderContents(entries, Failed: false);
         }
-        catch
+        catch (Exception ex) when (ex is UnauthorizedAccessException
+                                       or IOException
+                                       or ArgumentException)
         {
-            return Array.Empty<FolderEntry>();
+            // Нет доступа / диск отключён / кривой путь: UI должен показать
+            // «Нет доступа», а не вводящее в заблуждение «Папка пуста»
+            return FolderContents.Error;
         }
     }
 
@@ -35,10 +40,12 @@ public static class FolderReader
     {
         try
         {
-            return (File.GetAttributes(path) & System.IO.FileAttributes.Hidden) != 0;
+            return (File.GetAttributes(path) & FileAttributes.Hidden) != 0;
         }
         catch
         {
+            // Атрибуты не читаются (гонка удаления, права) — считаем видимым,
+            // лучше показать лишний элемент, чем молча скрыть существующий
             return false;
         }
     }

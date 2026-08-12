@@ -1,6 +1,7 @@
 using System;
 using System.Collections.ObjectModel;
 using System.IO;
+using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Windows.Storage.Pickers;
@@ -8,15 +9,11 @@ using WinRT.Interop;
 
 namespace FolderDock;
 
-public sealed class PinInfo
-{
-    public required string Name { get; init; }
-    public required string Folder { get; init; }
-    public required string Lnk { get; init; }
-}
-
 public sealed partial class ManagerWindow : Window
 {
+    private const int DefaultWidth = 720;
+    private const int DefaultHeight = 560;
+
     private readonly ObservableCollection<PinInfo> _pins = new();
 
     private static string ShortcutsDir => Path.Combine(
@@ -30,19 +27,22 @@ public sealed partial class ManagerWindow : Window
         SetAppIcon();
         PinsList.ItemsSource = _pins;
         LoadExistingShortcuts();
-        AppWindow.Resize(new Windows.Graphics.SizeInt32(720, 560));
+        AppWindow.Resize(new Windows.Graphics.SizeInt32(DefaultWidth, DefaultHeight));
         Activated += OnActivated;
     }
 
     private void SetAppIcon()
     {
-        // Иконка заголовка/панели задач: .ico лежит рядом с exe (Content copy)
         try
         {
+            // Иконка заголовка/панели задач: .ico лежит рядом с exe (Content copy)
             var ico = Path.Combine(AppContext.BaseDirectory, "Assets", "FolderDock.ico");
             if (File.Exists(ico)) AppWindow.SetIcon(ico);
         }
-        catch { }
+        catch
+        {
+            // Иконка — украшение; окно полноценно работает и без неё
+        }
     }
 
     private void OnActivated(object sender, WindowActivatedEventArgs e)
@@ -64,12 +64,7 @@ public sealed partial class ManagerWindow : Window
             var folder = ShortcutFactory.ReadFolderFromShortcut(lnk);
             if (folder is null || !Directory.Exists(folder)) continue;
 
-            _pins.Add(new PinInfo
-            {
-                Name = Path.GetFileNameWithoutExtension(lnk),
-                Folder = folder,
-                Lnk = lnk
-            });
+            _pins.Add(PinInfo.FromShortcut(lnk, folder));
         }
     }
 
@@ -81,12 +76,7 @@ public sealed partial class ManagerWindow : Window
         try
         {
             var lnk = ShortcutFactory.CreateFolderShortcut(folder, ShortcutsDir);
-            _pins.Add(new PinInfo
-            {
-                Name = Path.GetFileNameWithoutExtension(lnk),
-                Folder = folder,
-                Lnk = lnk
-            });
+            _pins.Add(PinInfo.FromShortcut(lnk, folder));
             Shell.RevealInExplorer(lnk);
             await ShowDialogAsync("Ярлык создан",
                 "В открывшемся Проводнике: ПКМ по ярлыку → «Показать дополнительные параметры» → " +
@@ -99,7 +89,7 @@ public sealed partial class ManagerWindow : Window
         }
     }
 
-    private async System.Threading.Tasks.Task<string?> PickFolderAsync()
+    private async Task<string?> PickFolderAsync()
     {
         var picker = new FolderPicker();
         picker.FileTypeFilter.Add("*");
@@ -109,7 +99,7 @@ public sealed partial class ManagerWindow : Window
         return folder?.Path;
     }
 
-    private async System.Threading.Tasks.Task ShowDialogAsync(string title, string message)
+    private async Task ShowDialogAsync(string title, string message)
     {
         var dialog = new ContentDialog
         {

@@ -9,8 +9,17 @@ namespace FolderDock;
 
 public sealed class PopupChrome
 {
+    /// Отступ окна от краёв рабочей области.
+    private const int ScreenEdgeMargin = 8;
+
+    /// Зазор между нижним краем попапа и панелью задач.
+    private const int TaskbarGap = 12;
+
     public IntPtr Hwnd { get; }
     public AppWindow AppWindow { get; }
+
+    /// Точка привязки попапа (клик по значку панели задач); null до первого показа.
+    private Windows.Graphics.PointInt32? _anchor;
 
     public PopupChrome(Window window)
     {
@@ -51,10 +60,11 @@ public sealed class PopupChrome
         var workArea = DisplayArea.GetFromPoint(anchor, DisplayAreaFallback.Nearest).WorkArea;
         var size = AppWindow.Size;
 
-        var minX = workArea.X + 8;
-        var maxX = Math.Max(minX, workArea.X + workArea.Width - size.Width - 8);
+        var minX = workArea.X + ScreenEdgeMargin;
+        var maxX = Math.Max(minX, workArea.X + workArea.Width - size.Width - ScreenEdgeMargin);
         var x = Math.Clamp(anchor.X - size.Width / 2, minX, maxX);
-        var y = Math.Max(workArea.Y + 8, workArea.Y + workArea.Height - size.Height - 12);
+        var y = Math.Max(workArea.Y + ScreenEdgeMargin,
+                         workArea.Y + workArea.Height - size.Height - TaskbarGap);
 
         AppWindow.Move(new Windows.Graphics.PointInt32(x, y));
     }
@@ -62,8 +72,6 @@ public sealed class PopupChrome
     /// Зафиксировать точку привязки попапа по текущей позиции курсора.
     /// Вызывать при показе (клик по значку панели задач), до Reload.
     public void AnchorToCursor() => _anchor = CursorPoint();
-
-    private Windows.Graphics.PointInt32? _anchor;
 
     private static Windows.Graphics.PointInt32 CursorPoint()
     {
@@ -76,7 +84,16 @@ public sealed class PopupChrome
         var interop = DataTransferManager.As<Native.IDataTransferManagerInterop>();
         var iid = Native.DataTransferManagerIid;
         var abi = interop.GetForWindow(Hwnd, ref iid);
-        return WinRT.MarshalInterface<DataTransferManager>.FromAbi(abi);
+        try
+        {
+            return WinRT.MarshalInterface<DataTransferManager>.FromAbi(abi);
+        }
+        finally
+        {
+            // GetForWindow возвращает указатель с ref-count +1; FromAbi
+            // делает собственный AddRef и владение не забирает
+            System.Runtime.InteropServices.Marshal.Release(abi);
+        }
     }
 
     public void ShowShareUI()

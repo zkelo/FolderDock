@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace FolderDock;
 
@@ -18,25 +19,36 @@ public static class CommandLine
     {
         if (string.IsNullOrWhiteSpace(commandLine)) return null;
 
-        var index = commandLine.IndexOf(FolderOption, StringComparison.OrdinalIgnoreCase);
-        if (index < 0) return null;
-
-        var value = commandLine[(index + FolderOption.Length)..].Trim();
-        if (value.Length == 0) return null;
-
-        return CleanPath(value.StartsWith('"') ? TakeQuoted(value) : TakeUntilSpace(value));
+        // Токенизируем, а не ищем подстроку по всей строке: "--folder"
+        // внутри пути к exe не должен давать ложное срабатывание
+        return FolderFrom(Tokenize(commandLine));
     }
 
-    private static string TakeQuoted(string value)
+    private static string[] Tokenize(string commandLine)
     {
-        var closing = value.IndexOf('"', 1);
-        return closing > 1 ? value[1..closing] : value.Trim('"');
-    }
+        var tokens = new List<string>();
+        var index = 0;
+        while (index < commandLine.Length)
+        {
+            while (index < commandLine.Length && commandLine[index] == ' ') index++;
+            if (index >= commandLine.Length) break;
 
-    private static string TakeUntilSpace(string value)
-    {
-        var space = value.IndexOf(' ');
-        return space < 0 ? value : value[..space];
+            if (commandLine[index] == '"')
+            {
+                var closing = commandLine.IndexOf('"', index + 1);
+                if (closing < 0) closing = commandLine.Length;
+                tokens.Add(commandLine[(index + 1)..closing]);
+                index = closing + 1;
+            }
+            else
+            {
+                var space = commandLine.IndexOf(' ', index);
+                if (space < 0) space = commandLine.Length;
+                tokens.Add(commandLine[index..space]);
+                index = space;
+            }
+        }
+        return tokens.ToArray();
     }
 
     private static string? CleanPath(string raw)

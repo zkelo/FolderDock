@@ -8,6 +8,12 @@ namespace FolderDock;
 
 public static class ShortcutFactory
 {
+    /// imageres.dll, индекс 3 — стандартная жёлтая папка Windows.
+    private const int FolderIconIndex = 3;
+
+    /// Максимальная читаемая длина строки аргументов ярлыка.
+    private const int MaxArgumentsLength = 1024;
+
     public static string CreateFolderShortcut(string folderPath, string outputDir)
     {
         Directory.CreateDirectory(outputDir);
@@ -24,7 +30,7 @@ public static class ShortcutFactory
         link.SetArguments($"--folder \"{argumentPath}\"");
         link.SetWorkingDirectory(Path.GetDirectoryName(exe)!);
         link.SetDescription($"FolderDock: {folderPath}");
-        link.SetIconLocation(SystemLibrary("imageres.dll"), 3);
+        link.SetIconLocation(SystemLibrary("imageres.dll"), FolderIconIndex);
 
         WriteAumid(link, FolderAumid.For(folderPath));
         ((IPersistFile)link).Save(lnkPath, true);
@@ -39,7 +45,7 @@ public static class ShortcutFactory
         {
             var link = (IShellLinkW)new CShellLink();
             ((IPersistFile)link).Load(lnkPath, 0 /* STGM_READ */);
-            var args = new StringBuilder(1024);
+            var args = new StringBuilder(MaxArgumentsLength);
             link.GetArguments(args, args.Capacity);
             return CommandLine.FolderFrom(args.ToString());
         }

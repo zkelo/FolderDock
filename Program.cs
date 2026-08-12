@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.UI.Dispatching;
@@ -50,12 +51,15 @@ public static class Program
     private static void ForwardActivation(AppInstance mainInstance)
     {
         var activation = AppInstance.GetCurrent().GetActivatedEventArgs();
+        // SemaphoreSlim намеренно не в using: при таймауте фоновый Release
+        // сработал бы по задиспоженному объекту (ObjectDisposedException)
         var completed = new SemaphoreSlim(0, 1);
         Task.Run(async () =>
         {
             try { await mainInstance.RedirectActivationToAsync(activation); }
             finally { completed.Release(); }
         });
-        completed.Wait(RedirectTimeout);
+        if (!completed.Wait(RedirectTimeout))
+            Debug.WriteLine("FolderDock: activation redirect timed out, click is lost");
     }
 }

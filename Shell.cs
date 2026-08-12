@@ -10,7 +10,11 @@ public static class Shell
         {
             Process.Start(new ProcessStartInfo { FileName = path, UseShellExecute = true });
         }
-        catch { }
+        catch
+        {
+            // Ассоциация сломана или файл удалён между показом и кликом;
+            // shell сам показывает свой диалог ошибки в большинстве случаев
+        }
     }
 
     public static void OpenFolder(string folder) =>
@@ -30,6 +34,10 @@ public static class Shell
                 UseShellExecute = true
             });
         }
-        catch { }
+        catch
+        {
+            // explorer.exe недоступен только в сильно урезанных средах;
+            // падать из-за вспомогательного действия не стоит
+        }
     }
 }
