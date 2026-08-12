@@ -65,15 +65,19 @@ dotnet publish -c Release -r win-x64 -p:Platform=x64
 | Файл | Назначение |
 |---|---|
 | `Program.cs` | Точка входа: single-instance, redirect активаций, AUMID процесса |
-| `CommandLine.cs` | Разбор `--folder` из аргументов |
+| `CommandLine.cs` | Токенизация `--folder` из аргументов |
 | `App.xaml(.cs)` | Роутинг активаций: popup или менеджер |
-| `PopupWindow.xaml(.cs)` | Всплывающее окно: события UI, toggle, Share, навигация назад |
+| `PopupWindow.xaml(.cs)` | Всплывающее окно: события UI, toggle, навигация назад |
 | `PopupChrome.cs` | Оформление окна: presenter, DWM, позиционирование, Share interop |
+| `PopupLayout.cs` | Чистая математика размеров попапа (константы связаны с XAML) |
+| `ShareCoordinator.cs` | Поток Share: DataTransferManager, состояние, защита light-dismiss |
 | `FolderEntry.cs` | Модель элемента папки |
+| `FolderContents.cs` | Результат чтения: элементы + признак ошибки доступа |
 | `FolderReader.cs` | Чтение содержимого папки |
-| `ThumbnailLoader.cs` | Асинхронные миниатюры Проводника |
-| `TypedDataPackage.cs` | DataPackage: Bitmap/Text/StorageItems по типу файла |
+| `ThumbnailLoader.cs` | Асинхронные миниатюры Проводника (с отменой) |
+| `TypedDataPackage.cs` | DataPackage: Bitmap/Text/StorageItems; синхронное заполнение для драга |
 | `ManagerWindow.xaml(.cs)` | Менеджер: добавление папок, ярлыки, фильтрация «мёртвых» закреплений |
+| `PinInfo.cs` | Модель строки списка менеджера |
 | `ShortcutFactory.cs` | COM IShellLink + IPropertyStore: .lnk с AUMID, чтение аргументов |
 | `FolderAumid.cs` | AppUserModelID из пути папки |
 | `WindowAumid.cs` | AUMID уровня окна через SHGetPropertyStoreForWindow |

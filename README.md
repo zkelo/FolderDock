@@ -65,15 +65,19 @@ Pin as many folders as you like — each one gets its own icon.
 | File | Purpose |
 |---|---|
 | `Program.cs` | Entry point: single-instance, activation redirect, process AUMID |
-| `CommandLine.cs` | Parsing `--folder` from arguments |
+| `CommandLine.cs` | Tokenizing `--folder` from arguments |
 | `App.xaml(.cs)` | Activation routing: popup or manager |
-| `PopupWindow.xaml(.cs)` | Popup window: UI events, toggle, Share, back navigation |
+| `PopupWindow.xaml(.cs)` | Popup window: UI events, toggle, back navigation |
 | `PopupChrome.cs` | Window chrome: presenter, DWM, positioning, Share interop |
+| `PopupLayout.cs` | Pure popup size math (constants tied to XAML templates) |
+| `ShareCoordinator.cs` | Share flow: DataTransferManager, state, light-dismiss guard |
 | `FolderEntry.cs` | Folder item model |
+| `FolderContents.cs` | Read result: entries + access-failure flag |
 | `FolderReader.cs` | Reading folder contents |
-| `ThumbnailLoader.cs` | Async Explorer thumbnails |
-| `TypedDataPackage.cs` | DataPackage: Bitmap/Text/StorageItems by file type |
+| `ThumbnailLoader.cs` | Async Explorer thumbnails (cancellable) |
+| `TypedDataPackage.cs` | DataPackage: Bitmap/Text/StorageItems; sync fill for drag |
 | `ManagerWindow.xaml(.cs)` | Manager: adding folders, creating shortcuts, filtering dead pins |
+| `PinInfo.cs` | Manager list row model |
 | `ShortcutFactory.cs` | COM IShellLink + IPropertyStore: .lnk with AUMID, reading args back |
 | `FolderAumid.cs` | AppUserModelID from a folder path |
 | `WindowAumid.cs` | Per-window AUMID via SHGetPropertyStoreForWindow |
