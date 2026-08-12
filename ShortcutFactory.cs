@@ -23,7 +23,7 @@ public static class ShortcutFactory
 
         var lnkPath = UniqueShortcutPath(folderPath, argumentPath, outputDir);
         var exe = Environment.ProcessPath
-                  ?? throw new InvalidOperationException("Не удалось определить путь к исполняемому файлу");
+                  ?? throw new InvalidOperationException(Loc.Get("Exe_PathError"));
 
         var link = (IShellLinkW)new CShellLink();
         link.SetPath(exe);
@@ -60,7 +60,7 @@ public static class ShortcutFactory
     {
         var name = Path.GetFileName(argumentPath);
         if (string.IsNullOrEmpty(name))
-            name = "Диск " + argumentPath.Replace(":", "");
+            name = Loc.Format("Drive_Name", argumentPath.Replace(":", ""));
 
         var path = Path.Combine(outputDir, name + ".lnk");
         if (!File.Exists(path)) return path;

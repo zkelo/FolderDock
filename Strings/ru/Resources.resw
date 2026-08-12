@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  FolderDock — русский (ru).
+  Чтобы добавить язык: скопируйте эту папку в Strings/<BCP-47 тег>/ (например, Strings/de-DE/),
+  переведите элементы <value>, пересоберите. Ключи должны совпадать во всех языках.
+  Ключи с точкой (Foo.Text) привязываются к XAML-элементам через x:Uid;
+  остальные используются из кода через Loc.Get/Loc.Format ({0}, {1} — подстановки).
+-->
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+
+  <!-- Окно менеджера -->
+  <data name="ManagerIntro.Text" xml:space="preserve"><value>Добавь папку — получишь ярлык. Закрепи его на панели задач (ПКМ → «Закрепить на панели задач»). Клик по значку откроет содержимое папки во всплывающем окне.</value></data>
+  <data name="AddFolderLabel.Text" xml:space="preserve"><value>Добавить папку</value></data>
+  <data name="CheckUpdatesLabel.Text" xml:space="preserve"><value>Проверить обновления</value></data>
+  <data name="AutoUpdateLabel.Text" xml:space="preserve"><value>Проверять автоматически</value></data>
+  <data name="RevealShortcutButton.Content" xml:space="preserve"><value>Показать ярлык</value></data>
+  <data name="Dialog_ShortcutCreatedTitle" xml:space="preserve"><value>Ярлык создан</value></data>
+  <data name="Dialog_ShortcutCreatedBody" xml:space="preserve"><value>В открывшемся Проводнике: ПКМ по ярлыку → «Показать дополнительные параметры» → «Закрепить на панели задач».
+
+После закрепления клик по значку откроет папку каскадом.</value></data>
+  <data name="Dialog_ErrorTitle" xml:space="preserve"><value>Ошибка</value></data>
+  <data name="Build_Label" xml:space="preserve"><value>Сборка: {0}</value></data>
+
+  <!-- Всплывающее окно -->
+  <data name="CtxOpen.Text" xml:space="preserve"><value>Открыть</value></data>
+  <data name="CtxCopy.Text" xml:space="preserve"><value>Копировать</value></data>
+  <data name="CtxShare.Text" xml:space="preserve"><value>Поделиться</value></data>
+  <data name="CtxReveal.Text" xml:space="preserve"><value>Показать в Проводнике</value></data>
+  <data name="Tooltip_Back" xml:space="preserve"><value>Назад</value></data>
+  <data name="Tooltip_ViewToggle" xml:space="preserve"><value>Сетка / список</value></data>
+  <data name="Tooltip_OpenInExplorer" xml:space="preserve"><value>Открыть в Проводнике</value></data>
+  <data name="Folder_Empty" xml:space="preserve"><value>Папка пуста</value></data>
+  <data name="Folder_AccessDenied" xml:space="preserve"><value>Нет доступа к папке</value></data>
+  <data name="Copy_Failed" xml:space="preserve"><value>Не удалось скопировать</value></data>
+
+  <!-- Отправка / пакет данных -->
+  <data name="Share_NoItem" xml:space="preserve"><value>Нет элемента для отправки</value></data>
+  <data name="Items_Count" xml:space="preserve"><value>Элементы: {0}</value></data>
+
+  <!-- Ярлыки -->
+  <data name="Drive_Name" xml:space="preserve"><value>Диск {0}</value></data>
+  <data name="Exe_PathError" xml:space="preserve"><value>Не удалось определить путь к исполняемому файлу</value></data>
+
+  <!-- Обновления -->
+  <data name="Update_Checking" xml:space="preserve"><value>Проверка обновлений…</value></data>
+  <data name="Update_UpToDateStatus" xml:space="preserve"><value>Установлена последняя версия (v{0})</value></data>
+  <data name="Update_UpToDateDialog" xml:space="preserve"><value>У вас последняя версия — v{0}.</value></data>
+  <data name="Update_CheckTitle" xml:space="preserve"><value>Проверка обновлений</value></data>
+  <data name="Update_AvailableStatus" xml:space="preserve"><value>Доступна версия v{0}</value></data>
+  <data name="Update_DialogTitle" xml:space="preserve"><value>Доступно обновление</value></data>
+  <data name="Update_DialogBody" xml:space="preserve"><value>Вышла версия v{0} (у вас v{1}).
+
+Скачать и установить? Приложение будет перезапущено.</value></data>
+  <data name="Update_Now" xml:space="preserve"><value>Обновить</value></data>
+  <data name="Update_Later" xml:space="preserve"><value>Позже</value></data>
+  <data name="Update_Downloading" xml:space="preserve"><value>Скачивание v{0}…</value></data>
+  <data name="Update_Installing" xml:space="preserve"><value>Установка запущена…</value></data>
+  <data name="Update_DownloadFailed" xml:space="preserve"><value>Не удалось скачать обновление</value></data>
+  <data name="Update_ErrorTitle" xml:space="preserve"><value>Ошибка обновления</value></data>
+  <data name="UpdateErr_Http" xml:space="preserve"><value>GitHub API: HTTP {0}</value></data>
+  <data name="UpdateErr_BadTag" xml:space="preserve"><value>Непонятный тег релиза: «{0}»</value></data>
+  <data name="UpdateErr_BadCurrent" xml:space="preserve"><value>Непонятная текущая версия: «{0}»</value></data>
+  <data name="UpdateErr_NoInstaller" xml:space="preserve"><value>В релизе {0} нет установщика для {1}</value></data>
+  <data name="UpdateErr_Network" xml:space="preserve"><value>Не удалось проверить обновления: {0}</value></data>
+</root>

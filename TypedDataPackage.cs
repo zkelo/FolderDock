@@ -128,7 +128,7 @@ public static class TypedDataPackage
         package.RequestedOperation = DataPackageOperation.Copy;
         package.Properties.Title = entries.Count == 1
             ? entries[0].Name
-            : $"Элементы: {entries.Count}";
+            : Loc.Format("Items_Count", entries.Count);
         package.Properties.Description = "FolderDock";
     }
 

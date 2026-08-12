@@ -28,7 +28,7 @@
             <Button x:Name="BackButton" Grid.Column="0" Margin="0,0,6,0"
                     Padding="6" Background="Transparent" BorderThickness="0"
                     Visibility="Collapsed"
-                    Click="OnNavigateBack" ToolTipService.ToolTip="Назад">
+                    Click="OnNavigateBack">
                 <FontIcon Glyph="&#xE72B;" FontSize="14"/>
             </Button>
             <TextBlock x:Name="TitleText" Grid.Column="1"
@@ -36,12 +36,12 @@
                        VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
             <Button x:Name="ViewToggle" Grid.Column="2" Margin="6,0,0,0"
                     Padding="6" Background="Transparent" BorderThickness="0"
-                    Click="OnToggleView" ToolTipService.ToolTip="Сетка / список">
+                    Click="OnToggleView">
                 <FontIcon x:Name="ViewToggleIcon" Glyph="&#xE8FD;" FontSize="14"/>
             </Button>
-            <Button Grid.Column="3" Margin="2,0,0,0"
+            <Button x:Name="OpenExplorerButton" Grid.Column="3" Margin="2,0,0,0"
                     Padding="6" Background="Transparent" BorderThickness="0"
-                    Click="OnOpenInExplorer" ToolTipService.ToolTip="Открыть в Проводнике">
+                    Click="OnOpenInExplorer">
                 <FontIcon Glyph="&#xE838;" FontSize="14"/>
             </Button>
         </Grid>
@@ -61,23 +61,23 @@
                                 ToolTipService.ToolTip="{x:Bind Name}">
                         <StackPanel.ContextFlyout>
                             <MenuFlyout>
-                                <MenuFlyoutItem Text="Открыть" Click="OnOpenItem">
+                                <MenuFlyoutItem x:Uid="CtxOpen" Click="OnOpenItem">
                                     <MenuFlyoutItem.Icon>
                                         <FontIcon Glyph="&#xE8E5;"/>
                                     </MenuFlyoutItem.Icon>
                                 </MenuFlyoutItem>
-                                <MenuFlyoutItem Text="Копировать" Click="OnCopyItem">
+                                <MenuFlyoutItem x:Uid="CtxCopy" Click="OnCopyItem">
                                     <MenuFlyoutItem.Icon>
                                         <FontIcon Glyph="&#xE8C8;"/>
                                     </MenuFlyoutItem.Icon>
                                 </MenuFlyoutItem>
-                                <MenuFlyoutItem Text="Поделиться" Click="OnShareItem">
+                                <MenuFlyoutItem x:Uid="CtxShare" Click="OnShareItem">
                                     <MenuFlyoutItem.Icon>
                                         <FontIcon Glyph="&#xE72D;"/>
                                     </MenuFlyoutItem.Icon>
                                 </MenuFlyoutItem>
                                 <MenuFlyoutSeparator/>
-                                <MenuFlyoutItem Text="Показать в Проводнике" Click="OnRevealItem">
+                                <MenuFlyoutItem x:Uid="CtxReveal" Click="OnRevealItem">
                                     <MenuFlyoutItem.Icon>
                                         <FontIcon Glyph="&#xE838;"/>
                                     </MenuFlyoutItem.Icon>
@@ -108,23 +108,23 @@
                     <StackPanel Orientation="Horizontal" Spacing="10" Padding="2,4">
                         <StackPanel.ContextFlyout>
                             <MenuFlyout>
-                                <MenuFlyoutItem Text="Открыть" Click="OnOpenItem">
+                                <MenuFlyoutItem x:Uid="CtxOpen" Click="OnOpenItem">
                                     <MenuFlyoutItem.Icon>
                                         <FontIcon Glyph="&#xE8E5;"/>
                                     </MenuFlyoutItem.Icon>
                                 </MenuFlyoutItem>
-                                <MenuFlyoutItem Text="Копировать" Click="OnCopyItem">
+                                <MenuFlyoutItem x:Uid="CtxCopy" Click="OnCopyItem">
                                     <MenuFlyoutItem.Icon>
                                         <FontIcon Glyph="&#xE8C8;"/>
                                     </MenuFlyoutItem.Icon>
                                 </MenuFlyoutItem>
-                                <MenuFlyoutItem Text="Поделиться" Click="OnShareItem">
+                                <MenuFlyoutItem x:Uid="CtxShare" Click="OnShareItem">
                                     <MenuFlyoutItem.Icon>
                                         <FontIcon Glyph="&#xE72D;"/>
                                     </MenuFlyoutItem.Icon>
                                 </MenuFlyoutItem>
                                 <MenuFlyoutSeparator/>
-                                <MenuFlyoutItem Text="Показать в Проводнике" Click="OnRevealItem">
+                                <MenuFlyoutItem x:Uid="CtxReveal" Click="OnRevealItem">
                                     <MenuFlyoutItem.Icon>
                                         <FontIcon Glyph="&#xE838;"/>
                                     </MenuFlyoutItem.Icon>
@@ -139,7 +139,7 @@
             </ListView.ItemTemplate>
         </ListView>
 
-        <TextBlock x:Name="EmptyText" Grid.Row="1" Text="Папка пуста"
+        <TextBlock x:Name="EmptyText" Grid.Row="1"
                    HorizontalAlignment="Center" VerticalAlignment="Center"
                    Opacity="0.6" Visibility="Collapsed"/>
     </Grid>

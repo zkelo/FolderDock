@@ -61,10 +61,10 @@ public static class UpdateService
 
             var tag = root.GetProperty("tag_name").GetString() ?? "";
             if (!Version.TryParse(tag.TrimStart('v', 'V'), out var latest))
-                return UpdateCheckResult.Failed($"Непонятный тег релиза: «{tag}»");
+                return UpdateCheckResult.Failed(Loc.Format("UpdateErr_BadTag", tag));
 
             if (!Version.TryParse(AppInfo.Version, out var current))
-                return UpdateCheckResult.Failed($"Непонятная текущая версия: «{AppInfo.Version}»");
+                return UpdateCheckResult.Failed(Loc.Format("UpdateErr_BadCurrent", AppInfo.Version));
 
             if (latest <= current)
                 return UpdateCheckResult.UpToDate(latest);
@@ -72,13 +72,13 @@ public static class UpdateService
             var installer = FindInstallerAsset(root);
             if (installer is null)
                 return UpdateCheckResult.Failed(
-                    $"В релизе {tag} нет установщика для {ArchitectureSuffix()}");
+                    Loc.Format("UpdateErr_NoInstaller", tag, ArchitectureSuffix()));
 
             return UpdateCheckResult.Available(latest, installer.Value.Url, installer.Value.Name);
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
         {
-            return UpdateCheckResult.Failed($"Не удалось проверить обновления: {ex.Message}");
+            return UpdateCheckResult.Failed(Loc.Format("UpdateErr_Network", ex.Message));
         }
     }
 
@@ -87,7 +87,7 @@ public static class UpdateService
     public static async Task DownloadAndInstallAsync(UpdateCheckResult update)
     {
         if (update.InstallerUrl is null || update.InstallerName is null)
-            throw new InvalidOperationException("Нет данных об установщике");
+            throw new InvalidOperationException("No installer data in update result");
 
         var path = Path.Combine(Path.GetTempPath(), update.InstallerName);
         await using (var target = File.Create(path))

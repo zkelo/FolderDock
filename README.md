@@ -54,6 +54,18 @@ Output: `bin\x64\Release\net8.0-windows10.0.19041.0\win-x64\publish\FolderDock.e
 
 Pin as many folders as you like — each one gets its own icon.
 
+## Localization
+
+UI languages: **English (en-US, default)**, **Русский (ru)**, **Українська (uk)**. The language follows the Windows preferred-languages list; missing strings fall back to English.
+
+All strings live in one file per language: `Strings/<BCP-47 tag>/Resources.resw`. To add a language:
+
+1. Copy `Strings/en-US/` to `Strings/<your tag>/` (e.g. `Strings/de-DE/`).
+2. Translate the `<value>` elements — keys must stay identical across languages.
+3. Rebuild. That's it — no code changes: WinUI PRI picks the folder up automatically.
+
+Key conventions: keys with a dot (`AddFolderLabel.Text`) bind to XAML elements via `x:Uid`; plain keys (`Update_Checking`) are used from code via `Loc.Get`/`Loc.Format` (`{0}`, `{1}` are placeholders — keep them in translations).
+
 ## How it works
 
 - Windows 11 does not allow pinning a folder to the taskbar directly and has no API for a "taskbar popup". Workaround: a shortcut to `FolderDock.exe --folder "<path>"` with `System.AppUserModel.ID` written into the shortcut's property store, unique per folder (SHA1 of the path). On start the process sets the same AUMID via `SetCurrentProcessExplicitAppUserModelID` — the taskbar matches the window to the right pinned icon. Launched without `--folder`, the process (and each window via `SHGetPropertyStoreForWindow`) uses the app's own AUMID instead.
@@ -80,6 +92,8 @@ Pin as many folders as you like — each one gets its own icon.
 | `ManagerWindow.xaml(.cs)` | Manager: adding folders, creating shortcuts, filtering dead pins |
 | `PinInfo.cs` | Manager list row model |
 | `AppInfo.cs` | Version, build timestamp, repository URL for the UI |
+| `Localization.cs` | `Loc.Get`/`Loc.Format` — access to .resw strings |
+| `Strings/<lang>/Resources.resw` | UI strings per language (en-US, ru, uk) |
 | `Settings.cs` | JSON settings in `%LOCALAPPDATA%\FolderDock` |
 | `UpdateService.cs` | Update check via GitHub Releases API, installer download |
 | `ShortcutFactory.cs` | COM IShellLink + IPropertyStore: .lnk with AUMID, reading args back |

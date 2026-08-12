@@ -49,7 +49,16 @@ public sealed partial class PopupWindow : Window
         _share = new ShareCoordinator(_chrome, shareFinished: HideIfInactive);
         ItemsGrid.ItemsSource = _entries;
         ItemsList.ItemsSource = _entries;
+        ApplyTooltips();
         Activated += OnActivationChanged;
+    }
+
+    private void ApplyTooltips()
+    {
+        // Тултипы из ресурсов: x:Uid не умеет attached-свойства с обычным Text
+        ToolTipService.SetToolTip(BackButton, Loc.Get("Tooltip_Back"));
+        ToolTipService.SetToolTip(ViewToggle, Loc.Get("Tooltip_ViewToggle"));
+        ToolTipService.SetToolTip(OpenExplorerButton, Loc.Get("Tooltip_OpenInExplorer"));
     }
 
     public bool IsOpenFor(string folder) =>
@@ -123,7 +132,7 @@ public sealed partial class PopupWindow : Window
 
     private void UpdateEmptyState(FolderContents contents)
     {
-        EmptyText.Text = contents.Failed ? "Нет доступа к папке" : "Папка пуста";
+        EmptyText.Text = Loc.Get(contents.Failed ? "Folder_AccessDenied" : "Folder_Empty");
         EmptyText.Visibility = contents.Entries.Count == 0
             ? Visibility.Visible
             : Visibility.Collapsed;
@@ -233,7 +242,7 @@ public sealed partial class PopupWindow : Window
         {
             // Буфер занят другим приложением или файл исчез — сообщаем,
             // а не делаем вид, что скопировалось
-            TitleText.Text = "Не удалось скопировать";
+            TitleText.Text = Loc.Get("Copy_Failed");
         }
     }
 

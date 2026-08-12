@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  FolderDock — American English (en-US), default language.
+  To add a language: copy this folder to Strings/<BCP-47 tag>/ (e.g. Strings/de-DE/),
+  translate the <value> elements, rebuild. Keys must stay identical across languages.
+  Keys with a dot (Foo.Text) are bound to XAML elements via x:Uid;
+  plain keys are used from code via Loc.Get/Loc.Format ({0}, {1} — placeholders).
+-->
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+
+  <!-- Manager window -->
+  <data name="ManagerIntro.Text" xml:space="preserve"><value>Add a folder to get a shortcut. Pin it to the taskbar (right-click → "Pin to taskbar"). Clicking the icon opens the folder contents in a popup.</value></data>
+  <data name="AddFolderLabel.Text" xml:space="preserve"><value>Add folder</value></data>
+  <data name="CheckUpdatesLabel.Text" xml:space="preserve"><value>Check for updates</value></data>
+  <data name="AutoUpdateLabel.Text" xml:space="preserve"><value>Check automatically</value></data>
+  <data name="RevealShortcutButton.Content" xml:space="preserve"><value>Show shortcut</value></data>
+  <data name="Dialog_ShortcutCreatedTitle" xml:space="preserve"><value>Shortcut created</value></data>
+  <data name="Dialog_ShortcutCreatedBody" xml:space="preserve"><value>In the Explorer window that just opened: right-click the shortcut → "Show more options" → "Pin to taskbar".
+
+After pinning, clicking the icon opens the folder as a popup.</value></data>
+  <data name="Dialog_ErrorTitle" xml:space="preserve"><value>Error</value></data>
+  <data name="Build_Label" xml:space="preserve"><value>Build: {0}</value></data>
+
+  <!-- Popup window -->
+  <data name="CtxOpen.Text" xml:space="preserve"><value>Open</value></data>
+  <data name="CtxCopy.Text" xml:space="preserve"><value>Copy</value></data>
+  <data name="CtxShare.Text" xml:space="preserve"><value>Share</value></data>
+  <data name="CtxReveal.Text" xml:space="preserve"><value>Show in Explorer</value></data>
+  <data name="Tooltip_Back" xml:space="preserve"><value>Back</value></data>
+  <data name="Tooltip_ViewToggle" xml:space="preserve"><value>Grid / list</value></data>
+  <data name="Tooltip_OpenInExplorer" xml:space="preserve"><value>Open in Explorer</value></data>
+  <data name="Folder_Empty" xml:space="preserve"><value>Folder is empty</value></data>
+  <data name="Folder_AccessDenied" xml:space="preserve"><value>Folder is not accessible</value></data>
+  <data name="Copy_Failed" xml:space="preserve"><value>Copy failed</value></data>
+
+  <!-- Sharing / data package -->
+  <data name="Share_NoItem" xml:space="preserve"><value>Nothing to share</value></data>
+  <data name="Items_Count" xml:space="preserve"><value>Items: {0}</value></data>
+
+  <!-- Shortcuts -->
+  <data name="Drive_Name" xml:space="preserve"><value>Drive {0}</value></data>
+  <data name="Exe_PathError" xml:space="preserve"><value>Could not determine the executable path</value></data>
+
+  <!-- Updates -->
+  <data name="Update_Checking" xml:space="preserve"><value>Checking for updates…</value></data>
+  <data name="Update_UpToDateStatus" xml:space="preserve"><value>You have the latest version (v{0})</value></data>
+  <data name="Update_UpToDateDialog" xml:space="preserve"><value>You are up to date — v{0}.</value></data>
+  <data name="Update_CheckTitle" xml:space="preserve"><value>Update check</value></data>
+  <data name="Update_AvailableStatus" xml:space="preserve"><value>Version v{0} is available</value></data>
+  <data name="Update_DialogTitle" xml:space="preserve"><value>Update available</value></data>
+  <data name="Update_DialogBody" xml:space="preserve"><value>Version v{0} is out (you have v{1}).
+
+Download and install? The app will restart.</value></data>
+  <data name="Update_Now" xml:space="preserve"><value>Update</value></data>
+  <data name="Update_Later" xml:space="preserve"><value>Later</value></data>
+  <data name="Update_Downloading" xml:space="preserve"><value>Downloading v{0}…</value></data>
+  <data name="Update_Installing" xml:space="preserve"><value>Installing…</value></data>
+  <data name="Update_DownloadFailed" xml:space="preserve"><value>Failed to download the update</value></data>
+  <data name="Update_ErrorTitle" xml:space="preserve"><value>Update error</value></data>
+  <data name="UpdateErr_Http" xml:space="preserve"><value>GitHub API: HTTP {0}</value></data>
+  <data name="UpdateErr_BadTag" xml:space="preserve"><value>Unrecognized release tag: "{0}"</value></data>
+  <data name="UpdateErr_BadCurrent" xml:space="preserve"><value>Unrecognized current version: "{0}"</value></data>
+  <data name="UpdateErr_NoInstaller" xml:space="preserve"><value>Release {0} has no installer for {1}</value></data>
+  <data name="UpdateErr_Network" xml:space="preserve"><value>Could not check for updates: {0}</value></data>
+</root>

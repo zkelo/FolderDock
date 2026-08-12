@@ -61,7 +61,7 @@ public sealed partial class ManagerWindow : Window
         if (_updateCheckRunning) return;
         _updateCheckRunning = true;
         CheckUpdatesButton.IsEnabled = false;
-        ShowUpdateStatus("Проверка обновлений…");
+        ShowUpdateStatus(Loc.Get("Update_Checking"));
         try
         {
             var result = await UpdateService.CheckAsync();
@@ -70,20 +70,20 @@ public sealed partial class ManagerWindow : Window
             {
                 ShowUpdateStatus(result.Error);
                 if (!silentWhenUpToDate)
-                    await ShowDialogAsync("Проверка обновлений", result.Error);
+                    await ShowDialogAsync(Loc.Get("Update_CheckTitle"), result.Error);
                 return;
             }
 
             if (!result.UpdateAvailable)
             {
-                ShowUpdateStatus($"Установлена последняя версия (v{AppInfo.Version})");
+                ShowUpdateStatus(Loc.Format("Update_UpToDateStatus", AppInfo.Version));
                 if (!silentWhenUpToDate)
-                    await ShowDialogAsync("Проверка обновлений",
-                        $"У вас последняя версия — v{AppInfo.Version}.");
+                    await ShowDialogAsync(Loc.Get("Update_CheckTitle"),
+                        Loc.Format("Update_UpToDateDialog", AppInfo.Version));
                 return;
             }
 
-            ShowUpdateStatus($"Доступна версия v{result.LatestVersion}");
+            ShowUpdateStatus(Loc.Format("Update_AvailableStatus", result.LatestVersion!));
             await OfferUpdateAsync(result);
         }
         finally
@@ -97,27 +97,26 @@ public sealed partial class ManagerWindow : Window
     {
         var dialog = new ContentDialog
         {
-            Title = "Доступно обновление",
-            Content = $"Вышла версия v{update.LatestVersion} (у вас v{AppInfo.Version}).\n\n" +
-                      "Скачать и установить? Приложение будет перезапущено.",
-            PrimaryButtonText = "Обновить",
-            CloseButtonText = "Позже",
+            Title = Loc.Get("Update_DialogTitle"),
+            Content = Loc.Format("Update_DialogBody", update.LatestVersion!, AppInfo.Version),
+            PrimaryButtonText = Loc.Get("Update_Now"),
+            CloseButtonText = Loc.Get("Update_Later"),
             DefaultButton = ContentDialogButton.Primary,
             XamlRoot = Content.XamlRoot
         };
         if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
 
-        ShowUpdateStatus($"Скачивание v{update.LatestVersion}…");
+        ShowUpdateStatus(Loc.Format("Update_Downloading", update.LatestVersion!));
         try
         {
             await UpdateService.DownloadAndInstallAsync(update);
             // Установщик убьёт процесс сам (taskkill в PrepareToInstall)
-            ShowUpdateStatus("Установка запущена…");
+            ShowUpdateStatus(Loc.Get("Update_Installing"));
         }
         catch (Exception ex)
         {
-            ShowUpdateStatus("Не удалось скачать обновление");
-            await ShowDialogAsync("Ошибка обновления", ex.Message);
+            ShowUpdateStatus(Loc.Get("Update_DownloadFailed"));
+            await ShowDialogAsync(Loc.Get("Update_ErrorTitle"), ex.Message);
         }
     }
 
@@ -136,7 +135,7 @@ public sealed partial class ManagerWindow : Window
         var stamp = AppInfo.BuildStampText;
         if (stamp.Length > 0)
         {
-            BuildStampText.Text = $"Сборка: {stamp}";
+            BuildStampText.Text = Loc.Format("Build_Label", stamp);
         }
         else
         {
@@ -195,14 +194,12 @@ public sealed partial class ManagerWindow : Window
             var lnk = ShortcutFactory.CreateFolderShortcut(folder, ShortcutsDir);
             _pins.Add(PinInfo.FromShortcut(lnk, folder));
             Shell.RevealInExplorer(lnk);
-            await ShowDialogAsync("Ярлык создан",
-                "В открывшемся Проводнике: ПКМ по ярлыку → «Показать дополнительные параметры» → " +
-                "«Закрепить на панели задач».\n\n" +
-                "После закрепления клик по значку откроет папку каскадом.");
+            await ShowDialogAsync(Loc.Get("Dialog_ShortcutCreatedTitle"),
+                Loc.Get("Dialog_ShortcutCreatedBody"));
         }
         catch (Exception ex)
         {
-            await ShowDialogAsync("Ошибка", ex.Message);
+            await ShowDialogAsync(Loc.Get("Dialog_ErrorTitle"), ex.Message);
         }
     }
 

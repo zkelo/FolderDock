@@ -54,7 +54,7 @@ public sealed class ShareCoordinator
     {
         if (_entry is not { } entry)
         {
-            args.Request.FailWithDisplayText("Нет элемента для отправки");
+            args.Request.FailWithDisplayText(Loc.Get("Share_NoItem"));
             return;
         }
         var deferral = args.Request.GetDeferral();

@@ -17,6 +17,8 @@
     <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
     <AssemblyName>FolderDock</AssemblyName>
     <ApplicationIcon>Assets\FolderDock.ico</ApplicationIcon>
+    <!-- Локализация: язык по умолчанию для PRI-фолбэка (Strings\en-US) -->
+    <DefaultLanguage>en-US</DefaultLanguage>
     <!-- Момент сборки (UTC, ISO 8601) — читается AppInfo.ReadBuildTimestamp -->
     <BuildTimestampUtc>$([System.DateTime]::UtcNow.ToString("o"))</BuildTimestampUtc>
   </PropertyGroup>

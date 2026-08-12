@@ -54,6 +54,18 @@ dotnet publish -c Release -r win-x64 -p:Platform=x64
 
 Так можно закрепить сколько угодно папок — у каждой свой значок.
 
+## Локализация
+
+Языки интерфейса: **English (en-US, по умолчанию)**, **Русский (ru)**, **Українська (uk)**. Язык выбирается по списку предпочитаемых языков Windows; отсутствующие строки откатываются к английскому.
+
+Все строки — в одном файле на язык: `Strings/<тег BCP-47>/Resources.resw`. Чтобы добавить язык:
+
+1. Скопируй `Strings/en-US/` в `Strings/<твой тег>/` (например, `Strings/de-DE/`).
+2. Переведи элементы `<value>` — ключи должны совпадать во всех языках.
+3. Пересобери. Всё — без правок кода: WinUI PRI подхватывает папку автоматически.
+
+Соглашения о ключах: ключи с точкой (`AddFolderLabel.Text`) привязываются к XAML-элементам через `x:Uid`; простые ключи (`Update_Checking`) используются из кода через `Loc.Get`/`Loc.Format` (`{0}`, `{1}` — подстановки, сохраняй их в переводах).
+
 ## Как это работает
 
 - Windows 11 не даёт закрепить папку на панель задач напрямую и не имеет API для popup «из панели». Обход: ярлык на `FolderDock.exe --folder "<путь>"` с записанным в property store ярлыка `System.AppUserModel.ID`, уникальным для каждой папки (SHA1 от пути). Процесс при старте ставит себе тот же AUMID через `SetCurrentProcessExplicitAppUserModelID` — панель задач сопоставляет окно с нужным закреплённым значком. При запуске без `--folder` процесс (и каждое окно через `SHGetPropertyStoreForWindow`) использует собственный AUMID приложения.
@@ -80,6 +92,8 @@ dotnet publish -c Release -r win-x64 -p:Platform=x64
 | `ManagerWindow.xaml(.cs)` | Менеджер: добавление папок, ярлыки, фильтрация «мёртвых» закреплений |
 | `PinInfo.cs` | Модель строки списка менеджера |
 | `AppInfo.cs` | Версия, момент сборки, ссылка на репозиторий для UI |
+| `Localization.cs` | `Loc.Get`/`Loc.Format` — доступ к строкам .resw |
+| `Strings/<язык>/Resources.resw` | Строки UI по языкам (en-US, ru, uk) |
 | `Settings.cs` | JSON-настройки в `%LOCALAPPDATA%\FolderDock` |
 | `UpdateService.cs` | Проверка обновлений через GitHub Releases API, скачивание установщика |
 | `ShortcutFactory.cs` | COM IShellLink + IPropertyStore: .lnk с AUMID, чтение аргументов |
