@@ -78,6 +78,7 @@ Pin as many folders as you like — each one gets its own icon.
 | `TypedDataPackage.cs` | DataPackage: Bitmap/Text/StorageItems; sync fill for drag |
 | `ManagerWindow.xaml(.cs)` | Manager: adding folders, creating shortcuts, filtering dead pins |
 | `PinInfo.cs` | Manager list row model |
+| `AppInfo.cs` | Version, build timestamp, repository URL for the UI |
 | `ShortcutFactory.cs` | COM IShellLink + IPropertyStore: .lnk with AUMID, reading args back |
 | `FolderAumid.cs` | AppUserModelID from a folder path |
 | `WindowAumid.cs` | Per-window AUMID via SHGetPropertyStoreForWindow |

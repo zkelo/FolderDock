@@ -78,6 +78,7 @@ dotnet publish -c Release -r win-x64 -p:Platform=x64
 | `TypedDataPackage.cs` | DataPackage: Bitmap/Text/StorageItems; синхронное заполнение для драга |
 | `ManagerWindow.xaml(.cs)` | Менеджер: добавление папок, ярлыки, фильтрация «мёртвых» закреплений |
 | `PinInfo.cs` | Модель строки списка менеджера |
+| `AppInfo.cs` | Версия, момент сборки, ссылка на репозиторий для UI |
 | `ShortcutFactory.cs` | COM IShellLink + IPropertyStore: .lnk с AUMID, чтение аргументов |
 | `FolderAumid.cs` | AppUserModelID из пути папки |
 | `WindowAumid.cs` | AUMID уровня окна через SHGetPropertyStoreForWindow |

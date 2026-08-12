@@ -25,10 +25,32 @@ public sealed partial class ManagerWindow : Window
         InitializeComponent();
         WindowAumid.Apply(WindowNative.GetWindowHandle(this), WindowAumid.AppId);
         SetAppIcon();
+        ApplyAppInfo();
         PinsList.ItemsSource = _pins;
         LoadExistingShortcuts();
         AppWindow.Resize(new Windows.Graphics.SizeInt32(DefaultWidth, DefaultHeight));
         Activated += OnActivated;
+    }
+
+    private void ApplyAppInfo()
+    {
+        // Заголовок: имя + версия (из трёх пунктов футера — только версия)
+        Title = $"FolderDock {AppInfo.Version}";
+
+        VersionText.Text = $"v{AppInfo.Version}";
+        var stamp = AppInfo.BuildStampText;
+        if (stamp.Length > 0)
+        {
+            BuildStampText.Text = $"Сборка: {stamp}";
+        }
+        else
+        {
+            // Локальная сборка без метаданных — не показываем пустой сегмент
+            BuildStampText.Visibility = Visibility.Collapsed;
+            BuildStampSeparator.Visibility = Visibility.Collapsed;
+        }
+        ToolTipService.SetToolTip(RepositoryLink, AppInfo.RepositoryUrl);
+        RepositoryLink.Click += (_, _) => Shell.Open(AppInfo.RepositoryUrl);
     }
 
     private void SetAppIcon()

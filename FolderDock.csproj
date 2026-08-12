@@ -17,7 +17,12 @@
     <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
     <AssemblyName>FolderDock</AssemblyName>
     <ApplicationIcon>Assets\FolderDock.ico</ApplicationIcon>
+    <!-- Момент сборки (UTC, ISO 8601) — читается AppInfo.ReadBuildTimestamp -->
+    <BuildTimestampUtc>$([System.DateTime]::UtcNow.ToString("o"))</BuildTimestampUtc>
   </PropertyGroup>
+  <ItemGroup>
+    <AssemblyMetadata Include="BuildTimestampUtc" Value="$(BuildTimestampUtc)" />
+  </ItemGroup>
   <ItemGroup>
     <Content Include="Assets\FolderDock.ico">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

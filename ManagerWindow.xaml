@@ -11,6 +11,7 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
         <StackPanel Grid.Row="0" Spacing="4">
@@ -47,5 +48,20 @@
                 </DataTemplate>
             </ListView.ItemTemplate>
         </ListView>
+
+        <!-- Футер: версия, дата/время сборки, ссылка на репозиторий -->
+        <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="12"
+                    HorizontalAlignment="Center">
+            <TextBlock x:Name="VersionText" FontSize="12" Opacity="0.6"
+                       VerticalAlignment="Center"/>
+            <TextBlock Text="•" FontSize="12" Opacity="0.4" VerticalAlignment="Center"/>
+            <TextBlock x:Name="BuildStampText" FontSize="12" Opacity="0.6"
+                       VerticalAlignment="Center"/>
+            <TextBlock x:Name="BuildStampSeparator" Text="•" FontSize="12" Opacity="0.4"
+                       VerticalAlignment="Center"/>
+            <HyperlinkButton x:Name="RepositoryLink" Content="GitHub"
+                             FontSize="12" Padding="0"
+                             VerticalAlignment="Center"/>
+        </StackPanel>
     </Grid>
 </Window>
