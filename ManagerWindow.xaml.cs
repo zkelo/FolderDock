@@ -40,15 +40,16 @@ public sealed partial class ManagerWindow : Window
 
     private void ApplySettings()
     {
-        // Toggled подписан в XAML и сработает на этой установке IsOn,
-        // но запишет то же самое значение — безвредно
-        AutoUpdateToggle.IsOn = _settings.AutoCheckUpdates;
+        // Checked/Unchecked подписаны в XAML и сработают на этой установке,
+        // но запишут то же самое значение — безвредно
+        AutoUpdateCheck.IsChecked = _settings.AutoCheckUpdates;
     }
 
     private void OnAutoUpdateToggled(object sender, RoutedEventArgs e)
     {
-        if (_settings.AutoCheckUpdates == AutoUpdateToggle.IsOn) return;
-        _settings.AutoCheckUpdates = AutoUpdateToggle.IsOn;
+        var isOn = AutoUpdateCheck.IsChecked == true;
+        if (_settings.AutoCheckUpdates == isOn) return;
+        _settings.AutoCheckUpdates = isOn;
         _settings.Save();
     }
 

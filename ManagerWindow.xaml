@@ -20,30 +20,12 @@
                        Text="Добавь папку — получишь ярлык. Закрепи его на панели задач (ПКМ → «Закрепить на панели задач»). Клик по ярлыку откроет содержимое папки во всплывающем окне."/>
         </StackPanel>
 
-        <Grid Grid.Row="1" ColumnSpacing="12">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
-            <Button Grid.Column="0" Click="OnAddFolder" Style="{ThemeResource AccentButtonStyle}">
-                <StackPanel Orientation="Horizontal" Spacing="8">
-                    <FontIcon Glyph="&#xE8F4;" FontSize="16"/>
-                    <TextBlock Text="Добавить папку"/>
-                </StackPanel>
-            </Button>
-            <Button x:Name="CheckUpdatesButton" Grid.Column="2" Click="OnCheckUpdates">
-                <StackPanel Orientation="Horizontal" Spacing="8">
-                    <FontIcon Glyph="&#xE895;" FontSize="16"/>
-                    <TextBlock Text="Проверить обновления"/>
-                </StackPanel>
-            </Button>
-            <ToggleSwitch x:Name="AutoUpdateToggle" Grid.Column="3"
-                          Header="Автопроверка обновлений"
-                          OnContent="Вкл" OffContent="Выкл"
-                          Toggled="OnAutoUpdateToggled"/>
-        </Grid>
+        <Button Grid.Row="1" Click="OnAddFolder" Style="{ThemeResource AccentButtonStyle}">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <FontIcon Glyph="&#xE8F4;" FontSize="16"/>
+                <TextBlock Text="Добавить папку"/>
+            </StackPanel>
+        </Button>
 
         <ListView x:Name="PinsList" Grid.Row="2" SelectionMode="None">
             <ListView.ItemTemplate>
@@ -67,21 +49,44 @@
             </ListView.ItemTemplate>
         </ListView>
 
-        <!-- Футер: версия, дата/время сборки, ссылка на репозиторий -->
-        <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="12"
-                    HorizontalAlignment="Center">
-            <TextBlock x:Name="VersionText" FontSize="12" Opacity="0.6"
-                       VerticalAlignment="Center"/>
-            <TextBlock Text="•" FontSize="12" Opacity="0.4" VerticalAlignment="Center"/>
-            <TextBlock x:Name="BuildStampText" FontSize="12" Opacity="0.6"
-                       VerticalAlignment="Center"/>
-            <TextBlock x:Name="BuildStampSeparator" Text="•" FontSize="12" Opacity="0.4"
-                       VerticalAlignment="Center"/>
-            <HyperlinkButton x:Name="RepositoryLink" Content="GitHub"
-                             FontSize="12" Padding="0"
-                             VerticalAlignment="Center"/>
-            <TextBlock x:Name="UpdateStatusText" FontSize="12" Opacity="0.6"
-                       VerticalAlignment="Center" Visibility="Collapsed"/>
+        <!-- Низ окна: строка обновлений + строка версии/сборки/ссылки -->
+        <StackPanel Grid.Row="3" Spacing="4">
+            <!-- Обновления: компактно (FontSize 12, Opacity 0.8), но с удобной
+                 областью нажатия (MinHeight 28) -->
+            <StackPanel Orientation="Horizontal" Spacing="16"
+                        HorizontalAlignment="Center" Opacity="0.8">
+                <Button x:Name="CheckUpdatesButton" Click="OnCheckUpdates"
+                        FontSize="12" Padding="10,4" MinHeight="28"
+                        Background="Transparent"
+                        BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <FontIcon Glyph="&#xE895;" FontSize="12"/>
+                        <TextBlock Text="Проверить обновления"/>
+                    </StackPanel>
+                </Button>
+                <CheckBox x:Name="AutoUpdateCheck" MinHeight="28"
+                          VerticalAlignment="Center"
+                          Checked="OnAutoUpdateToggled" Unchecked="OnAutoUpdateToggled">
+                    <TextBlock Text="Проверять автоматически" FontSize="12"/>
+                </CheckBox>
+            </StackPanel>
+
+            <!-- Версия, дата/время сборки, ссылка на репозиторий -->
+            <StackPanel Orientation="Horizontal" Spacing="12"
+                        HorizontalAlignment="Center">
+                <TextBlock x:Name="VersionText" FontSize="12" Opacity="0.6"
+                           VerticalAlignment="Center"/>
+                <TextBlock Text="•" FontSize="12" Opacity="0.4" VerticalAlignment="Center"/>
+                <TextBlock x:Name="BuildStampText" FontSize="12" Opacity="0.6"
+                           VerticalAlignment="Center"/>
+                <TextBlock x:Name="BuildStampSeparator" Text="•" FontSize="12" Opacity="0.4"
+                           VerticalAlignment="Center"/>
+                <HyperlinkButton x:Name="RepositoryLink" Content="GitHub"
+                                 FontSize="12" Padding="0"
+                                 VerticalAlignment="Center"/>
+                <TextBlock x:Name="UpdateStatusText" FontSize="12" Opacity="0.6"
+                           VerticalAlignment="Center" Visibility="Collapsed"/>
+            </StackPanel>
         </StackPanel>
     </Grid>
 </Window>
