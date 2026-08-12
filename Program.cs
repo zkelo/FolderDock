@@ -45,7 +45,11 @@ public static class Program
             Native.SetCurrentProcessExplicitAppUserModelID(
                 folder is null ? WindowAumid.AppId : FolderAumid.For(folder));
         }
-        catch { }
+        catch
+        {
+            // AUMID не установился (экзотическая сборка Windows) — приложение
+            // работает, страдает только группировка на панели задач
+        }
     }
 
     private static void ForwardActivation(AppInstance mainInstance)

@@ -197,7 +197,7 @@ public sealed partial class PopupWindow : Window
 
     private void OnDragItemsStarting(object sender, DragItemsStartingEventArgs e)
     {
-        // Событие синхронное: e.Data заполняется до первого await,
+        // Событие синхронное: e.Data нужно заполнить не выходя в асинхронность,
         // иначе драг стартует с пустым пакетом (см. TypedDataPackage.FillForDrag)
         var entries = e.Items.OfType<FolderEntry>().ToList();
         if (entries.Count == 0)
