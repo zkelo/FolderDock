@@ -1,5 +1,7 @@
 # FolderDock
 
+[![CodeFactor](https://www.codefactor.io/repository/github/zkelo/folderdock/badge)](https://www.codefactor.io/repository/github/zkelo/folderdock)
+
 [English](README.md) | **Русский**
 
 Папки на панели задач Windows 11 — как в Dock на macOS. Клик по закреплённому значку папки → всплывающее окно с содержимым (сетка или список) прямо над панелью задач, без Проводника.
