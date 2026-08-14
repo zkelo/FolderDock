@@ -1,5 +1,6 @@
 # FolderDock
 
+![GitHub License](https://img.shields.io/github/license/zkelo/folderdock)
 [![CodeFactor](https://www.codefactor.io/repository/github/zkelo/folderdock/badge)](https://www.codefactor.io/repository/github/zkelo/folderdock) ![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/zkelo/folderdock/total)
 
 
