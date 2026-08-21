@@ -106,7 +106,8 @@ dotnet publish -c Release -r win-x64 -p:Platform=x64
 | `FolderAumid.cs` | AppUserModelID из пути папки |
 | `WindowAumid.cs` | AUMID уровня окна через SHGetPropertyStoreForWindow |
 | `PropertyStoreInterop.cs` | Общие COM-типы: IPropertyStore, PropertyKey, PropVariant |
-| `Shell.cs` | Запуск файлов и Проводника |
+| `Shell.cs` | Запуск файлов (URI «Фото» / NeighboringFilesQuery) и Проводника |
+| `FileAssociation.cs` | Определение приложения по умолчанию для расширения (AssocQueryString) |
 | `Native.cs` | Win32/COM: DWM, курсор, DPI, стили окна, Share interop |
 | `installer/FolderDock.iss` | Скрипт Inno Setup (путь установки, меню Пуск, MIT, апгрейд) |
 

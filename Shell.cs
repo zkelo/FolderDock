@@ -20,6 +20,18 @@ public static class Shell
     {
         try
         {
+            // «Фото» Windows 11 игнорирует NeighboringFilesQuery при обычном
+            // запуске (баг известен, у Files тот же обход): если картинка
+            // ассоциирована с «Фото» — открываем через URI ms-photos:viewer,
+            // тогда приложение само строит контекст папки и стрелки работают
+            if (FileAssociation.IsMicrosoftPhotosDefault(Path.GetExtension(path)))
+            {
+                var uri = new Uri($"ms-photos:viewer?fileName={Uri.EscapeDataString(path)}");
+                if (await Launcher.LaunchUriAsync(uri))
+                    return true;
+                // «Фото» удалено, но ассоциация осталась — идём общим путём
+            }
+
             var directory = Path.GetDirectoryName(path);
             if (string.IsNullOrEmpty(directory)) return false;
 
@@ -28,7 +40,8 @@ public static class Shell
             var options = new LauncherOptions
             {
                 // Без фильтра типов: приёмник сам выберет, какие соседние
-                // файлы ему интересны (Фото возьмёт только изображения)
+                // файлы ему интересны. Работает для Windows 10 Photos,
+                // «Кино и ТВ» и других UWP-просмотрщиков
                 NeighboringFilesQuery = folder.CreateFileQueryWithOptions(new QueryOptions())
             };
             return await Launcher.LaunchFileAsync(file, options);

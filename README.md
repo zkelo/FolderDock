@@ -106,7 +106,8 @@ Key conventions: keys with a dot (`AddFolderLabel.Text`) bind to XAML elements v
 | `FolderAumid.cs` | AppUserModelID from a folder path |
 | `WindowAumid.cs` | Per-window AUMID via SHGetPropertyStoreForWindow |
 | `PropertyStoreInterop.cs` | Shared COM types: IPropertyStore, PropertyKey, PropVariant |
-| `Shell.cs` | Launching files and Explorer |
+| `Shell.cs` | Launching files (Photos URI / NeighboringFilesQuery) and Explorer |
+| `FileAssociation.cs` | Default-app detection per extension (AssocQueryString) |
 | `Native.cs` | Win32/COM: DWM, cursor, DPI, window styles, Share interop |
 | `installer/FolderDock.iss` | Inno Setup script (install dir, Start Menu, MIT license, upgrade) |
 
