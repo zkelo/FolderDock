@@ -183,7 +183,7 @@ public sealed partial class PopupWindow : Window
             OpenEntry(entry);
     }
 
-    private void OpenEntry(FolderEntry entry)
+    private async void OpenEntry(FolderEntry entry)
     {
         if (entry.IsDirectory)
         {
@@ -194,8 +194,16 @@ public sealed partial class PopupWindow : Window
             Reload();
             return;
         }
-        Shell.Open(entry.FullPath);
+
+        // Сначала прячем попап: LaunchFileAsync активирует чужое окно,
+        // и light-dismiss всё равно сработает — но уже недетерминированно
         Dismiss();
+
+        // Launcher с NeighboringFilesQuery — просмотрщик получает соседей
+        // по папке (листание стрелками, как из Проводника); при неудаче
+        // (exe, недоступная папка) — обычный ShellExecute
+        if (!await Shell.OpenWithNeighborsAsync(entry.FullPath))
+            Shell.Open(entry.FullPath);
     }
 
     private void OnNavigateBack(object sender, RoutedEventArgs e)

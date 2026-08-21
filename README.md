@@ -13,7 +13,7 @@ Folders on the Windows 11 taskbar — like the macOS Dock. Click a pinned folder
 
 - **Pin any folder** to the taskbar via a shortcut with its own AppUserModelID — every folder gets a separate button, they never group with each other.
 - **Popup above the taskbar**: a grid with thumbnails (images get previews) or a compact list. Toggle with a button in the header.
-- Click a file → opens with the default app, popup closes.
+- Click a file → opens with the default app **with folder context** (`NeighboringFilesQuery`): in Photos and other viewers arrow keys browse to the next/previous file, exactly as when opening from Explorer. Popup closes.
 - Click a subfolder → navigate inside right in the popup; a **Back** button returns to the parent folder.
 - **Typed drag-and-drop**: the data package carries multiple representations — images are additionally added as Bitmap (paste "as picture" into Paint/Word/messengers), text files as Text (paste content into an editor), and always StorageItems (files for Explorer and everything else). The receiving app picks the format it understands. Dragging **moves** the item (like Explorer); hold **Ctrl** to copy instead. After a move the popup refreshes automatically.
 - **Explorer context menu** (right-click an item): the real system shell menu — Open with, Send to, Copy/Cut/Delete/Rename, third-party extensions (7-Zip, TortoiseGit, …) — exactly as in Explorer.
