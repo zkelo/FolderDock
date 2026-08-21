@@ -19,6 +19,14 @@
     <ApplicationIcon>Assets\FolderDock.ico</ApplicationIcon>
     <!-- Локализация: язык по умолчанию для PRI-фолбэка (Strings\en-US) -->
     <DefaultLanguage>en-US</DefaultLanguage>
+    <!-- Метаданные PE (ProductName/ProductVersion) — требование SignPath (metadata restrictions) -->
+    <Product>FolderDock</Product>
+    <Company>zkelo</Company>
+    <Authors>zkelo</Authors>
+    <Description>FolderDock — folders on the Windows 11 taskbar</Description>
+    <Copyright>© zkelo. MIT License.</Copyright>
+    <!-- Без +sha в InformationalVersion: ProductVersion должен совпадать с версией релиза -->
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <!-- Момент сборки (UTC, ISO 8601) — читается AppInfo.ReadBuildTimestamp -->
     <BuildTimestampUtc>$([System.DateTime]::UtcNow.ToString("o"))</BuildTimestampUtc>
   </PropertyGroup>

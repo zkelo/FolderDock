@@ -6,6 +6,7 @@ on:
 
 permissions:
   contents: write
+  actions: read # SignPath-коннектор читает артефакты и метаданные workflow run
 
 concurrency:
   group: release
@@ -13,6 +14,9 @@ concurrency:
 
 env:
   TFM: net8.0-windows10.0.19041.0
+  # Подпись включается автоматически, когда заданы секреты SignPath.
+  # До одобрения заявки в SignPath Foundation шаги подписи просто пропускаются.
+  SIGNPATH_ORG: ${{ secrets.SIGNPATH_ORG_ID }}
 
 jobs:
   release:
@@ -55,6 +59,47 @@ jobs:
           -c Release -r win-arm64 -p:Platform=ARM64
           -p:Version=${{ steps.semver.outputs.new_version }}
 
+      # ── Подпись кода (SignPath Foundation) ────────────────────────────────
+      # Один запрос на подпись обоих exe (x64 + ARM64) — меньше ручных одобрений.
+      - name: Stage unsigned executables
+        if: env.SIGNPATH_ORG != ''
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path unsigned\x64, unsigned\arm64 | Out-Null
+          Copy-Item "bin\x64\Release\$env:TFM\win-x64\publish\FolderDock.exe" unsigned\x64\
+          Copy-Item "bin\ARM64\Release\$env:TFM\win-arm64\publish\FolderDock.exe" unsigned\arm64\
+
+      - name: Upload unsigned executables
+        if: env.SIGNPATH_ORG != ''
+        id: upload-unsigned-exe
+        uses: actions/upload-artifact@v4
+        with:
+          name: unsigned-exe
+          path: unsigned/
+
+      - name: Sign executables (SignPath)
+        if: env.SIGNPATH_ORG != ''
+        uses: signpath/github-action-submit-signing-request@v2
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ secrets.SIGNPATH_ORG_ID }}
+          project-slug: folderdock
+          signing-policy-slug: release-signing
+          artifact-configuration-slug: zipped-exes
+          github-artifact-id: ${{ steps.upload-unsigned-exe.outputs.artifact-id }}
+          wait-for-completion: true
+          wait-for-completion-timeout-in-seconds: 3600 # ждём ручного одобрения
+          output-artifact-directory: signed-exe
+          parameters: |
+            version: "${{ steps.semver.outputs.new_version }}"
+
+      - name: Replace executables with signed ones
+        if: env.SIGNPATH_ORG != ''
+        shell: pwsh
+        run: |
+          Copy-Item signed-exe\x64\FolderDock.exe "bin\x64\Release\$env:TFM\win-x64\publish\" -Force
+          Copy-Item signed-exe\arm64\FolderDock.exe "bin\ARM64\Release\$env:TFM\win-arm64\publish\" -Force
+
       - name: Pack artifacts
         shell: pwsh
         run: |
@@ -73,6 +118,43 @@ jobs:
             /DSourceDir="$env:GITHUB_WORKSPACE\bin\x64\Release\$env:TFM\win-x64\publish"
           iscc installer\FolderDock.iss /DVersion=$v /DArch=arm64 `
             /DSourceDir="$env:GITHUB_WORKSPACE\bin\ARM64\Release\$env:TFM\win-arm64\publish"
+
+      - name: Stage unsigned installers
+        if: env.SIGNPATH_ORG != ''
+        shell: pwsh
+        run: |
+          $v = "${{ steps.semver.outputs.new_version }}"
+          New-Item -ItemType Directory -Force -Path unsigned-setup | Out-Null
+          Copy-Item "FolderDock-Setup-$v-x64.exe", "FolderDock-Setup-$v-arm64.exe" unsigned-setup\
+
+      - name: Upload unsigned installers
+        if: env.SIGNPATH_ORG != ''
+        id: upload-unsigned-setup
+        uses: actions/upload-artifact@v4
+        with:
+          name: unsigned-setup
+          path: unsigned-setup/
+
+      - name: Sign installers (SignPath)
+        if: env.SIGNPATH_ORG != ''
+        uses: signpath/github-action-submit-signing-request@v2
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ secrets.SIGNPATH_ORG_ID }}
+          project-slug: folderdock
+          signing-policy-slug: release-signing
+          artifact-configuration-slug: zipped-installers
+          github-artifact-id: ${{ steps.upload-unsigned-setup.outputs.artifact-id }}
+          wait-for-completion: true
+          wait-for-completion-timeout-in-seconds: 3600
+          output-artifact-directory: signed-setup
+          parameters: |
+            version: "${{ steps.semver.outputs.new_version }}"
+
+      - name: Replace installers with signed ones
+        if: env.SIGNPATH_ORG != ''
+        shell: pwsh
+        run: Copy-Item signed-setup\*.exe . -Force
 
       - name: Create tag
         id: tag

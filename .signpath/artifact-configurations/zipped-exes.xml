@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SignPath artifact configuration, slug: zipped-exes
+     Вход: zip-артефакт GitHub Actions "unsigned-exe" с x64/FolderDock.exe и arm64/FolderDock.exe.
+     product-version передаётся параметром version из workflow (равен версии релиза). -->
+<artifact-configuration xmlns="http://signpath.io/artifact-configuration/v1">
+  <parameters>
+    <parameter name="version" default-value="0.0.0" />
+  </parameters>
+  <zip-file>
+    <pe-file path="x64/FolderDock.exe"
+             product-name="FolderDock"
+             product-version="${version}">
+      <authenticode-sign />
+    </pe-file>
+    <pe-file path="arm64/FolderDock.exe"
+             product-name="FolderDock"
+             product-version="${version}">
+      <authenticode-sign />
+    </pe-file>
+  </zip-file>
+</artifact-configuration>

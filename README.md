@@ -117,6 +117,22 @@ Key conventions: keys with a dot (`AddFolderLabel.Text`) bind to XAML elements v
 - The first click after a reboot is a cold start (~1–2 s), instant afterwards.
 - The shortcut icon is the standard folder icon from imageres; you can change it in the shortcut properties.
 
+## Code signing policy
+
+Free code signing provided by [SignPath.io](https://about.signpath.io), certificate by [SignPath Foundation](https://signpath.org).
+
+Release binaries (`FolderDock.exe` and the installers) are built from this repository by [GitHub Actions](.github/workflows/release.yml); only CI-built artifacts are submitted to SignPath for signing. The private key is HSM-backed and held by SignPath — this project never stores it.
+
+Team roles (single-maintainer project):
+
+- Authors (commit access): [zkelo](https://github.com/zkelo)
+- Reviewers: [zkelo](https://github.com/zkelo) — all external pull requests are reviewed by the maintainer before merge.
+- Approvers: [zkelo](https://github.com/zkelo) — each signing request requires explicit approval by the maintainer.
+
+### Privacy policy
+
+This program will not transfer any information to other networked systems unless specifically requested by the user or the person installing or operating it. One exception: the optional update check contacts the GitHub API (`api.github.com`) to read the latest release version. It can be turned off in the app settings (`autoCheckUpdates`).
+
 ## License
 
 [MIT](LICENSE)

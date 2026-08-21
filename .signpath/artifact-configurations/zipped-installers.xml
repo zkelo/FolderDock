@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SignPath artifact configuration, slug: zipped-installers
+     Вход: zip-артефакт GitHub Actions "unsigned-setup" с FolderDock-Setup-<version>-{x64|arm64}.exe.
+     Установщики Inno Setup — это PE-файлы; метаданные версии заданы в FolderDock.iss (VersionInfo*). -->
+<artifact-configuration xmlns="http://signpath.io/artifact-configuration/v1">
+  <parameters>
+    <parameter name="version" default-value="0.0.0" />
+  </parameters>
+  <zip-file>
+    <pe-file path="FolderDock-Setup-${version}-x64.exe"
+             product-name="FolderDock"
+             product-version="${version}">
+      <authenticode-sign />
+    </pe-file>
+    <pe-file path="FolderDock-Setup-${version}-arm64.exe"
+             product-name="FolderDock"
+             product-version="${version}">
+      <authenticode-sign />
+    </pe-file>
+  </zip-file>
+</artifact-configuration>

@@ -51,6 +51,12 @@ PrivilegesRequiredOverridesAllowed=dialog
 UninstallDisplayIcon={app}\{#MyAppExe}
 UninstallDisplayName={#MyAppName}
 
+; Метаданные версии в ресурсах setup-exe — SignPath проверяет product-name/product-version
+VersionInfoProductName={#MyAppName}
+VersionInfoVersion={#Version}
+VersionInfoProductVersion={#Version}
+VersionInfoProductTextVersion={#Version}
+
 #if Arch == "arm64"
 ArchitecturesAllowed=arm64
 ArchitecturesInstallIn64BitMode=arm64
