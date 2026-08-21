@@ -15,8 +15,8 @@ Folders on the Windows 11 taskbar — like the macOS Dock. Click a pinned folder
 - **Popup above the taskbar**: a grid with thumbnails (images get previews) or a compact list. Toggle with a button in the header.
 - Click a file → opens with the default app, popup closes.
 - Click a subfolder → navigate inside right in the popup; a **Back** button returns to the parent folder.
-- **Typed drag-and-drop**: the data package carries multiple representations — images are additionally added as Bitmap (paste "as picture" into Paint/Word/messengers), text files as Text (paste content into an editor), and always StorageItems (files for Explorer and everything else). The receiving app picks the format it understands.
-- **Context menu** (right-click an item): Open, Copy (to clipboard with the same typed formats: Ctrl+V in Paint pastes a picture, in Notepad — text, in Explorer — a file), Share (the Windows Share pane — mail, Bluetooth, OneDrive, messengers), Reveal in Explorer.
+- **Typed drag-and-drop**: the data package carries multiple representations — images are additionally added as Bitmap (paste "as picture" into Paint/Word/messengers), text files as Text (paste content into an editor), and always StorageItems (files for Explorer and everything else). The receiving app picks the format it understands. Dragging **moves** the item (like Explorer); hold **Ctrl** to copy instead. After a move the popup refreshes automatically.
+- **Explorer context menu** (right-click an item): the real system shell menu — Open with, Send to, Copy/Cut/Delete/Rename, third-party extensions (7-Zip, TortoiseGit, …) — exactly as in Explorer.
 - "Open in Explorer" button.
 - Click outside the window → popup closes (flyout behavior).
 - Click the icon again → toggle (close).
@@ -94,6 +94,7 @@ Key conventions: keys with a dot (`AddFolderLabel.Text`) bind to XAML elements v
 | `FolderReader.cs` | Reading folder contents |
 | `ThumbnailLoader.cs` | Async Explorer thumbnails (cancellable) |
 | `TypedDataPackage.cs` | DataPackage: Bitmap/Text/StorageItems; sync fill for drag |
+| `ShellContextMenu.cs` | Explorer shell context menu: IContextMenu/2/3, menu-message subclassing |
 | `ManagerWindow.xaml(.cs)` | Manager: adding folders, creating shortcuts, filtering dead pins |
 | `PinInfo.cs` | Manager list row model |
 | `AppInfo.cs` | Version, build timestamp, repository URL for the UI |

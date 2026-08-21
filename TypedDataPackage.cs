@@ -68,9 +68,13 @@ public static class TypedDataPackage
     /// синхронно, любой await до записи в e.Data оставляет пакет пустым
     /// (драг уже стартовал). Асинхронный резолв StorageItems/Bitmap отложен
     /// в data-провайдеры — приёмник запросит формат, тогда и резолвим.
-    public static void FillForDrag(DataPackage package, IReadOnlyList<FolderEntry> entries)
+    /// operation — Move по умолчанию (как в Проводнике), Copy при Ctrl;
+    /// приёмник вправе скорректировать по своим модификаторам в момент дропа.
+    public static void FillForDrag(DataPackage package,
+        IReadOnlyList<FolderEntry> entries, DataPackageOperation operation)
     {
         FillCommonProperties(package, entries);
+        package.RequestedOperation = operation;
 
         // Снимок списка: e.Items может быть переиспользован после выхода
         // из обработчика, а провайдер сработает позже (при дропе)

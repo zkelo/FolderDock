@@ -26,16 +26,11 @@ After pinning, clicking the icon opens the folder as a popup.</value></data>
   <data name="Build_Label" xml:space="preserve"><value>Build: {0}</value></data>
 
   <!-- Popup window -->
-  <data name="CtxOpen.Text" xml:space="preserve"><value>Open</value></data>
-  <data name="CtxCopy.Text" xml:space="preserve"><value>Copy</value></data>
-  <data name="CtxShare.Text" xml:space="preserve"><value>Share</value></data>
-  <data name="CtxReveal.Text" xml:space="preserve"><value>Show in Explorer</value></data>
   <data name="Tooltip_Back" xml:space="preserve"><value>Back</value></data>
   <data name="Tooltip_ViewToggle" xml:space="preserve"><value>Grid / list</value></data>
   <data name="Tooltip_OpenInExplorer" xml:space="preserve"><value>Open in Explorer</value></data>
   <data name="Folder_Empty" xml:space="preserve"><value>Folder is empty</value></data>
   <data name="Folder_AccessDenied" xml:space="preserve"><value>Folder is not accessible</value></data>
-  <data name="Copy_Failed" xml:space="preserve"><value>Copy failed</value></data>
 
   <!-- Sharing / data package -->
   <data name="Share_NoItem" xml:space="preserve"><value>Nothing to share</value></data>

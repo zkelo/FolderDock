@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
 using Windows.ApplicationModel.DataTransfer;
 
 namespace FolderDock;
@@ -38,6 +39,7 @@ public sealed partial class PopupWindow : Window
 
     private bool _gridMode = true;
     private bool _isActive;
+    private bool _shellMenuOpen;
     private string? _lastDismissedFolder;
     private DateTime _lastDismissedAt;
     private DateTime _shownAt;
@@ -150,7 +152,7 @@ public sealed partial class PopupWindow : Window
         var deactivated = e.WindowActivationState == WindowActivationState.Deactivated;
         _isActive = !deactivated;
 
-        if (deactivated && !_share.IsShareInProgress &&
+        if (deactivated && !_share.IsShareInProgress && !_shellMenuOpen &&
             DateTime.UtcNow - _shownAt > DismissGracePeriod)
             Dismiss();
 
@@ -214,49 +216,48 @@ public sealed partial class PopupWindow : Window
             e.Cancel = true;
             return;
         }
-        TypedDataPackage.FillForDrag(e.Data, entries);
+
+        // Move по умолчанию (как в Проводнике), Copy при зажатом Ctrl.
+        // Приёмник вправе скорректировать операцию своими модификаторами при дропе.
+        var ctrlHeld = (Native.GetKeyState(Native.VK_CONTROL) & 0x8000) != 0;
+        TypedDataPackage.FillForDrag(e.Data, entries,
+            ctrlHeld ? DataPackageOperation.Copy : DataPackageOperation.Move);
+    }
+
+    private void OnDragItemsCompleted(ListViewBase sender, DragItemsCompletedEventArgs args)
+    {
+        // После перемещения исходные элементы исчезли из папки — обновляем список
+        if (args.DropResult == DataPackageOperation.Move)
+            Reload();
     }
 
     private static FolderEntry? EntryFrom(object sender) =>
         (sender as FrameworkElement)?.DataContext as FolderEntry;
 
-    private void OnOpenItem(object sender, RoutedEventArgs e)
+    private void OnItemRightTapped(object sender, RightTappedRoutedEventArgs e)
     {
-        if (EntryFrom(sender) is { } entry)
-            OpenEntry(entry);
-    }
-
-    private async void OnCopyItem(object sender, RoutedEventArgs e)
-    {
+        e.Handled = true;
         if (EntryFrom(sender) is not { } entry) return;
+
+        // TrackPopupMenuEx крутит модальный цикл на UI-потоке; флаг не даёт
+        // light-dismiss спрятать попап, если Windows дёрнет Deactivated
+        _shellMenuOpen = true;
         try
         {
-            var entries = new List<FolderEntry> { entry };
-            var items = await TypedDataPackage.ResolveStorageItemsAsync(entries);
-            var package = new DataPackage();
-            TypedDataPackage.Fill(package, entries, items);
-            Clipboard.SetContent(package);
-            Clipboard.Flush();
+            ShellContextMenu.Show(_chrome.Hwnd, entry.FullPath);
         }
         catch
         {
-            // Буфер занят другим приложением или файл исчез — сообщаем,
-            // а не делаем вид, что скопировалось
-            TitleText.Text = Loc.Get("Copy_Failed");
+            // Сломанное shell-расширение или файл исчез — попап важнее меню
         }
-    }
+        finally
+        {
+            _shellMenuOpen = false;
+        }
 
-    private void OnShareItem(object sender, RoutedEventArgs e)
-    {
-        if (EntryFrom(sender) is not { } entry) return;
-        _share.Share(entry);
-    }
-
-    private void OnRevealItem(object sender, RoutedEventArgs e)
-    {
-        if (EntryFrom(sender) is not { } entry) return;
-        Shell.RevealInExplorer(entry.FullPath);
-        Dismiss();
+        // Команда могла изменить папку (удаление, переименование, вставка);
+        // InvokeCommand асинхронен на стороне шелла, но обновиться дёшево
+        Reload();
     }
 
     private void OnToggleView(object sender, RoutedEventArgs e)

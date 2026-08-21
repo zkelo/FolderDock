@@ -26,6 +26,11 @@ internal static class Native
     [DllImport("user32.dll")]
     public static extern uint GetDpiForWindow(IntPtr hwnd);
 
+    public const int VK_CONTROL = 0x11;
+
+    [DllImport("user32.dll")]
+    public static extern short GetKeyState(int virtualKey);
+
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     public static extern bool SetForegroundWindow(IntPtr hwnd);

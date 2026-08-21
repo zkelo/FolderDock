@@ -26,16 +26,11 @@
   <data name="Build_Label" xml:space="preserve"><value>Збірка: {0}</value></data>
 
   <!-- Спливне вікно -->
-  <data name="CtxOpen.Text" xml:space="preserve"><value>Відкрити</value></data>
-  <data name="CtxCopy.Text" xml:space="preserve"><value>Копіювати</value></data>
-  <data name="CtxShare.Text" xml:space="preserve"><value>Поділитися</value></data>
-  <data name="CtxReveal.Text" xml:space="preserve"><value>Показати у Провіднику</value></data>
   <data name="Tooltip_Back" xml:space="preserve"><value>Назад</value></data>
   <data name="Tooltip_ViewToggle" xml:space="preserve"><value>Сітка / список</value></data>
   <data name="Tooltip_OpenInExplorer" xml:space="preserve"><value>Відкрити у Провіднику</value></data>
   <data name="Folder_Empty" xml:space="preserve"><value>Папка порожня</value></data>
   <data name="Folder_AccessDenied" xml:space="preserve"><value>Немає доступу до папки</value></data>
-  <data name="Copy_Failed" xml:space="preserve"><value>Не вдалося скопіювати</value></data>
 
   <!-- Надсилання / пакет даних -->
   <data name="Share_NoItem" xml:space="preserve"><value>Немає елемента для надсилання</value></data>

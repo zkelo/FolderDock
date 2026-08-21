@@ -54,36 +54,14 @@
                   ItemClick="OnItemClick"
                   CanDragItems="True"
                   DragItemsStarting="OnDragItemsStarting"
+                  DragItemsCompleted="OnDragItemsCompleted"
                   Visibility="Visible">
             <GridView.ItemTemplate>
                 <DataTemplate x:DataType="local:FolderEntry">
                     <StackPanel Width="92" Padding="4,8" Spacing="4"
+                                Background="Transparent"
+                                RightTapped="OnItemRightTapped"
                                 ToolTipService.ToolTip="{x:Bind Name}">
-                        <StackPanel.ContextFlyout>
-                            <MenuFlyout>
-                                <MenuFlyoutItem x:Uid="CtxOpen" Click="OnOpenItem">
-                                    <MenuFlyoutItem.Icon>
-                                        <FontIcon Glyph="&#xE8E5;"/>
-                                    </MenuFlyoutItem.Icon>
-                                </MenuFlyoutItem>
-                                <MenuFlyoutItem x:Uid="CtxCopy" Click="OnCopyItem">
-                                    <MenuFlyoutItem.Icon>
-                                        <FontIcon Glyph="&#xE8C8;"/>
-                                    </MenuFlyoutItem.Icon>
-                                </MenuFlyoutItem>
-                                <MenuFlyoutItem x:Uid="CtxShare" Click="OnShareItem">
-                                    <MenuFlyoutItem.Icon>
-                                        <FontIcon Glyph="&#xE72D;"/>
-                                    </MenuFlyoutItem.Icon>
-                                </MenuFlyoutItem>
-                                <MenuFlyoutSeparator/>
-                                <MenuFlyoutItem x:Uid="CtxReveal" Click="OnRevealItem">
-                                    <MenuFlyoutItem.Icon>
-                                        <FontIcon Glyph="&#xE838;"/>
-                                    </MenuFlyoutItem.Icon>
-                                </MenuFlyoutItem>
-                            </MenuFlyout>
-                        </StackPanel.ContextFlyout>
                         <Image Source="{x:Bind Thumbnail, Mode=OneWay}" Width="48" Height="48"
                                HorizontalAlignment="Center"/>
                         <TextBlock Text="{x:Bind Name}" FontSize="12"
@@ -102,35 +80,13 @@
                   ItemClick="OnItemClick"
                   CanDragItems="True"
                   DragItemsStarting="OnDragItemsStarting"
+                  DragItemsCompleted="OnDragItemsCompleted"
                   Visibility="Collapsed">
             <ListView.ItemTemplate>
                 <DataTemplate x:DataType="local:FolderEntry">
-                    <StackPanel Orientation="Horizontal" Spacing="10" Padding="2,4">
-                        <StackPanel.ContextFlyout>
-                            <MenuFlyout>
-                                <MenuFlyoutItem x:Uid="CtxOpen" Click="OnOpenItem">
-                                    <MenuFlyoutItem.Icon>
-                                        <FontIcon Glyph="&#xE8E5;"/>
-                                    </MenuFlyoutItem.Icon>
-                                </MenuFlyoutItem>
-                                <MenuFlyoutItem x:Uid="CtxCopy" Click="OnCopyItem">
-                                    <MenuFlyoutItem.Icon>
-                                        <FontIcon Glyph="&#xE8C8;"/>
-                                    </MenuFlyoutItem.Icon>
-                                </MenuFlyoutItem>
-                                <MenuFlyoutItem x:Uid="CtxShare" Click="OnShareItem">
-                                    <MenuFlyoutItem.Icon>
-                                        <FontIcon Glyph="&#xE72D;"/>
-                                    </MenuFlyoutItem.Icon>
-                                </MenuFlyoutItem>
-                                <MenuFlyoutSeparator/>
-                                <MenuFlyoutItem x:Uid="CtxReveal" Click="OnRevealItem">
-                                    <MenuFlyoutItem.Icon>
-                                        <FontIcon Glyph="&#xE838;"/>
-                                    </MenuFlyoutItem.Icon>
-                                </MenuFlyoutItem>
-                            </MenuFlyout>
-                        </StackPanel.ContextFlyout>
+                    <StackPanel Orientation="Horizontal" Spacing="10" Padding="2,4"
+                                Background="Transparent"
+                                RightTapped="OnItemRightTapped">
                         <Image Source="{x:Bind Thumbnail, Mode=OneWay}" Width="20" Height="20"/>
                         <TextBlock Text="{x:Bind Name}" VerticalAlignment="Center"
                                    TextTrimming="CharacterEllipsis"/>

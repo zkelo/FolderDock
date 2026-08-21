@@ -26,16 +26,11 @@
   <data name="Build_Label" xml:space="preserve"><value>Сборка: {0}</value></data>
 
   <!-- Всплывающее окно -->
-  <data name="CtxOpen.Text" xml:space="preserve"><value>Открыть</value></data>
-  <data name="CtxCopy.Text" xml:space="preserve"><value>Копировать</value></data>
-  <data name="CtxShare.Text" xml:space="preserve"><value>Поделиться</value></data>
-  <data name="CtxReveal.Text" xml:space="preserve"><value>Показать в Проводнике</value></data>
   <data name="Tooltip_Back" xml:space="preserve"><value>Назад</value></data>
   <data name="Tooltip_ViewToggle" xml:space="preserve"><value>Сетка / список</value></data>
   <data name="Tooltip_OpenInExplorer" xml:space="preserve"><value>Открыть в Проводнике</value></data>
   <data name="Folder_Empty" xml:space="preserve"><value>Папка пуста</value></data>
   <data name="Folder_AccessDenied" xml:space="preserve"><value>Нет доступа к папке</value></data>
-  <data name="Copy_Failed" xml:space="preserve"><value>Не удалось скопировать</value></data>
 
   <!-- Отправка / пакет данных -->
   <data name="Share_NoItem" xml:space="preserve"><value>Нет элемента для отправки</value></data>
