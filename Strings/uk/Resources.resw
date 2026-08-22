@@ -13,13 +13,13 @@
   <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
 
   <!-- Вікно менеджера -->
-  <data name="ManagerIntro.Text" xml:space="preserve"><value>Додай папку — отримаєш ярлик. Закріпи його на панелі завдань (ПКМ → «Закріпити на панелі завдань»). Клік по значку відкриє вміст папки у спливному вікні.</value></data>
+  <data name="ManagerIntro.Text" xml:space="preserve"><value>Додай папку — отримаєш ярлик. ПКМ по рядку в списку → «Закріпити на панелі завдань». Клік по значку відкриє вміст папки у спливному вікні.</value></data>
   <data name="AddFolderLabel.Text" xml:space="preserve"><value>Додати папку</value></data>
   <data name="CheckUpdatesLabel.Text" xml:space="preserve"><value>Перевірити оновлення</value></data>
   <data name="AutoUpdateLabel.Text" xml:space="preserve"><value>Перевіряти автоматично</value></data>
   <data name="RevealShortcutButton.Content" xml:space="preserve"><value>Показати ярлик</value></data>
   <data name="Dialog_ShortcutCreatedTitle" xml:space="preserve"><value>Ярлик створено</value></data>
-  <data name="Dialog_ShortcutCreatedBody" xml:space="preserve"><value>У Провіднику, що відкрився: ПКМ по ярлику → «Показати додаткові параметри» → «Закріпити на панелі завдань».
+  <data name="Dialog_ShortcutCreatedBody" xml:space="preserve"><value>ПКМ по папці в списку → «Закріпити на панелі завдань».
 
 Після закріплення клік по значку відкриє папку каскадом.</value></data>
   <data name="Dialog_ErrorTitle" xml:space="preserve"><value>Помилка</value></data>

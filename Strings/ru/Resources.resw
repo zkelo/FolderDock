@@ -13,13 +13,13 @@
   <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
 
   <!-- Окно менеджера -->
-  <data name="ManagerIntro.Text" xml:space="preserve"><value>Добавь папку — получишь ярлык. Закрепи его на панели задач (ПКМ → «Закрепить на панели задач»). Клик по значку откроет содержимое папки во всплывающем окне.</value></data>
+  <data name="ManagerIntro.Text" xml:space="preserve"><value>Добавь папку — получишь ярлык. ПКМ по строке в списке → «Закрепить на панели задач». Клик по значку откроет содержимое папки во всплывающем окне.</value></data>
   <data name="AddFolderLabel.Text" xml:space="preserve"><value>Добавить папку</value></data>
   <data name="CheckUpdatesLabel.Text" xml:space="preserve"><value>Проверить обновления</value></data>
   <data name="AutoUpdateLabel.Text" xml:space="preserve"><value>Проверять автоматически</value></data>
   <data name="RevealShortcutButton.Content" xml:space="preserve"><value>Показать ярлык</value></data>
   <data name="Dialog_ShortcutCreatedTitle" xml:space="preserve"><value>Ярлык создан</value></data>
-  <data name="Dialog_ShortcutCreatedBody" xml:space="preserve"><value>В открывшемся Проводнике: ПКМ по ярлыку → «Показать дополнительные параметры» → «Закрепить на панели задач».
+  <data name="Dialog_ShortcutCreatedBody" xml:space="preserve"><value>ПКМ по папке в списке → «Закрепить на панели задач».
 
 После закрепления клик по значку откроет папку каскадом.</value></data>
   <data name="Dialog_ErrorTitle" xml:space="preserve"><value>Ошибка</value></data>

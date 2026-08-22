@@ -30,7 +30,9 @@
         <ListView x:Name="PinsList" Grid.Row="2" SelectionMode="None">
             <ListView.ItemTemplate>
                 <DataTemplate x:DataType="local:PinInfo">
-                    <Grid Padding="0,8" ColumnSpacing="12">
+                    <!-- Background=Transparent — hit-test на всю строку для ПКМ -->
+                    <Grid Padding="0,8" ColumnSpacing="12" Background="Transparent"
+                          RightTapped="OnPinRightTapped">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="*"/>

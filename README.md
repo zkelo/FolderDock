@@ -16,7 +16,7 @@ Folders on the Windows 11 taskbar — like the macOS Dock. Click a pinned folder
 - Click a file → opens with the default app **with folder context** (`NeighboringFilesQuery`): in Photos and other viewers arrow keys browse to the next/previous file, exactly as when opening from Explorer. Popup closes.
 - Click a subfolder → navigate inside right in the popup; a **Back** button returns to the parent folder.
 - **Typed drag-and-drop**: the data package carries multiple representations — images are additionally added as Bitmap (paste "as picture" into Paint/Word/messengers), text files as Text (paste content into an editor), and always StorageItems (files for Explorer and everything else). The receiving app picks the format it understands. Dragging **moves** the item (like Explorer); hold **Ctrl** to copy instead. After a move the popup refreshes automatically.
-- **Explorer context menu** (right-click an item): the real system shell menu — Open with, Send to, Copy/Cut/Delete/Rename, third-party extensions (7-Zip, TortoiseGit, …) — exactly as in Explorer.
+- **Explorer context menu** (right-click an item): the real system shell menu — Open with, Send to, Copy/Cut/Delete/Rename, third-party extensions (7-Zip, TortoiseGit, …) — exactly as in Explorer. The same menu is available on rows in the manager window: right-click a pinned folder to **pin its shortcut to the taskbar**, rename or delete it — no Explorer round-trip.
 - "Open in Explorer" button.
 - Click outside the window → popup closes (flyout behavior).
 - Click the icon again → toggle (close).
@@ -53,8 +53,8 @@ Output: `bin\x64\Release\net8.0-windows10.0.19041.0\win-x64\publish\FolderDock.e
 ## Usage
 
 1. Run `FolderDock.exe` with no arguments → the manager window.
-2. "Add folder" → pick a folder → a shortcut is created in `%LOCALAPPDATA%\FolderDock\Shortcuts` and Explorer opens next to it.
-3. Right-click the shortcut → "Show more options" → **"Pin to taskbar"**.
+2. "Add folder" → pick a folder → a shortcut is created in `%LOCALAPPDATA%\FolderDock\Shortcuts`.
+3. Right-click the folder in the list → **"Pin to taskbar"** (the real Explorer shell menu — pin, rename, delete, properties without leaving the manager).
 4. Click the pinned icon → a popup with the folder contents.
 
 Pin as many folders as you like — each one gets its own icon.

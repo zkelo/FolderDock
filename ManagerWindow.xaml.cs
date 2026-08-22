@@ -4,6 +4,7 @@ using System.IO;
 using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
 using Windows.Storage.Pickers;
 using WinRT.Interop;
 
@@ -193,7 +194,8 @@ public sealed partial class ManagerWindow : Window
         {
             var lnk = ShortcutFactory.CreateFolderShortcut(folder, ShortcutsDir);
             _pins.Add(PinInfo.FromShortcut(lnk, folder));
-            Shell.RevealInExplorer(lnk);
+            // Проводник больше не открываем: закрепление доступно прямо здесь —
+            // ПКМ по строке списка → системное меню шелла → «Закрепить на панели задач»
             await ShowDialogAsync(Loc.Get("Dialog_ShortcutCreatedTitle"),
                 Loc.Get("Dialog_ShortcutCreatedBody"));
         }
@@ -229,5 +231,26 @@ public sealed partial class ManagerWindow : Window
     {
         if ((sender as FrameworkElement)?.Tag is string lnk)
             Shell.RevealInExplorer(lnk);
+    }
+
+    private void OnPinRightTapped(object sender, RightTappedRoutedEventArgs e)
+    {
+        e.Handled = true;
+        if ((sender as FrameworkElement)?.DataContext is not PinInfo pin) return;
+
+        try
+        {
+            // Настоящее меню Проводника для .lnk: «Закрепить на панели задач»,
+            // переименование, удаление, свойства — без перехода в Проводник
+            ShellContextMenu.Show(WindowNative.GetWindowHandle(this), pin.Lnk);
+        }
+        catch
+        {
+            // Сломанное shell-расширение или исчезнувший ярлык — окно важнее меню
+        }
+
+        // Команда могла удалить/переименовать ярлык; InvokeCommand асинхронен
+        // на стороне шелла, но обновиться дёшево
+        LoadExistingShortcuts();
     }
 }
