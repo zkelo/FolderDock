@@ -13,16 +13,16 @@
   <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
 
   <!-- Manager window -->
-  <data name="ManagerIntro.Text" xml:space="preserve"><value>Add a folder to get a shortcut. Below is a real Explorer view of your shortcuts: right-click one → "Pin to taskbar", rename, delete or drag them as usual. Clicking the pinned icon opens the folder contents in a popup.</value></data>
+  <data name="ManagerIntro.Text" xml:space="preserve"><value>Add a folder to get a shortcut. Right-click it in the list → "Pin to taskbar". Clicking the icon opens the folder contents in a popup.</value></data>
   <data name="AddFolderLabel.Text" xml:space="preserve"><value>Add folder</value></data>
   <data name="CheckUpdatesLabel.Text" xml:space="preserve"><value>Check for updates</value></data>
   <data name="AutoUpdateLabel.Text" xml:space="preserve"><value>Check automatically</value></data>
+  <data name="RevealShortcutButton.Content" xml:space="preserve"><value>Show shortcut</value></data>
   <data name="Dialog_ShortcutCreatedTitle" xml:space="preserve"><value>Shortcut created</value></data>
-  <data name="Dialog_ShortcutCreatedBody" xml:space="preserve"><value>Right-click the shortcut in the Explorer view below → "Pin to taskbar".
+  <data name="Dialog_ShortcutCreatedBody" xml:space="preserve"><value>Right-click the folder in the list → "Pin to taskbar".
 
 After pinning, clicking the icon opens the folder as a popup.</value></data>
   <data name="Dialog_ErrorTitle" xml:space="preserve"><value>Error</value></data>
-  <data name="Manager_EmptyText" xml:space="preserve"><value>No shortcuts yet — click "Add folder" above.</value></data>
   <data name="Build_Label" xml:space="preserve"><value>Build: {0}</value></data>
 
   <!-- Popup window -->
