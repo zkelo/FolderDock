@@ -1,10 +1,8 @@
 using System;
-using System.Collections.ObjectModel;
 using System.IO;
 using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Input;
 using Windows.Storage.Pickers;
 using WinRT.Interop;
 
@@ -15,8 +13,8 @@ public sealed partial class ManagerWindow : Window
     private const int DefaultWidth = 720;
     private const int DefaultHeight = 560;
 
-    private readonly ObservableCollection<PinInfo> _pins = new();
     private readonly Settings _settings = Settings.Load();
+    private ExplorerBrowserHost? _explorer;
     private bool _updateCheckRunning;
 
     private static string ShortcutsDir => Path.Combine(
@@ -30,13 +28,53 @@ public sealed partial class ManagerWindow : Window
         SetAppIcon();
         ApplyAppInfo();
         ApplySettings();
-        PinsList.ItemsSource = _pins;
-        LoadExistingShortcuts();
+        // Встроенный вид Проводника создаём после первой компоновки:
+        // нужны фактические размеры плейсхолдера
+        ExplorerHostArea.Loaded += OnExplorerAreaLoaded;
+        ExplorerHostArea.SizeChanged += (_, _) => UpdateExplorerBounds();
+        Closed += (_, _) => { _explorer?.Dispose(); _explorer = null; };
         AppWindow.Resize(new Windows.Graphics.SizeInt32(DefaultWidth, DefaultHeight));
-        Activated += OnActivated;
 
         if (_settings.AutoCheckUpdates)
             _ = CheckForUpdatesAsync(silentWhenUpToDate: true);
+    }
+
+    private void OnExplorerAreaLoaded(object sender, RoutedEventArgs e)
+    {
+        if (_explorer is not null) return;
+        try
+        {
+            // Вид Проводника показывает папку ярлыков напрямую: переименование,
+            // удаление, ПКМ «Закрепить на панели задач», drag&drop — всё родное.
+            // Изменения на диске шелл подхватывает сам (change notifications).
+            Directory.CreateDirectory(ShortcutsDir);
+            var host = new ExplorerBrowserHost();
+            host.Initialize(WindowNative.GetWindowHandle(this), ExplorerAreaRect(),
+                ShortcutsDir, Loc.Get("Manager_EmptyText"));
+            _explorer = host;
+        }
+        catch
+        {
+            // Без встроенного Проводника окно всё ещё полезно:
+            // добавление папок и обновления работают
+        }
+    }
+
+    private void UpdateExplorerBounds() => _explorer?.SetBounds(ExplorerAreaRect());
+
+    /// Прямоугольник плейсхолдера в физических пикселях клиентской области окна.
+    private RECT ExplorerAreaRect()
+    {
+        var scale = ExplorerHostArea.XamlRoot?.RasterizationScale ?? 1.0;
+        var pos = ExplorerHostArea.TransformToVisual(null)
+            .TransformPoint(new Windows.Foundation.Point(0, 0));
+        return new RECT
+        {
+            Left = (int)Math.Round(pos.X * scale),
+            Top = (int)Math.Round(pos.Y * scale),
+            Right = (int)Math.Round((pos.X + ExplorerHostArea.ActualWidth) * scale),
+            Bottom = (int)Math.Round((pos.Y + ExplorerHostArea.ActualHeight) * scale)
+        };
     }
 
     private void ApplySettings()
@@ -162,29 +200,6 @@ public sealed partial class ManagerWindow : Window
         }
     }
 
-    private void OnActivated(object sender, WindowActivatedEventArgs e)
-    {
-        // Актуализируем список при каждом возврате к окну:
-        // ярлыки и папки могли удалить, пока менеджер был в фоне
-        if (e.WindowActivationState != WindowActivationState.Deactivated)
-            LoadExistingShortcuts();
-    }
-
-    private void LoadExistingShortcuts()
-    {
-        _pins.Clear();
-        if (!Directory.Exists(ShortcutsDir)) return;
-
-        foreach (var lnk in Directory.EnumerateFiles(ShortcutsDir, "*.lnk"))
-        {
-            // Показываем только ярлыки, чья целевая папка существует на диске
-            var folder = ShortcutFactory.ReadFolderFromShortcut(lnk);
-            if (folder is null || !Directory.Exists(folder)) continue;
-
-            _pins.Add(PinInfo.FromShortcut(lnk, folder));
-        }
-    }
-
     private async void OnAddFolder(object sender, RoutedEventArgs e)
     {
         var folder = await PickFolderAsync();
@@ -192,10 +207,9 @@ public sealed partial class ManagerWindow : Window
 
         try
         {
-            var lnk = ShortcutFactory.CreateFolderShortcut(folder, ShortcutsDir);
-            _pins.Add(PinInfo.FromShortcut(lnk, folder));
-            // Проводник больше не открываем: закрепление доступно прямо здесь —
-            // ПКМ по строке списка → системное меню шелла → «Закрепить на панели задач»
+            // Ярлык появится во встроенном виде Проводника сам —
+            // шелл получает уведомление об изменении папки
+            ShortcutFactory.CreateFolderShortcut(folder, ShortcutsDir);
             await ShowDialogAsync(Loc.Get("Dialog_ShortcutCreatedTitle"),
                 Loc.Get("Dialog_ShortcutCreatedBody"));
         }
@@ -225,32 +239,5 @@ public sealed partial class ManagerWindow : Window
             XamlRoot = Content.XamlRoot
         };
         await dialog.ShowAsync();
-    }
-
-    private void OnRevealShortcut(object sender, RoutedEventArgs e)
-    {
-        if ((sender as FrameworkElement)?.Tag is string lnk)
-            Shell.RevealInExplorer(lnk);
-    }
-
-    private void OnPinRightTapped(object sender, RightTappedRoutedEventArgs e)
-    {
-        e.Handled = true;
-        if ((sender as FrameworkElement)?.DataContext is not PinInfo pin) return;
-
-        try
-        {
-            // Настоящее меню Проводника для .lnk: «Закрепить на панели задач»,
-            // переименование, удаление, свойства — без перехода в Проводник
-            ShellContextMenu.Show(WindowNative.GetWindowHandle(this), pin.Lnk);
-        }
-        catch
-        {
-            // Сломанное shell-расширение или исчезнувший ярлык — окно важнее меню
-        }
-
-        // Команда могла удалить/переименовать ярлык; InvokeCommand асинхронен
-        // на стороне шелла, но обновиться дёшево
-        LoadExistingShortcuts();
     }
 }

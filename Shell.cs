@@ -70,9 +70,6 @@ public static class Shell
     public static void OpenFolder(string folder) =>
         StartExplorer($"\"{folder}\"");
 
-    public static void RevealInExplorer(string path) =>
-        StartExplorer($"/select,\"{path}\"");
-
     private static void StartExplorer(string arguments)
     {
         try

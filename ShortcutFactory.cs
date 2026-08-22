@@ -11,9 +11,6 @@ public static class ShortcutFactory
     /// imageres.dll, индекс 3 — стандартная жёлтая папка Windows.
     private const int FolderIconIndex = 3;
 
-    /// Максимальная читаемая длина строки аргументов ярлыка.
-    private const int MaxArgumentsLength = 1024;
-
     public static string CreateFolderShortcut(string folderPath, string outputDir)
     {
         Directory.CreateDirectory(outputDir);
@@ -35,24 +32,6 @@ public static class ShortcutFactory
         WriteAumid(link, FolderAumid.For(folderPath));
         ((IPersistFile)link).Save(lnkPath, true);
         return lnkPath;
-    }
-
-    /// Читает путь папки из аргументов существующего ярлыка (--folder "...").
-    /// null — ярлык не читается или не содержит --folder.
-    public static string? ReadFolderFromShortcut(string lnkPath)
-    {
-        try
-        {
-            var link = (IShellLinkW)new CShellLink();
-            ((IPersistFile)link).Load(lnkPath, 0 /* STGM_READ */);
-            var args = new StringBuilder(MaxArgumentsLength);
-            link.GetArguments(args, args.Capacity);
-            return CommandLine.FolderFrom(args.ToString());
-        }
-        catch
-        {
-            return null;
-        }
     }
 
     private static string UniqueShortcutPath(
