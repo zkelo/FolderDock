@@ -1,3 +1,5 @@
+![App logo](Assets/FolderDock.png)
+
 # FolderDock
 
 ![GitHub License](https://img.shields.io/github/license/zkelo/folderdock)
