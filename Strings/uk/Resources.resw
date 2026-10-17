@@ -27,6 +27,9 @@
 
   <!-- Спливне вікно -->
   <data name="Tooltip_Back" xml:space="preserve"><value>Назад</value></data>
+  <data name="Tooltip_PinPopup" xml:space="preserve"><value>Закріпити вікно</value></data>
+  <data name="Tooltip_UnpinPopup" xml:space="preserve"><value>Відкріпити вікно</value></data>
+  <data name="Tooltip_ClosePopup" xml:space="preserve"><value>Закрити вікно (Esc)</value></data>
   <data name="Tooltip_ViewToggle" xml:space="preserve"><value>Сітка / список</value></data>
   <data name="Tooltip_OpenInExplorer" xml:space="preserve"><value>Відкрити у Провіднику</value></data>
   <data name="Folder_Empty" xml:space="preserve"><value>Папка порожня</value></data>

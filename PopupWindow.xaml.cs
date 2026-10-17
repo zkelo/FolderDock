@@ -3,7 +3,10 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
+using FolderDock.Core;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Windows.ApplicationModel.DataTransfer;
@@ -12,10 +15,6 @@ namespace FolderDock;
 
 public sealed partial class PopupWindow : Window
 {
-    /// Показ ранее 300 мс: SetForegroundWindow из фонового процесса может быть
-    /// отклонён Windows → ложный Deactivated сразу после Show.
-    private static readonly TimeSpan DismissGracePeriod = TimeSpan.FromMilliseconds(300);
-
     /// Дебаунс повторного клика по значку: light-dismiss прячет попап ДО того,
     /// как придёт перенаправленная активация, иначе toggle мгновенно переоткрывает.
     private static readonly TimeSpan ToggleDebounceInterval = TimeSpan.FromMilliseconds(600);
@@ -26,6 +25,7 @@ public sealed partial class PopupWindow : Window
 
     private readonly PopupChrome _chrome;
     private readonly ShareCoordinator _share;
+    private readonly PopupSession _session = new();
     private readonly ThumbnailLoader _thumbnails = new();
     private readonly ObservableCollection<FolderEntry> _entries = new();
     private readonly Stack<string> _navigationStack = new();
@@ -48,19 +48,31 @@ public sealed partial class PopupWindow : Window
     {
         InitializeComponent();
         _chrome = new PopupChrome(this);
-        _share = new ShareCoordinator(_chrome, shareFinished: HideIfInactive);
+        _share = new ShareCoordinator(_chrome, shareFinished: OnShareCompleted);
         ItemsGrid.ItemsSource = _entries;
         ItemsList.ItemsSource = _entries;
-        ApplyTooltips();
+        InitializeHeaderLabels();
         Activated += OnActivationChanged;
     }
 
-    private void ApplyTooltips()
+    private void InitializeHeaderLabels()
     {
         // Тултипы из ресурсов: x:Uid не умеет attached-свойства с обычным Text
         ToolTipService.SetToolTip(BackButton, Loc.Get("Tooltip_Back"));
         ToolTipService.SetToolTip(ViewToggle, Loc.Get("Tooltip_ViewToggle"));
         ToolTipService.SetToolTip(OpenExplorerButton, Loc.Get("Tooltip_OpenInExplorer"));
+        var closeLabel = Loc.Get("Tooltip_ClosePopup");
+        ToolTipService.SetToolTip(CloseButton, closeLabel);
+        AutomationProperties.SetName(CloseButton, closeLabel);
+        RenderPinState();
+    }
+
+    private void RenderPinState()
+    {
+        PinToggle.IsChecked = _session.IsPinned;
+        var label = Loc.Get(_session.IsPinned ? "Tooltip_UnpinPopup" : "Tooltip_PinPopup");
+        ToolTipService.SetToolTip(PinToggle, label);
+        AutomationProperties.SetName(PinToggle, label);
     }
 
     public bool IsOpenFor(string folder) =>
@@ -72,6 +84,8 @@ public sealed partial class PopupWindow : Window
 
     public void ShowForFolder(string folder)
     {
+        _session.Begin();
+        RenderPinState();
         _rootFolder = Path.GetFullPath(folder);
         _currentFolder = _rootFolder;
         _navigationStack.Clear();
@@ -85,9 +99,26 @@ public sealed partial class PopupWindow : Window
         _shownAt = DateTime.UtcNow;
         _chrome.Show();
         Activate();
+        // Без фокуса на XAML-контроле Esc не попадает в KeyboardAccelerators.
+        PinToggle.Focus(FocusState.Programmatic);
     }
 
-    public void Dismiss()
+    public void Dismiss() => RequestDismiss(PopupDismissalReason.Explicit);
+
+    private void RequestDismiss(PopupDismissalReason reason)
+    {
+        var context = new PopupDismissalContext(
+            IsActive: _isActive,
+            IsVisible: _chrome.IsVisible,
+            IsShareInProgress: _share.IsShareInProgress,
+            IsShellMenuOpen: _shellMenuOpen,
+            TimeSinceShown: DateTime.UtcNow - _shownAt);
+
+        if (_session.ShouldDismiss(reason, context))
+            HidePopup();
+    }
+
+    private void HidePopup()
     {
         if (_chrome.IsVisible)
         {
@@ -149,26 +180,21 @@ public sealed partial class PopupWindow : Window
 
     private void OnActivationChanged(object sender, WindowActivatedEventArgs e)
     {
-        var deactivated = e.WindowActivationState == WindowActivationState.Deactivated;
-        _isActive = !deactivated;
-
-        if (deactivated && !_share.IsShareInProgress && !_shellMenuOpen &&
-            DateTime.UtcNow - _shownAt > DismissGracePeriod)
-            Dismiss();
-
-        if (!deactivated)
+        _isActive = e.WindowActivationState != WindowActivationState.Deactivated;
+        if (_isActive)
+        {
             _share.Reset();
+            return;
+        }
+
+        RequestDismiss(PopupDismissalReason.Deactivated);
     }
 
-    private void HideIfInactive()
+    private void OnShareCompleted()
     {
-        // Share завершён (панель закрыта / данные переданы): если фокус так и
-        // не вернулся к попапу, не оставляем always-on-top окно на экране
-        DispatchToUi(() =>
-        {
-            if (!_isActive && _chrome.IsVisible)
-                Dismiss();
-        });
+        // Состояние читается на UI-потоке после очереди: фокус или закрепление
+        // могли измениться с момента завершения Share.
+        DispatchToUi(() => RequestDismiss(PopupDismissalReason.ShareCompleted));
     }
 
     private void DispatchToUi(Action action)
@@ -177,13 +203,13 @@ public sealed partial class PopupWindow : Window
         else DispatcherQueue.TryEnqueue(() => action());
     }
 
-    private void OnItemClick(object sender, ItemClickEventArgs e)
+    private async void OnItemClick(object sender, ItemClickEventArgs e)
     {
         if (e.ClickedItem is FolderEntry entry)
-            OpenEntry(entry);
+            await OpenEntryAsync(entry);
     }
 
-    private async void OpenEntry(FolderEntry entry)
+    private async Task OpenEntryAsync(FolderEntry entry)
     {
         if (entry.IsDirectory)
         {
@@ -195,9 +221,9 @@ public sealed partial class PopupWindow : Window
             return;
         }
 
-        // Сначала прячем попап: LaunchFileAsync активирует чужое окно,
-        // и light-dismiss всё равно сработает — но уже недетерминированно
-        Dismiss();
+        // Незакреплённый попап прячем до запуска чужого окна, чтобы
+        // light-dismiss не зависел от порядка событий активации.
+        RequestDismiss(PopupDismissalReason.ExternalLaunch);
 
         // Launcher с NeighboringFilesQuery — просмотрщик получает соседей
         // по папке (листание стрелками, как из Проводника); при неудаче
@@ -278,10 +304,24 @@ public sealed partial class PopupWindow : Window
         _chrome.MoveToTaskbarArea();
     }
 
+    private void OnTogglePin(object sender, RoutedEventArgs e)
+    {
+        _session.TogglePin();
+        RenderPinState();
+    }
+
+    private void OnClosePopup(object sender, RoutedEventArgs e) => Dismiss();
+
+    private void OnDismissAccelerator(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
+    {
+        args.Handled = true;
+        Dismiss();
+    }
+
     private void OnOpenInExplorer(object sender, RoutedEventArgs e)
     {
         if (_currentFolder is null) return;
         Shell.OpenFolder(_currentFolder);
-        Dismiss();
+        RequestDismiss(PopupDismissalReason.ExternalLaunch);
     }
 }

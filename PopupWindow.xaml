@@ -16,12 +16,17 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
+        <Grid.KeyboardAccelerators>
+            <KeyboardAccelerator Key="Escape" Invoked="OnDismissAccelerator"/>
+        </Grid.KeyboardAccelerators>
 
         <!-- Заголовок -->
         <Grid Grid.Row="0" Padding="8,10,8,6">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
@@ -34,15 +39,25 @@
             <TextBlock x:Name="TitleText" Grid.Column="1"
                        Style="{ThemeResource BodyStrongTextBlockStyle}"
                        VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
-            <Button x:Name="ViewToggle" Grid.Column="2" Margin="6,0,0,0"
+            <ToggleButton x:Name="PinToggle" Grid.Column="2" Margin="6,0,0,0"
+                          Padding="6" Background="Transparent" BorderThickness="0"
+                          IsChecked="False" Click="OnTogglePin">
+                <FontIcon Glyph="&#xE718;" FontSize="14"/>
+            </ToggleButton>
+            <Button x:Name="ViewToggle" Grid.Column="3" Margin="2,0,0,0"
                     Padding="6" Background="Transparent" BorderThickness="0"
                     Click="OnToggleView">
                 <FontIcon x:Name="ViewToggleIcon" Glyph="&#xE8FD;" FontSize="14"/>
             </Button>
-            <Button x:Name="OpenExplorerButton" Grid.Column="3" Margin="2,0,0,0"
+            <Button x:Name="OpenExplorerButton" Grid.Column="4" Margin="2,0,0,0"
                     Padding="6" Background="Transparent" BorderThickness="0"
                     Click="OnOpenInExplorer">
                 <FontIcon Glyph="&#xE838;" FontSize="14"/>
+            </Button>
+            <Button x:Name="CloseButton" Grid.Column="5" Margin="2,0,0,0"
+                    Padding="6" Background="Transparent" BorderThickness="0"
+                    Click="OnClosePopup">
+                <FontIcon Glyph="&#xE8BB;" FontSize="14"/>
             </Button>
         </Grid>
 

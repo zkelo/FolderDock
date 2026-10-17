@@ -1,0 +1,41 @@
+name: Tests and build
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  core-tests:
+    name: Core tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Test popup session rules
+        run: dotnet test tests/FolderDock.Core.Tests/FolderDock.Core.Tests.csproj --configuration Release
+
+  windows-build:
+    name: Windows ${{ matrix.platform }} build
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: x64
+            runtime: win-x64
+          - platform: ARM64
+            runtime: win-arm64
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Build WinUI application
+        run: dotnet build FolderDock.csproj -c Release -r ${{ matrix.runtime }} -p:Platform=${{ matrix.platform }}

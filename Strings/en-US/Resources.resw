@@ -27,6 +27,9 @@ After pinning, clicking the icon opens the folder as a popup.</value></data>
 
   <!-- Popup window -->
   <data name="Tooltip_Back" xml:space="preserve"><value>Back</value></data>
+  <data name="Tooltip_PinPopup" xml:space="preserve"><value>Pin popup</value></data>
+  <data name="Tooltip_UnpinPopup" xml:space="preserve"><value>Unpin popup</value></data>
+  <data name="Tooltip_ClosePopup" xml:space="preserve"><value>Close popup (Esc)</value></data>
   <data name="Tooltip_ViewToggle" xml:space="preserve"><value>Grid / list</value></data>
   <data name="Tooltip_OpenInExplorer" xml:space="preserve"><value>Open in Explorer</value></data>
   <data name="Folder_Empty" xml:space="preserve"><value>Folder is empty</value></data>
