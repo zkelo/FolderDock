@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Windows.ApplicationModel.DataTransfer;
@@ -44,6 +45,8 @@ public sealed partial class PopupWindow : Window
     private DateTime _lastDismissedAt;
     private DateTime _shownAt;
 
+    private bool IsPinned => PinToggle.IsChecked == true;
+
     public PopupWindow()
     {
         InitializeComponent();
@@ -61,6 +64,16 @@ public sealed partial class PopupWindow : Window
         ToolTipService.SetToolTip(BackButton, Loc.Get("Tooltip_Back"));
         ToolTipService.SetToolTip(ViewToggle, Loc.Get("Tooltip_ViewToggle"));
         ToolTipService.SetToolTip(OpenExplorerButton, Loc.Get("Tooltip_OpenInExplorer"));
+        ToolTipService.SetToolTip(CloseButton, Loc.Get("Tooltip_ClosePopup"));
+        AutomationProperties.SetName(CloseButton, Loc.Get("Tooltip_ClosePopup"));
+        UpdatePinButton();
+    }
+
+    private void UpdatePinButton()
+    {
+        var label = Loc.Get(IsPinned ? "Tooltip_UnpinPopup" : "Tooltip_PinPopup");
+        ToolTipService.SetToolTip(PinToggle, label);
+        AutomationProperties.SetName(PinToggle, label);
     }
 
     public bool IsOpenFor(string folder) =>
@@ -72,6 +85,10 @@ public sealed partial class PopupWindow : Window
 
     public void ShowForFolder(string folder)
     {
+        // Закрепление действует до закрытия попапа; новое открытие начинает
+        // обычный сеанс, даже если переиспользуется то же окно.
+        PinToggle.IsChecked = false;
+        UpdatePinButton();
         _rootFolder = Path.GetFullPath(folder);
         _currentFolder = _rootFolder;
         _navigationStack.Clear();
@@ -152,7 +169,7 @@ public sealed partial class PopupWindow : Window
         var deactivated = e.WindowActivationState == WindowActivationState.Deactivated;
         _isActive = !deactivated;
 
-        if (deactivated && !_share.IsShareInProgress && !_shellMenuOpen &&
+        if (deactivated && !IsPinned && !_share.IsShareInProgress && !_shellMenuOpen &&
             DateTime.UtcNow - _shownAt > DismissGracePeriod)
             Dismiss();
 
@@ -163,10 +180,10 @@ public sealed partial class PopupWindow : Window
     private void HideIfInactive()
     {
         // Share завершён (панель закрыта / данные переданы): если фокус так и
-        // не вернулся к попапу, не оставляем always-on-top окно на экране
+        // не вернулся к попапу, скрываем его, если оно не закреплено
         DispatchToUi(() =>
         {
-            if (!_isActive && _chrome.IsVisible)
+            if (!IsPinned && !_isActive && _chrome.IsVisible)
                 Dismiss();
         });
     }
@@ -195,9 +212,9 @@ public sealed partial class PopupWindow : Window
             return;
         }
 
-        // Сначала прячем попап: LaunchFileAsync активирует чужое окно,
-        // и light-dismiss всё равно сработает — но уже недетерминированно
-        Dismiss();
+        // Незакреплённый попап прячем до запуска чужого окна, чтобы
+        // light-dismiss не зависел от порядка событий активации.
+        DismissUnlessPinned();
 
         // Launcher с NeighboringFilesQuery — просмотрщик получает соседей
         // по папке (листание стрелками, как из Проводника); при неудаче
@@ -278,10 +295,26 @@ public sealed partial class PopupWindow : Window
         _chrome.MoveToTaskbarArea();
     }
 
+    private void OnTogglePin(object sender, RoutedEventArgs e) => UpdatePinButton();
+
+    private void DismissUnlessPinned()
+    {
+        if (!IsPinned)
+            Dismiss();
+    }
+
+    private void OnClosePopup(object sender, RoutedEventArgs e) => Dismiss();
+
+    private void OnDismissAccelerator(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
+    {
+        args.Handled = true;
+        Dismiss();
+    }
+
     private void OnOpenInExplorer(object sender, RoutedEventArgs e)
     {
         if (_currentFolder is null) return;
         Shell.OpenFolder(_currentFolder);
-        Dismiss();
+        DismissUnlessPinned();
     }
 }
