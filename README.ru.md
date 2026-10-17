@@ -53,6 +53,16 @@ dotnet publish -c Release -r win-x64 -p:Platform=x64
 
 > WinUI 3 не собирается на Linux/macOS (XamlCompiler.exe — только Windows). Собирать на Windows.
 
+## Тесты
+
+Тестам сессии попапа нужен только .NET 8 SDK; они работают на Windows, Linux и macOS:
+
+```sh
+dotnet test tests/FolderDock.Core.Tests/FolderDock.Core.Tests.csproj -c Release
+```
+
+Тесты xUnit напрямую ссылаются на проект `FolderDock.Core`. [CI](.github/workflows/tests.yml) запускает эти тесты на Ubuntu и собирает приложение WinUI на Windows.
+
 ## Использование
 
 1. Запусти `FolderDock.exe` без аргументов → окно-менеджер.
@@ -81,6 +91,12 @@ dotnet publish -c Release -r win-x64 -p:Platform=x64
 - Popup — WinUI 3 `Window` c `OverlappedPresenter.CreateForContextMenu()` (без рамки), `IsAlwaysOnTop`, `WS_EX_TOOLWINDOW` (нет в Alt-Tab), `DWMWA_WINDOW_CORNER_PREFERENCE=ROUND`. Позиционирование — по курсору, прижат к верхнему краю рабочей области над панелью задач.
 - Миниатюры — `StorageFile.GetThumbnailAsync` (те же превью, что в Проводнике), грузятся асинхронно после показа окна.
 
+## Архитектура попапа
+
+Состояние закрепления и правила закрытия попапа находятся в `FolderDock.Core` — обычной библиотеке `net8.0` без зависимостей от WinUI, Windows и шелла. Класс `PopupSession` хранит состояние закрепления, сбрасывает его через `Begin`, меняет через `TogglePin` и решает, закрывать ли окно, через `ShouldDismiss` с причиной и контекстом. Явная команда закрытия всегда закрывает попап; закрепление предотвращает автоматическое закрытие.
+
+Зависимости направлены внутрь: **приложение WinUI → Core** и **тесты → Core** через ссылки на проекты. `PopupWindow` преобразует события интерфейса и платформы в вызовы сессии, обновляет кнопку закрепления и выполняет действия с окном по результату. Интеграция с Windows остаётся в приложении. Эта граница охватывает правила закрепления и закрытия попапа; остальной существующий код сохраняет текущую структуру.
+
 ## Структура
 
 | Файл | Назначение |
@@ -88,7 +104,9 @@ dotnet publish -c Release -r win-x64 -p:Platform=x64
 | `Program.cs` | Точка входа: single-instance, redirect активаций, AUMID процесса |
 | `CommandLine.cs` | Токенизация `--folder` из аргументов |
 | `App.xaml(.cs)` | Роутинг активаций: popup или менеджер |
-| `PopupWindow.xaml(.cs)` | Всплывающее окно: события UI, toggle, навигация назад |
+| `PopupWindow.xaml(.cs)` | UI и события платформы, интеграция с сессией, навигация назад |
+| `FolderDock.Core/` | Переносимое состояние сессии попапа и правила закрытия (`net8.0`) |
+| `tests/FolderDock.Core.Tests/` | Тесты xUnit со ссылкой на проект Core |
 | `PopupChrome.cs` | Оформление окна: presenter, DWM, позиционирование, Share interop |
 | `PopupLayout.cs` | Чистая математика размеров попапа (константы связаны с XAML) |
 | `ShareCoordinator.cs` | Поток Share: DataTransferManager, состояние, защита light-dismiss |

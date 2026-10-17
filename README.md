@@ -53,6 +53,16 @@ Output: `bin\x64\Release\net8.0-windows10.0.19041.0\win-x64\publish\FolderDock.e
 
 > WinUI 3 does not build on Linux/macOS (XamlCompiler.exe is Windows-only). Build on Windows.
 
+## Tests
+
+The popup session tests need only the .NET 8 SDK and run on Windows, Linux, and macOS:
+
+```sh
+dotnet test tests/FolderDock.Core.Tests/FolderDock.Core.Tests.csproj -c Release
+```
+
+The xUnit tests reference `FolderDock.Core` directly. [CI](.github/workflows/tests.yml) runs these tests on Ubuntu and builds the WinUI app on Windows.
+
 ## Usage
 
 1. Run `FolderDock.exe` with no arguments → the manager window.
@@ -81,6 +91,12 @@ Key conventions: keys with a dot (`AddFolderLabel.Text`) bind to XAML elements v
 - The popup is a WinUI 3 `Window` with `OverlappedPresenter.CreateForContextMenu()` (frameless), `IsAlwaysOnTop`, `WS_EX_TOOLWINDOW` (not in Alt-Tab), `DWMWA_WINDOW_CORNER_PREFERENCE=ROUND`. Positioned at the cursor, snapped to the top edge of the work area above the taskbar.
 - Thumbnails — `StorageFile.GetThumbnailAsync` (the same previews as Explorer), loaded asynchronously after the window is shown.
 
+## Popup architecture
+
+Popup pinning and dismissal policy live in `FolderDock.Core`, a plain `net8.0` library with no WinUI, Windows, or shell dependencies. Its `PopupSession` owns pin state, resets it with `Begin`, changes it with `TogglePin`, and decides dismissal with `ShouldDismiss` using a reason and context. Explicit dismissal always closes the popup; pinning prevents automatic dismissal.
+
+Dependencies point inward: **WinUI app → Core** and **Tests → Core** through project references. `PopupWindow` translates UI and platform events into session calls, updates the pin button, and performs the resulting window actions. Windows integration stays in the app. This boundary covers the popup pin/dismissal policy; the rest of the existing app retains its current structure.
+
 ## Structure
 
 | File | Purpose |
@@ -88,7 +104,9 @@ Key conventions: keys with a dot (`AddFolderLabel.Text`) bind to XAML elements v
 | `Program.cs` | Entry point: single-instance, activation redirect, process AUMID |
 | `CommandLine.cs` | Tokenizing `--folder` from arguments |
 | `App.xaml(.cs)` | Activation routing: popup or manager |
-| `PopupWindow.xaml(.cs)` | Popup window: UI events, toggle, back navigation |
+| `PopupWindow.xaml(.cs)` | Popup UI and platform events, session integration, back navigation |
+| `FolderDock.Core/` | Portable popup session state and dismissal policy (`net8.0`) |
+| `tests/FolderDock.Core.Tests/` | xUnit tests with a project reference to Core |
 | `PopupChrome.cs` | Window chrome: presenter, DWM, positioning, Share interop |
 | `PopupLayout.cs` | Pure popup size math (constants tied to XAML templates) |
 | `ShareCoordinator.cs` | Share flow: DataTransferManager, state, light-dismiss guard |
