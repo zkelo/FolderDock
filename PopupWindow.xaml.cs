@@ -102,6 +102,8 @@ public sealed partial class PopupWindow : Window
         _shownAt = DateTime.UtcNow;
         _chrome.Show();
         Activate();
+        // Без фокуса на XAML-контроле Esc не попадает в KeyboardAccelerators.
+        PinToggle.Focus(FocusState.Programmatic);
     }
 
     public void Dismiss()
