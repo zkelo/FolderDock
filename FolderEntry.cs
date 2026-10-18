@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.IO;
+using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media.Imaging;
 
 namespace FolderDock;
@@ -9,6 +10,9 @@ public sealed class FolderEntry : INotifyPropertyChanged
     public required string Name { get; init; }
     public required string FullPath { get; init; }
     public required bool IsDirectory { get; init; }
+    public string? RelativePath { get; init; }
+    public string DisplayPath => RelativePath ?? FullPath;
+    public Visibility PathVisibility => RelativePath is null ? Visibility.Collapsed : Visibility.Visible;
 
     private BitmapImage? _thumbnail;
     public BitmapImage? Thumbnail

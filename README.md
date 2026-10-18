@@ -11,21 +11,24 @@
 
 Folders on the Windows 11 taskbar — like the macOS Dock. Click a pinned folder icon → a popup with its contents (grid or list) right above the taskbar, no File Explorer needed.
 
+This project is maintained entirely by AI models: **Claude Fable 5** and **GPT 6.1 Sol**.
+
 ## Features
 
 - **Pin any folder** to the taskbar via a shortcut with its own AppUserModelID — every folder gets a separate button, they never group with each other.
 - **Popup above the taskbar**: a grid with thumbnails (images get previews) or a compact list. Toggle with a button in the header.
-- **Instant search** in grid and list views: filter file and folder names by a case-insensitive substring in the current folder (no subfolder search). **Ctrl+F** focuses the search box; the query clears when navigating to another folder or reopening the popup.
-- Click a file → opens with the default app **with folder context** (`NeighboringFilesQuery`): in Photos and other viewers arrow keys browse to the next/previous file, exactly as when opening from Explorer. Popup closes unless pinned.
-- Click a subfolder → navigate inside right in the popup; a **Back** button returns to the parent folder.
-- **Typed drag-and-drop**: the data package carries multiple representations — images are additionally added as Bitmap (paste "as picture" into Paint/Word/messengers), text files as Text (paste content into an editor), and always StorageItems (files for Explorer and everything else). The receiving app picks the format it understands. Dragging **moves** the item (like Explorer); hold **Ctrl** to copy instead. After a move the popup refreshes automatically.
+- **Recursive search** in grid and list views: a nonempty query searches file and folder names in the current folder and its subfolders by a case-insensitive substring, in the background after a short typing delay. Relative paths appear in the list and in grid/list item tooltips; results are limited to the first 500 matches. Hidden items and inaccessible subfolders are skipped; directory links and junctions can match but are not followed. The popup reports incomplete searches and the result limit. Clearing the query restores the current folder's contents. **Ctrl+F** focuses the search box; the query clears when navigating to another folder or reopening the popup. Changing the query, navigating, or hiding the popup cancels the previous search.
+- **Adaptive search field**: the search box shares the folder-title row when the complete title and header controls fit; otherwise it moves to a separate row below.
+- Click a file → opens with the default app, passing **folder context** (`NeighboringFilesQuery`) to supported viewers so they can browse neighboring files. Windows Photos uses its viewer URI when it is the default app. If these launch methods fail, the app falls back to the normal shell launch. Popup closes unless pinned.
+- Click a subfolder → navigate inside right in the popup; a **Back** button returns to the previous folder in navigation history.
+- **Typed drag-and-drop**: the data package carries multiple representations — a single supported image is additionally offered as Bitmap (paste "as picture" into compatible apps), a single supported text file up to 256 KiB as Text, and files or folders as StorageItems. The receiving app picks the format it understands. Dragging requests **Move** by default; hold **Ctrl** to request Copy. The receiving app decides the completed operation. After a move the popup refreshes automatically.
 - **Explorer context menu** (right-click an item): the real system shell menu — Open with, Send to, Copy/Cut/Delete/Rename, third-party extensions (7-Zip, TortoiseGit, …) — exactly as in Explorer. The same menu is available on rows in the manager window: right-click a pinned folder to **pin its shortcut to the taskbar**, rename or delete it — no Explorer round-trip.
 - "Open in Explorer" button.
 - **Pin the popup** with the button in its header to keep it open and on top when clicking outside, opening files, or choosing "Open in Explorer". Pinning survives navigation and grid/list changes, and resets each time a popup opens, including for another folder.
 - Click outside an unpinned window → popup closes (flyout behavior).
 - Close with the header's **Close** button or another click on the taskbar icon, even when pinned. **Esc** clears a nonempty search first; with the search empty, it closes the popup.
 - The manager shows only pins that still exist: shortcuts whose target folder was deleted are filtered out on every window activation.
-- **Updates from GitHub Releases**: a "Check for updates" button and an auto-check-on-launch toggle (stored in `%LOCALAPPDATA%\FolderDock\settings.json`). When a newer version is found, the app offers to download the installer for your architecture and runs a silent upgrade.
+- **Updates from GitHub Releases**: a "Check for updates" button and an automatic-check toggle (stored in `%LOCALAPPDATA%\FolderDock\settings.json`). Automatic checks are enabled by default and run when a manager window is created. When a newer version is found, the app offers to download the installer for the running app's architecture and runs a silent upgrade after confirmation.
 - Launching from the app's own shortcut (Start Menu) keeps its own taskbar identity — it never masquerades as one of the pinned folders.
 - Dark/light theme — follows the system. Win11 rounded corners, always on top, hidden from Alt-Tab.
 - Single-instance: repeated launches are redirected to the running instance (AppInstance redirect).
@@ -34,35 +37,39 @@ Folders on the Windows 11 taskbar — like the macOS Dock. Click a pinned folder
 
 Grab `FolderDock-Setup-<version>-<arch>.exe` from [Releases](https://github.com/zkelo/FolderDock/releases) and run it. The installer lets you pick the install folder, optionally creates a Start Menu group, and silently removes a previously installed version before upgrading.
 
+Builds are available for **x64** and **ARM64**. Portable `FolderDock-<version>-win-<arch>.zip` archives are also produced by the release workflow; extract the entire archive before running `FolderDock.exe`.
+
 ## Building (on Windows)
 
 Requirements:
 - Windows 10 17763+ / Windows 11
 - [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
-- Visual Studio 2022 with the **Windows application development** workload — or just the SDK + command line
+- Visual Studio 2022 with the **Windows application development** workload is optional; the commands below use the SDK directly
 
 Command line:
 
 ```powershell
 cd FolderDock
-dotnet build -c Release -p:Platform=x64
+dotnet build FolderDock.csproj -c Release -r win-x64 -p:Platform=x64
 # or a ready-to-run exe (self-contained, WindowsAppSDKSelfContained — no MSIX needed):
-dotnet publish -c Release -r win-x64 -p:Platform=x64
+dotnet publish FolderDock.csproj -c Release -r win-x64 -p:Platform=x64
+# ARM64:
+dotnet publish FolderDock.csproj -c Release -r win-arm64 -p:Platform=ARM64
 ```
 
-Output: `bin\x64\Release\net8.0-windows10.0.19041.0\win-x64\publish\FolderDock.exe`
+Output: `bin\x64\Release\net8.0-windows10.0.19041.0\win-x64\publish\FolderDock.exe` (ARM64: `bin\ARM64\Release\net8.0-windows10.0.19041.0\win-arm64\publish\FolderDock.exe`). Keep the complete publish directory with the executable.
 
 > WinUI 3 does not build on Linux/macOS (XamlCompiler.exe is Windows-only). Build on Windows.
 
 ## Tests
 
-The popup session tests need only the .NET 8 SDK and run on Windows, Linux, and macOS:
+The Core tests cover popup sessions, name matching, recursive folder search, and dependency boundaries. They need only the .NET 8 SDK and run on Windows, Linux, and macOS:
 
 ```sh
 dotnet test tests/FolderDock.Core.Tests/FolderDock.Core.Tests.csproj -c Release
 ```
 
-The xUnit tests reference `FolderDock.Core` directly. [CI](.github/workflows/tests.yml) runs these tests on Ubuntu and builds the WinUI app on Windows.
+The xUnit tests reference `FolderDock.Core` directly. [CI](.github/workflows/tests.yml) runs these tests on Ubuntu and builds the WinUI app for x64 and ARM64 on Windows.
 
 ## Usage
 
@@ -89,14 +96,14 @@ Key conventions: keys with a dot (`AddFolderLabel.Text`) bind to XAML elements v
 
 - Windows 11 does not allow pinning a folder to the taskbar directly and has no API for a "taskbar popup". Workaround: a shortcut to `FolderDock.exe --folder "<path>"` with `System.AppUserModel.ID` written into the shortcut's property store, unique per folder (SHA1 of the path). On start the process sets the same AUMID via `SetCurrentProcessExplicitAppUserModelID` — the taskbar matches the window to the right pinned icon. Launched without `--folder`, the process (and each window via `SHGetPropertyStoreForWindow`) uses the app's own AUMID instead.
 - One background process: `AppInstance.FindOrRegisterForKey` + `RedirectActivationToAsync`. A click on any shortcut lands in the live instance → instant popup with no cold start.
-- The popup is a WinUI 3 `Window` with `OverlappedPresenter.CreateForContextMenu()` (frameless), `IsAlwaysOnTop`, `WS_EX_TOOLWINDOW` (not in Alt-Tab), `DWMWA_WINDOW_CORNER_PREFERENCE=ROUND`. Positioned at the cursor, snapped to the top edge of the work area above the taskbar.
+- The popup is a WinUI 3 `Window` with `OverlappedPresenter.CreateForContextMenu()` (frameless), `IsAlwaysOnTop`, `WS_EX_TOOLWINDOW` (not in Alt-Tab), `DWMWA_WINDOW_CORNER_PREFERENCE=ROUND`. Its horizontal position is anchored to the cursor when opened and clamped to the selected monitor's work area; its bottom edge sits above the bottom of that work area, leaving a taskbar gap. The anchor stays fixed during navigation.
 - Thumbnails — `StorageFile.GetThumbnailAsync` (the same previews as Explorer), loaded asynchronously after the window is shown.
 
 ## Popup architecture
 
-Popup pinning and dismissal policy live in `FolderDock.Core`, a plain `net8.0` library with no WinUI, Windows, or shell dependencies. Its `PopupSession` owns pin state, resets it with `Begin`, changes it with `TogglePin`, and decides dismissal with `ShouldDismiss` using a reason and context. Explicit dismissal always closes the popup; pinning prevents automatic dismissal.
+Popup pinning, dismissal policy, name matching, and recursive filesystem search live in `FolderDock.Core`, a plain `net8.0` library with no WinUI, Windows, or shell dependencies. Its `PopupSession` owns pin state, resets it with `Begin`, changes it with `TogglePin`, and decides dismissal with `ShouldDismiss` using a reason and context. Explicit dismissal always closes the popup; pinning prevents automatic dismissal.
 
-Dependencies point inward: **WinUI app → Core** and **Tests → Core** through project references. `PopupWindow` translates UI and platform events into session calls, updates the pin button, and performs the resulting window actions. Windows integration stays in the app. This boundary covers the popup pin/dismissal policy; the rest of the existing app retains its current structure.
+Dependencies point inward: **WinUI app → Core** and **Tests → Core** through project references. `PopupWindow` translates UI and platform events into session calls and window actions. It runs `RecursiveFolderSearch` on a background task with debounce and cancellation, converts results into UI entries, and displays status messages and relative paths. Windows integration stays in the app.
 
 ## Structure
 
@@ -105,8 +112,9 @@ Dependencies point inward: **WinUI app → Core** and **Tests → Core** through
 | `Program.cs` | Entry point: single-instance, activation redirect, process AUMID |
 | `CommandLine.cs` | Tokenizing `--folder` from arguments |
 | `App.xaml(.cs)` | Activation routing: popup or manager |
-| `PopupWindow.xaml(.cs)` | Popup UI and platform events, session integration, back navigation |
-| `FolderDock.Core/` | Portable popup session state and dismissal policy (`net8.0`) |
+| `PopupWindow.xaml(.cs)` | Popup UI, adaptive search header, background search, session integration, navigation |
+| `FolderDock.Core/` | Portable popup session and dismissal policy, name filtering, recursive search (`net8.0`) |
+| `FolderDock.Core/RecursiveFolderSearch.cs` | Cancellable recursive name search, inaccessible-folder handling, 500-result limit |
 | `tests/FolderDock.Core.Tests/` | xUnit tests with a project reference to Core |
 | `PopupChrome.cs` | Window chrome: presenter, DWM, positioning, Share interop |
 | `PopupLayout.cs` | Pure popup size math (constants tied to XAML templates) |
@@ -136,16 +144,17 @@ Dependencies point inward: **WinUI app → Core** and **Tests → Core** through
 ## Limitations
 
 - Pinning to the taskbar is manual via right-click (Windows does not allow programmatic pinning for third-party apps).
-- The first click after a reboot is a cold start (~1–2 s), instant afterwards.
+- The first launch starts the app process; later clicks are redirected to that instance while it remains running. Startup time depends on the system.
+- Browsing a folder and recursive search display at most 500 entries. Search matches names, not file contents or the full relative path.
 - The shortcut icon is the standard folder icon from imageres; you can change it in the shortcut properties.
 
 ## Code signing policy
 
-Free code signing provided by [SignPath.io](https://about.signpath.io), certificate by [SignPath Foundation](https://signpath.org).
+When signing is enabled, free code signing is provided by [SignPath.io](https://about.signpath.io), with a certificate from [SignPath Foundation](https://signpath.org). Signing steps in the [release workflow](.github/workflows/release.yml) run only when the SignPath organization secret is configured; otherwise the workflow publishes unsigned artifacts.
 
-Release binaries (`FolderDock.exe` and the installers) are built from this repository by [GitHub Actions](.github/workflows/release.yml); only CI-built artifacts are submitted to SignPath for signing. The private key is HSM-backed and held by SignPath — this project never stores it.
+Release binaries (`FolderDock.exe` and the installers) are built from this repository by GitHub Actions; the signing steps submit those CI artifacts to SignPath and wait for completion. Signing uses repository secrets for service access; no signing private key is stored in this repository.
 
-Team roles (single-maintainer project):
+Repository and signing authority:
 
 - Authors (commit access): [zkelo](https://github.com/zkelo)
 - Reviewers: [zkelo](https://github.com/zkelo) — all external pull requests are reviewed by the maintainer before merge.
@@ -153,7 +162,7 @@ Team roles (single-maintainer project):
 
 ### Privacy policy
 
-This program will not transfer any information to other networked systems unless specifically requested by the user or the person installing or operating it. One exception: the optional update check contacts the GitHub API (`api.github.com`) to read the latest release version. It can be turned off in the app settings (`autoCheckUpdates`).
+The app contains no telemetry code. Update checks contact the GitHub API (`api.github.com`) for release metadata and include the app version in the User-Agent header. Automatic checks are enabled by default when the manager opens and can be disabled in the app settings (`autoCheckUpdates`); manual checks remain available. After confirmation, updates download the selected release installer. Opening the repository link launches the default browser. Access to a selected network folder uses normal Windows filesystem operations.
 
 ## License
 

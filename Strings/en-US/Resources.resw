@@ -32,8 +32,11 @@ After pinning, clicking the icon opens the folder as a popup.</value></data>
   <data name="Tooltip_ClosePopup" xml:space="preserve"><value>Close popup (Esc)</value></data>
   <data name="Tooltip_ViewToggle" xml:space="preserve"><value>Grid / list</value></data>
   <data name="Tooltip_OpenInExplorer" xml:space="preserve"><value>Open in Explorer</value></data>
-  <data name="Search_Placeholder" xml:space="preserve"><value>Search this folder (Ctrl+F)</value></data>
+  <data name="Search_Placeholder" xml:space="preserve"><value>Search this folder and subfolders (Ctrl+F)</value></data>
   <data name="Search_CompactPlaceholder" xml:space="preserve"><value>Search</value></data>
+  <data name="Search_InProgress" xml:space="preserve"><value>Searching…</value></data>
+  <data name="Search_PartialResults" xml:space="preserve"><value>Some folders could not be searched</value></data>
+  <data name="Search_ResultLimit" xml:space="preserve"><value>Showing the first 500 matches</value></data>
   <data name="Search_NoResults" xml:space="preserve"><value>No matching files or folders</value></data>
   <data name="Folder_Empty" xml:space="preserve"><value>Folder is empty</value></data>
   <data name="Folder_AccessDenied" xml:space="preserve"><value>Folder is not accessible</value></data>

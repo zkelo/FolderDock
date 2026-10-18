@@ -15,6 +15,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
         <Grid.KeyboardAccelerators>
             <KeyboardAccelerator Key="Escape" Invoked="OnDismissAccelerator"/>
@@ -85,7 +86,7 @@
                     <StackPanel Width="92" Padding="4,8" Spacing="4"
                                 Background="Transparent"
                                 RightTapped="OnItemRightTapped"
-                                ToolTipService.ToolTip="{x:Bind Name}">
+                                ToolTipService.ToolTip="{x:Bind DisplayPath}">
                         <Image Source="{x:Bind Thumbnail, Mode=OneWay}" Width="48" Height="48"
                                HorizontalAlignment="Center"/>
                         <TextBlock Text="{x:Bind Name}" FontSize="12"
@@ -106,15 +107,28 @@
                   DragItemsStarting="OnDragItemsStarting"
                   DragItemsCompleted="OnDragItemsCompleted"
                   Visibility="Collapsed">
+            <ListView.ItemContainerStyle>
+                <Style TargetType="ListViewItem">
+                    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                </Style>
+            </ListView.ItemContainerStyle>
             <ListView.ItemTemplate>
                 <DataTemplate x:DataType="local:FolderEntry">
-                    <StackPanel Orientation="Horizontal" Spacing="10" Padding="2,4"
-                                Background="Transparent"
-                                RightTapped="OnItemRightTapped">
-                        <Image Source="{x:Bind Thumbnail, Mode=OneWay}" Width="20" Height="20"/>
-                        <TextBlock Text="{x:Bind Name}" VerticalAlignment="Center"
-                                   TextTrimming="CharacterEllipsis"/>
-                    </StackPanel>
+                    <Grid ColumnSpacing="10" Padding="2,4" Background="Transparent"
+                          RightTapped="OnItemRightTapped"
+                          ToolTipService.ToolTip="{x:Bind DisplayPath}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Image Source="{x:Bind Thumbnail, Mode=OneWay}" Width="20" Height="20"
+                               VerticalAlignment="Center"/>
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                            <TextBlock Text="{x:Bind Name}" TextTrimming="CharacterEllipsis"/>
+                            <TextBlock Text="{x:Bind RelativePath}" Visibility="{x:Bind PathVisibility}"
+                                       FontSize="11" Opacity="0.6" TextTrimming="CharacterEllipsis"/>
+                        </StackPanel>
+                    </Grid>
                 </DataTemplate>
             </ListView.ItemTemplate>
         </ListView>
@@ -123,5 +137,8 @@
                    HorizontalAlignment="Center" VerticalAlignment="Center"
                    TextAlignment="Center" TextWrapping="Wrap"
                    Opacity="0.6" Visibility="Collapsed"/>
+        <TextBlock x:Name="SearchStatus" Grid.Row="2" Margin="10,0,10,8"
+                   FontSize="11" Opacity="0.6" TextWrapping="Wrap" MaxLines="2"
+                   Visibility="Collapsed"/>
     </Grid>
 </Window>
