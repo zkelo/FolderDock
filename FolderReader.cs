@@ -6,8 +6,6 @@ namespace FolderDock;
 
 public static class FolderReader
 {
-    private const int MaxEntries = 500;
-
     public static FolderContents Read(string folder)
     {
         try
@@ -21,7 +19,6 @@ public static class FolderReader
                 .Where(entry => !IsHidden(entry.FullPath))
                 .OrderByDescending(entry => entry.IsDirectory)
                 .ThenBy(entry => entry.Name, StringComparer.CurrentCultureIgnoreCase)
-                .Take(MaxEntries)
                 .ToArray();
 
             return new FolderContents(entries, Failed: false);

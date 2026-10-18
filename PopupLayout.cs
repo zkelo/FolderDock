@@ -12,7 +12,7 @@ public static class PopupLayout
     private const int GridCellWidth = 100;
     private const int GridCellHeight = 96;
     private const int GridChromeWidth = 40; // Padding GridView + рамка окна
-    private const int HeaderHeight = 60;    // строка заголовка с кнопками
+    private const int HeaderHeight = 100;   // заголовок + поиск (32 + отступ 8)
     private const int MinColumns = 3;
     private const int MaxColumns = 6;
     private const int MaxRows = 5;

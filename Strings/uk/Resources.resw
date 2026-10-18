@@ -32,6 +32,8 @@
   <data name="Tooltip_ClosePopup" xml:space="preserve"><value>Закрити вікно (Esc)</value></data>
   <data name="Tooltip_ViewToggle" xml:space="preserve"><value>Сітка / список</value></data>
   <data name="Tooltip_OpenInExplorer" xml:space="preserve"><value>Відкрити у Провіднику</value></data>
+  <data name="Search_Placeholder" xml:space="preserve"><value>Пошук у цій папці (Ctrl+F)</value></data>
+  <data name="Search_NoResults" xml:space="preserve"><value>Збігів не знайдено</value></data>
   <data name="Folder_Empty" xml:space="preserve"><value>Папка порожня</value></data>
   <data name="Folder_AccessDenied" xml:space="preserve"><value>Немає доступу до папки</value></data>
 

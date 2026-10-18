@@ -29,6 +29,8 @@ public sealed partial class PopupWindow : Window
     private readonly ThumbnailLoader _thumbnails = new();
     private readonly ObservableCollection<FolderEntry> _entries = new();
     private readonly Stack<string> _navigationStack = new();
+    private FolderContents _contents = new(Array.Empty<FolderEntry>(), Failed: false);
+    private string _searchQuery = string.Empty;
 
     /// Закреплённая (корневая) папка попапа. Задаёт идентичность окна на панели
     /// задач и участвует в toggle-логике; навигация вглубь её НЕ меняет.
@@ -64,6 +66,9 @@ public sealed partial class PopupWindow : Window
         var closeLabel = Loc.Get("Tooltip_ClosePopup");
         ToolTipService.SetToolTip(CloseButton, closeLabel);
         AutomationProperties.SetName(CloseButton, closeLabel);
+        var searchLabel = Loc.Get("Search_Placeholder");
+        SearchBox.PlaceholderText = searchLabel;
+        AutomationProperties.SetName(SearchBox, searchLabel);
         RenderPinState();
     }
 
@@ -95,12 +100,12 @@ public sealed partial class PopupWindow : Window
         // (навигация по папкам) не должны двигать окно за курсором
         _chrome.AnchorToCursor();
         SetTitle(_rootFolder);
-        Reload();
+        Reload(resetSearch: true);
         _shownAt = DateTime.UtcNow;
         _chrome.Show();
         Activate();
         // Без фокуса на XAML-контроле Esc не попадает в KeyboardAccelerators.
-        PinToggle.Focus(FocusState.Programmatic);
+        SearchBox.Focus(FocusState.Programmatic);
     }
 
     public void Dismiss() => RequestDismiss(PopupDismissalReason.Explicit);
@@ -141,38 +146,58 @@ public sealed partial class PopupWindow : Window
         TitleText.Text = string.IsNullOrEmpty(name) ? folder : name;
     }
 
-    private void Reload()
+    private void Reload(bool resetSearch = false)
     {
-        _entries.Clear();
         if (_currentFolder is null) return;
 
-        var contents = FolderReader.Read(_currentFolder);
-        foreach (var entry in contents.Entries)
-            _entries.Add(entry);
-
-        UpdateEmptyState(contents);
+        _contents = FolderReader.Read(_currentFolder);
+        if (resetSearch)
+        {
+            // Обновляем запрос до Text, чтобы событие не фильтровало повторно.
+            _searchQuery = string.Empty;
+            SearchBox.Text = string.Empty;
+        }
+        ApplySearch();
 
         BackButton.Visibility = _navigationStack.Count > 0
             ? Visibility.Visible
             : Visibility.Collapsed;
 
-        // Fire-and-forget осознанно: LoadAsync глотает ошибки по-элементно
-        // и отменяется следующим вызовом / Dismiss
-        _ = _thumbnails.LoadAsync(contents.Entries);
-        ResizeToFit(contents.Entries.Count);
+        ResizeToFit();
         _chrome.MoveToTaskbarArea();
     }
 
-    private void UpdateEmptyState(FolderContents contents)
+    private void OnSearchTextChanged(object sender, TextChangedEventArgs e)
     {
-        EmptyText.Text = Loc.Get(contents.Failed ? "Folder_AccessDenied" : "Folder_Empty");
-        EmptyText.Visibility = contents.Entries.Count == 0
-            ? Visibility.Visible
-            : Visibility.Collapsed;
+        // TextChanged может прийти при InitializeComponent, до готовности окна.
+        if (_currentFolder is null) return;
+        var query = SearchBox.Text.Trim();
+        if (query == _searchQuery) return;
+        _searchQuery = query;
+        ApplySearch();
     }
 
-    private void ResizeToFit(int count)
+    private void ApplySearch()
     {
+        var matches = FolderSearch.Filter(_contents.Entries, _searchQuery, entry => entry.Name);
+        _entries.Clear();
+        foreach (var entry in matches)
+            _entries.Add(entry);
+
+        EmptyText.Text = Loc.Get(_contents.Failed ? "Folder_AccessDenied"
+            : _contents.Entries.Count == 0 ? "Folder_Empty" : "Search_NoResults");
+        EmptyText.Visibility = matches.Count == 0
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+
+        // Новый запрос отменяет старую загрузку; готовые миниатюры переиспользуем.
+        _ = _thumbnails.LoadAsync(matches.Where(entry => entry.Thumbnail is null).ToArray());
+    }
+
+    private void ResizeToFit()
+    {
+        // Размер не меняется при вводе: поле поиска остаётся под курсором.
+        var count = Math.Min(_contents.Entries.Count, FolderSearch.MaxResults);
         var (width, height) = PopupLayout.Measure(count, _gridMode);
         var scale = _chrome.Scale;
         _chrome.Resize((int)(width * scale), (int)(height * scale));
@@ -217,7 +242,7 @@ public sealed partial class PopupWindow : Window
                 _navigationStack.Push(_currentFolder);
             _currentFolder = entry.FullPath;
             TitleText.Text = entry.Name;
-            Reload();
+            Reload(resetSearch: true);
             return;
         }
 
@@ -237,7 +262,7 @@ public sealed partial class PopupWindow : Window
         if (_navigationStack.Count == 0) return;
         _currentFolder = _navigationStack.Pop();
         SetTitle(_currentFolder);
-        Reload();
+        Reload(resetSearch: true);
     }
 
     private void OnDragItemsStarting(object sender, DragItemsStartingEventArgs e)
@@ -300,7 +325,7 @@ public sealed partial class PopupWindow : Window
         ItemsGrid.Visibility = _gridMode ? Visibility.Visible : Visibility.Collapsed;
         ItemsList.Visibility = _gridMode ? Visibility.Collapsed : Visibility.Visible;
         ViewToggleIcon.Glyph = _gridMode ? GridModeGlyph : ListModeGlyph;
-        ResizeToFit(_entries.Count);
+        ResizeToFit();
         _chrome.MoveToTaskbarArea();
     }
 
@@ -315,7 +340,20 @@ public sealed partial class PopupWindow : Window
     private void OnDismissAccelerator(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
     {
         args.Handled = true;
+        if (SearchBox.Text.Length > 0)
+        {
+            SearchBox.Text = string.Empty;
+            SearchBox.Focus(FocusState.Programmatic);
+            return;
+        }
         Dismiss();
+    }
+
+    private void OnSearchAccelerator(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
+    {
+        args.Handled = true;
+        SearchBox.Focus(FocusState.Programmatic);
+        SearchBox.SelectAll();
     }
 
     private void OnOpenInExplorer(object sender, RoutedEventArgs e)
