@@ -14,10 +14,12 @@
         </Grid.Background>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
         <Grid.KeyboardAccelerators>
             <KeyboardAccelerator Key="Escape" Invoked="OnDismissAccelerator"/>
+            <KeyboardAccelerator Key="F" Modifiers="Control" Invoked="OnSearchAccelerator"/>
         </Grid.KeyboardAccelerators>
 
         <!-- Заголовок -->
@@ -61,8 +63,11 @@
             </Button>
         </Grid>
 
+        <TextBox x:Name="SearchBox" Grid.Row="1" Margin="10,0,10,8"
+                 MinHeight="32" TextChanged="OnSearchTextChanged"/>
+
         <!-- Сетка -->
-        <GridView x:Name="ItemsGrid" Grid.Row="1"
+        <GridView x:Name="ItemsGrid" Grid.Row="2"
                   Padding="10,0,10,10"
                   SelectionMode="None"
                   IsItemClickEnabled="True"
@@ -88,7 +93,7 @@
         </GridView>
 
         <!-- Список -->
-        <ListView x:Name="ItemsList" Grid.Row="1"
+        <ListView x:Name="ItemsList" Grid.Row="2"
                   Padding="6,0,6,10"
                   SelectionMode="None"
                   IsItemClickEnabled="True"
@@ -110,8 +115,9 @@
             </ListView.ItemTemplate>
         </ListView>
 
-        <TextBlock x:Name="EmptyText" Grid.Row="1"
+        <TextBlock x:Name="EmptyText" Grid.Row="2" Margin="10,0,10,10"
                    HorizontalAlignment="Center" VerticalAlignment="Center"
+                   TextAlignment="Center" TextWrapping="Wrap"
                    Opacity="0.6" Visibility="Collapsed"/>
     </Grid>
 </Window>
