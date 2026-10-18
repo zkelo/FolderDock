@@ -14,7 +14,6 @@
         </Grid.Background>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
         <Grid.KeyboardAccelerators>
@@ -23,13 +22,15 @@
         </Grid.KeyboardAccelerators>
 
         <!-- Заголовок -->
-        <Grid Grid.Row="0" Padding="8,10,8,6">
+        <Grid x:Name="Header" Grid.Row="0" Padding="8,10,8,6">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition x:Name="SearchColumn" Width="0"/>
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
             <Button x:Name="BackButton" Grid.Column="0" Margin="0,0,6,0"
@@ -41,33 +42,36 @@
             <TextBlock x:Name="TitleText" Grid.Column="1"
                        Style="{ThemeResource BodyStrongTextBlockStyle}"
                        VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
-            <ToggleButton x:Name="PinToggle" Grid.Column="2" Margin="6,0,0,0"
-                          Padding="6" Background="Transparent" BorderThickness="0"
-                          IsChecked="False" Click="OnTogglePin">
-                <FontIcon Glyph="&#xE718;" FontSize="14"/>
-            </ToggleButton>
-            <Button x:Name="ViewToggle" Grid.Column="3" Margin="2,0,0,0"
-                    Padding="6" Background="Transparent" BorderThickness="0"
-                    Click="OnToggleView">
-                <FontIcon x:Name="ViewToggleIcon" Glyph="&#xE8FD;" FontSize="14"/>
-            </Button>
-            <Button x:Name="OpenExplorerButton" Grid.Column="4" Margin="2,0,0,0"
-                    Padding="6" Background="Transparent" BorderThickness="0"
-                    Click="OnOpenInExplorer">
-                <FontIcon Glyph="&#xE838;" FontSize="14"/>
-            </Button>
-            <Button x:Name="CloseButton" Grid.Column="5" Margin="2,0,0,0"
-                    Padding="6" Background="Transparent" BorderThickness="0"
-                    Click="OnClosePopup">
-                <FontIcon Glyph="&#xE8BB;" FontSize="14"/>
-            </Button>
+            <TextBox x:Name="SearchBox" Grid.Row="1" Grid.ColumnSpan="4"
+                     Margin="2,6,2,2" MinHeight="32"
+                     VerticalAlignment="Center" TextChanged="OnSearchTextChanged"/>
+            <StackPanel x:Name="HeaderActions" Grid.Column="3"
+                        Orientation="Horizontal" VerticalAlignment="Center">
+                <ToggleButton x:Name="PinToggle" Margin="6,0,0,0"
+                              Padding="6" Background="Transparent" BorderThickness="0"
+                              IsChecked="False" Click="OnTogglePin">
+                    <FontIcon Glyph="&#xE718;" FontSize="14"/>
+                </ToggleButton>
+                <Button x:Name="ViewToggle" Margin="2,0,0,0"
+                        Padding="6" Background="Transparent" BorderThickness="0"
+                        Click="OnToggleView">
+                    <FontIcon x:Name="ViewToggleIcon" Glyph="&#xE8FD;" FontSize="14"/>
+                </Button>
+                <Button x:Name="OpenExplorerButton" Margin="2,0,0,0"
+                        Padding="6" Background="Transparent" BorderThickness="0"
+                        Click="OnOpenInExplorer">
+                    <FontIcon Glyph="&#xE838;" FontSize="14"/>
+                </Button>
+                <Button x:Name="CloseButton" Margin="2,0,0,0"
+                        Padding="6" Background="Transparent" BorderThickness="0"
+                        Click="OnClosePopup">
+                    <FontIcon Glyph="&#xE8BB;" FontSize="14"/>
+                </Button>
+            </StackPanel>
         </Grid>
 
-        <TextBox x:Name="SearchBox" Grid.Row="1" Margin="10,0,10,8"
-                 MinHeight="32" TextChanged="OnSearchTextChanged"/>
-
         <!-- Сетка -->
-        <GridView x:Name="ItemsGrid" Grid.Row="2"
+        <GridView x:Name="ItemsGrid" Grid.Row="1"
                   Padding="10,0,10,10"
                   SelectionMode="None"
                   IsItemClickEnabled="True"
@@ -93,7 +97,7 @@
         </GridView>
 
         <!-- Список -->
-        <ListView x:Name="ItemsList" Grid.Row="2"
+        <ListView x:Name="ItemsList" Grid.Row="1"
                   Padding="6,0,6,10"
                   SelectionMode="None"
                   IsItemClickEnabled="True"
@@ -115,7 +119,7 @@
             </ListView.ItemTemplate>
         </ListView>
 
-        <TextBlock x:Name="EmptyText" Grid.Row="2" Margin="10,0,10,10"
+        <TextBlock x:Name="EmptyText" Grid.Row="1" Margin="10,0,10,10"
                    HorizontalAlignment="Center" VerticalAlignment="Center"
                    TextAlignment="Center" TextWrapping="Wrap"
                    Opacity="0.6" Visibility="Collapsed"/>

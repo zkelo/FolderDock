@@ -12,7 +12,8 @@ public static class PopupLayout
     private const int GridCellWidth = 100;
     private const int GridCellHeight = 96;
     private const int GridChromeWidth = 40; // Padding GridView + рамка окна
-    private const int HeaderHeight = 100;   // заголовок + поиск (32 + отступ 8)
+    private const int HeaderHeight = 60;    // заголовок с поиском в одной строке
+    private const int SearchRowHeight = 40; // отдельная строка поиска + отступы
     private const int MinColumns = 3;
     private const int MaxColumns = 6;
     private const int MaxRows = 5;
@@ -21,8 +22,12 @@ public static class PopupLayout
     private const int ListRowHeight = 36;
     private const int MaxListRows = 14;
 
-    public static (int Width, int Height) Measure(int itemCount, bool gridMode) =>
-        gridMode ? Grid(itemCount) : List(itemCount);
+    public static (int Width, int Height) Measure(
+        int itemCount, bool gridMode, bool separateSearchRow = false)
+    {
+        var (width, height) = gridMode ? Grid(itemCount) : List(itemCount);
+        return (width, height + (separateSearchRow ? SearchRowHeight : 0));
+    }
 
     private static (int Width, int Height) Grid(int count)
     {
