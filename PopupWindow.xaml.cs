@@ -22,6 +22,8 @@ public sealed partial class PopupWindow : Window
     // Segoe Fluent Icons; дублируют стартовые Glyph в PopupWindow.xaml
     private const string GridModeGlyph = "\uE8FD"; // ViewAll (сетка)
     private const string ListModeGlyph = "\uE80A"; // ViewList (список)
+    private const int InlineSearchWidth = 120;
+    private const int InlineSearchGap = 8;
 
     private readonly PopupChrome _chrome;
     private readonly ShareCoordinator _share;
@@ -198,9 +200,37 @@ public sealed partial class PopupWindow : Window
     {
         // Размер не меняется при вводе: поле поиска остаётся под курсором.
         var count = Math.Min(_contents.Entries.Count, FolderSearch.MaxResults);
-        var (width, height) = PopupLayout.Measure(count, _gridMode);
+        var (width, _) = PopupLayout.Measure(count, _gridMode);
+        var inlineSearch = PlaceSearchInHeader(width);
+        var (_, height) = PopupLayout.Measure(count, _gridMode, separateSearchRow: !inlineSearch);
         var scale = _chrome.Scale;
         _chrome.Resize((int)(width * scale), (int)(height * scale));
+    }
+
+    private bool PlaceSearchInHeader(int width)
+    {
+        // Измеряем полное название независимо от текущего обрезания в Grid.
+        // Решение зависит от ширины окна, поэтому смена строки не создаёт цикл.
+        var title = new TextBlock { Text = TitleText.Text, Style = TitleText.Style };
+        var unconstrained = new Windows.Foundation.Size(double.PositiveInfinity, double.PositiveInfinity);
+        title.Measure(unconstrained);
+        BackButton.Measure(unconstrained);
+        HeaderActions.Measure(unconstrained);
+        var requiredWidth = title.DesiredSize.Width + BackButton.DesiredSize.Width
+            + HeaderActions.DesiredSize.Width + InlineSearchWidth + InlineSearchGap
+            + Header.Padding.Left + Header.Padding.Right
+            + Root.BorderThickness.Left + Root.BorderThickness.Right;
+        var inline = Math.Ceiling(requiredWidth) <= width;
+
+        Grid.SetRow(SearchBox, inline ? 0 : 1);
+        Grid.SetColumn(SearchBox, inline ? 2 : 0);
+        Grid.SetColumnSpan(SearchBox, inline ? 1 : 4);
+        SearchColumn.Width = new GridLength(inline ? InlineSearchWidth + InlineSearchGap : 0);
+        SearchBox.Margin = inline
+            ? new Thickness(InlineSearchGap, 0, 0, 0)
+            : new Thickness(2, 6, 2, 2);
+        SearchBox.PlaceholderText = Loc.Get(inline ? "Search_CompactPlaceholder" : "Search_Placeholder");
+        return inline;
     }
 
     private void OnActivationChanged(object sender, WindowActivatedEventArgs e)
