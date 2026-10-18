@@ -47,8 +47,15 @@ public sealed class PopupChrome
 
     public bool IsVisible => AppWindow.IsVisible;
 
-    public void Resize(int width, int height) =>
-        AppWindow.Resize(new Windows.Graphics.SizeInt32(width, height));
+    public void Resize(int width, int height)
+    {
+        var anchor = _anchor ?? CursorPoint();
+        var workArea = DisplayArea.GetFromPoint(anchor, DisplayAreaFallback.Nearest).WorkArea;
+        // Размеры уже в физических пикселях. Высокий попап должен прокручивать
+        // содержимое, сохраняя заголовок и статус над панелью задач.
+        var maxHeight = Math.Max(1, workArea.Height - ScreenEdgeMargin - TaskbarGap);
+        AppWindow.Resize(new Windows.Graphics.SizeInt32(width, Math.Clamp(height, 1, maxHeight)));
+    }
 
     public void MoveToTaskbarArea()
     {

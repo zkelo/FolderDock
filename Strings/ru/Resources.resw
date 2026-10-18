@@ -32,8 +32,11 @@
   <data name="Tooltip_ClosePopup" xml:space="preserve"><value>Закрыть окно (Esc)</value></data>
   <data name="Tooltip_ViewToggle" xml:space="preserve"><value>Сетка / список</value></data>
   <data name="Tooltip_OpenInExplorer" xml:space="preserve"><value>Открыть в Проводнике</value></data>
-  <data name="Search_Placeholder" xml:space="preserve"><value>Поиск в этой папке (Ctrl+F)</value></data>
+  <data name="Search_Placeholder" xml:space="preserve"><value>Поиск в этой папке и подпапках (Ctrl+F)</value></data>
   <data name="Search_CompactPlaceholder" xml:space="preserve"><value>Поиск</value></data>
+  <data name="Search_InProgress" xml:space="preserve"><value>Поиск…</value></data>
+  <data name="Search_PartialResults" xml:space="preserve"><value>Не удалось проверить некоторые папки</value></data>
+  <data name="Search_ResultLimit" xml:space="preserve"><value>Показаны первые 500 совпадений</value></data>
   <data name="Search_NoResults" xml:space="preserve"><value>Совпадений не найдено</value></data>
   <data name="Folder_Empty" xml:space="preserve"><value>Папка пуста</value></data>
   <data name="Folder_AccessDenied" xml:space="preserve"><value>Нет доступа к папке</value></data>

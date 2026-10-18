@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using FolderDock.Core;
 using Microsoft.UI.Xaml;
@@ -22,8 +23,9 @@ public sealed partial class PopupWindow : Window
     // Segoe Fluent Icons; дублируют стартовые Glyph в PopupWindow.xaml
     private const string GridModeGlyph = "\uE8FD"; // ViewAll (сетка)
     private const string ListModeGlyph = "\uE80A"; // ViewList (список)
-    private const int InlineSearchWidth = 120;
+    private const int InlineSearchWidth = 160;
     private const int InlineSearchGap = 8;
+    private static readonly TimeSpan SearchDebounceInterval = TimeSpan.FromMilliseconds(180);
 
     private readonly PopupChrome _chrome;
     private readonly ShareCoordinator _share;
@@ -33,6 +35,7 @@ public sealed partial class PopupWindow : Window
     private readonly Stack<string> _navigationStack = new();
     private FolderContents _contents = new(Array.Empty<FolderEntry>(), Failed: false);
     private string _searchQuery = string.Empty;
+    private CancellationTokenSource? _searchCancellation;
 
     /// Закреплённая (корневая) папка попапа. Задаёт идентичность окна на панели
     /// задач и участвует в toggle-логике; навигация вглубь её НЕ меняет.
@@ -134,6 +137,7 @@ public sealed partial class PopupWindow : Window
             _lastDismissedFolder = _rootFolder;
             _lastDismissedAt = DateTime.UtcNow;
         }
+        CancelSearch();
         _thumbnails.CancelPending(); // не грузим миниатюры скрытому окну
         _chrome.Hide();
     }
@@ -175,34 +179,103 @@ public sealed partial class PopupWindow : Window
         if (_currentFolder is null) return;
         var query = SearchBox.Text.Trim();
         if (query == _searchQuery) return;
+        var wasSearching = _searchQuery.Length > 0;
         _searchQuery = query;
         ApplySearch();
+        if (wasSearching != (_searchQuery.Length > 0))
+        {
+            ResizeToFit();
+            _chrome.MoveToTaskbarArea();
+        }
     }
 
     private void ApplySearch()
     {
-        var matches = FolderSearch.Filter(_contents.Entries, _searchQuery, entry => entry.Name);
+        CancelSearch();
+        _thumbnails.CancelPending();
+        SearchStatus.Visibility = Visibility.Collapsed;
+        if (_searchQuery.Length > 0 && _currentFolder is not null)
+        {
+            _entries.Clear();
+            EmptyText.Text = Loc.Get("Search_InProgress");
+            EmptyText.Visibility = Visibility.Visible;
+            _ = SearchRecursivelyAsync(_currentFolder, _searchQuery);
+            return;
+        }
+
+        var matches = FolderSearch.Filter(_contents.Entries, null, entry => entry.Name);
+        ShowEntries(matches);
+        EmptyText.Text = Loc.Get(_contents.Failed ? "Folder_AccessDenied" : "Folder_Empty");
+        EmptyText.Visibility = matches.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void CancelSearch()
+    {
+        _searchCancellation?.Cancel();
+        _searchCancellation = null;
+    }
+
+    private async Task SearchRecursivelyAsync(string folder, string query)
+    {
+        using var cancellation = new CancellationTokenSource();
+        _searchCancellation = cancellation;
+        var token = cancellation.Token;
+        try
+        {
+            await Task.Delay(SearchDebounceInterval, token);
+            var result = await Task.Run(() => RecursiveFolderSearch.Search(folder, query, token), token);
+            // Старый запрос не должен менять результаты после навигации/закрытия.
+            if (token.IsCancellationRequested || _searchCancellation != cancellation
+                || !PathsEqual(_currentFolder, folder) || _searchQuery != query || !_chrome.IsVisible)
+                return;
+
+            var matches = result.Entries.Select(entry => new FolderEntry
+            {
+                Name = entry.Name,
+                FullPath = entry.FullPath,
+                IsDirectory = entry.IsDirectory,
+                RelativePath = Path.GetRelativePath(folder, entry.FullPath)
+            }).ToArray();
+            ShowEntries(matches);
+            EmptyText.Text = Loc.Get(result.Failed ? "Folder_AccessDenied" : "Search_NoResults");
+            EmptyText.Visibility = matches.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
+
+            var status = new List<string>();
+            if (result.Incomplete || (result.Failed && matches.Length > 0))
+                status.Add(Loc.Get("Search_PartialResults"));
+            if (result.LimitReached) status.Add(Loc.Get("Search_ResultLimit"));
+            SearchStatus.Text = string.Join(" · ", status);
+            SearchStatus.Visibility = status.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
+        {
+            // Новый запрос, переход или закрытие отменяют обход и задержку.
+        }
+        finally
+        {
+            if (_searchCancellation == cancellation)
+                _searchCancellation = null;
+        }
+    }
+
+    private void ShowEntries(IReadOnlyList<FolderEntry> matches)
+    {
         _entries.Clear();
         foreach (var entry in matches)
             _entries.Add(entry);
-
-        EmptyText.Text = Loc.Get(_contents.Failed ? "Folder_AccessDenied"
-            : _contents.Entries.Count == 0 ? "Folder_Empty" : "Search_NoResults");
-        EmptyText.Visibility = matches.Count == 0
-            ? Visibility.Visible
-            : Visibility.Collapsed;
-
-        // Новый запрос отменяет старую загрузку; готовые миниатюры переиспользуем.
         _ = _thumbnails.LoadAsync(matches.Where(entry => entry.Thumbnail is null).ToArray());
     }
 
     private void ResizeToFit()
     {
-        // Размер не меняется при вводе: поле поиска остаётся под курсором.
+        // Все непустые запросы используют одинаковую высоту для результатов.
         var count = Math.Min(_contents.Entries.Count, FolderSearch.MaxResults);
         var (width, _) = PopupLayout.Measure(count, _gridMode);
         var inlineSearch = PlaceSearchInHeader(width);
-        var (_, height) = PopupLayout.Measure(count, _gridMode, separateSearchRow: !inlineSearch);
+        var searchMode = _searchQuery.Length > 0;
+        var (_, height) = PopupLayout.Measure(searchMode ? FolderSearch.MaxResults : count,
+            _gridMode, separateSearchRow: !inlineSearch);
+        if (searchMode) height += 40; // сообщения о неполном поиске и лимите
         var scale = _chrome.Scale;
         _chrome.Resize((int)(width * scale), (int)(height * scale));
     }
