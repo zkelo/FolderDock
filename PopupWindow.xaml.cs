@@ -10,6 +10,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media;
 using Windows.ApplicationModel.DataTransfer;
 
 namespace FolderDock;
@@ -54,6 +55,9 @@ public sealed partial class PopupWindow : Window
     public PopupWindow()
     {
         InitializeComponent();
+        // SystemBackdrop сам следует теме, фокусу и настройкам доступности
+        // Windows, оставляя видимым живой размытый фон за окном.
+        SystemBackdrop = new DesktopAcrylicBackdrop();
         _chrome = new PopupChrome(this);
         _share = new ShareCoordinator(_chrome, shareFinished: OnShareCompleted);
         ItemsGrid.ItemsSource = _entries;

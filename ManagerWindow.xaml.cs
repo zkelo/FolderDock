@@ -2,10 +2,14 @@ using System;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Threading.Tasks;
+using Microsoft.UI;
+using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media;
 using Windows.Storage.Pickers;
+using Windows.UI.ViewManagement;
 using WinRT.Interop;
 
 namespace FolderDock;
@@ -13,11 +17,13 @@ namespace FolderDock;
 public sealed partial class ManagerWindow : Window
 {
     private const int DefaultWidth = 720;
-    private const int DefaultHeight = 560;
+    private const int DefaultHeight = 620;
 
     private readonly ObservableCollection<PinInfo> _pins = new();
     private readonly Settings _settings = Settings.Load();
+    private readonly UISettings _uiSettings = new();
     private bool _updateCheckRunning;
+    private bool _appearanceClosed;
 
     private static string ShortcutsDir => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
@@ -26,6 +32,10 @@ public sealed partial class ManagerWindow : Window
     public ManagerWindow()
     {
         InitializeComponent();
+        // Настоящий desktop acrylic: Windows управляет размытием, темой,
+        // активацией и непрозрачным фоном при отключённой прозрачности.
+        SystemBackdrop = new DesktopAcrylicBackdrop();
+        InitializeTitleBar();
         WindowAumid.Apply(WindowNative.GetWindowHandle(this), WindowAumid.AppId);
         SetAppIcon();
         ApplyAppInfo();
@@ -37,6 +47,57 @@ public sealed partial class ManagerWindow : Window
 
         if (_settings.AutoCheckUpdates)
             _ = CheckForUpdatesAsync(silentWhenUpToDate: true);
+    }
+
+    private void InitializeTitleBar()
+    {
+        if (!AppWindowTitleBar.IsCustomizationSupported())
+        {
+            TitleBarDragRegion.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        ExtendsContentIntoTitleBar = true;
+        SetTitleBar(TitleBarDragRegion);
+        ManagerRoot.Loaded += OnTitleBarLoaded;
+        ManagerRoot.ActualThemeChanged += OnTitleBarThemeChanged;
+        _uiSettings.ColorValuesChanged += OnSystemColorsChanged;
+        Closed += OnAppearanceClosed;
+        UpdateTitleBarColors();
+    }
+
+    private void OnTitleBarLoaded(object sender, RoutedEventArgs e) => UpdateTitleBarColors();
+
+    private void OnTitleBarThemeChanged(FrameworkElement sender, object args) => UpdateTitleBarColors();
+
+    private void OnSystemColorsChanged(UISettings sender, object args)
+    {
+        // Событие Windows приходит с фонового потока, в том числе при смене
+        // контрастной темы. Цвета читаем заново только в очереди окна.
+        DispatcherQueue.TryEnqueue(UpdateTitleBarColors);
+    }
+
+    private void UpdateTitleBarColors()
+    {
+        if (_appearanceClosed) return;
+        var titleBar = AppWindow.TitleBar;
+        var foreground = _uiSettings.GetColorValue(UIColorType.Foreground);
+        titleBar.ButtonForegroundColor = foreground;
+        titleBar.ButtonHoverForegroundColor = foreground;
+        titleBar.ButtonPressedForegroundColor = foreground;
+        titleBar.ButtonInactiveForegroundColor = _uiSettings.UIElementColor(UIElementType.GrayText);
+        titleBar.ButtonBackgroundColor = Colors.Transparent;
+        titleBar.ButtonInactiveBackgroundColor = Colors.Transparent;
+        // Hover/pressed backgrounds and the close button retain native behavior.
+    }
+
+    private void OnAppearanceClosed(object sender, WindowEventArgs args)
+    {
+        _appearanceClosed = true;
+        _uiSettings.ColorValuesChanged -= OnSystemColorsChanged;
+        ManagerRoot.Loaded -= OnTitleBarLoaded;
+        ManagerRoot.ActualThemeChanged -= OnTitleBarThemeChanged;
+        Closed -= OnAppearanceClosed;
     }
 
     private void ApplySettings()
@@ -164,6 +225,7 @@ public sealed partial class ManagerWindow : Window
 
     private void OnActivated(object sender, WindowActivatedEventArgs e)
     {
+        TitleBarText.Opacity = e.WindowActivationState == WindowActivationState.Deactivated ? 0.6 : 1;
         // Актуализируем список при каждом возврате к окну:
         // ярлыки и папки могли удалить, пока менеджер был в фоне
         if (e.WindowActivationState != WindowActivationState.Deactivated)
