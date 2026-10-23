@@ -30,7 +30,9 @@ This project is maintained entirely by AI models: **Claude Fable 5** and **GPT 6
 - The manager shows only pins that still exist: shortcuts whose target folder was deleted are filtered out on every window activation.
 - **Updates from GitHub Releases**: a "Check for updates" button and an automatic-check toggle (stored in `%LOCALAPPDATA%\FolderDock\settings.json`). Automatic checks are enabled by default and run when a manager window is created. When a newer version is found, the app offers to download the installer for the running app's architecture and runs a silent upgrade after confirmation.
 - Launching from the app's own shortcut (Start Menu) keeps its own taskbar identity — it never masquerades as one of the pinned folders.
-- Dark/light theme — follows the system. Win11 rounded corners, always on top, hidden from Alt-Tab.
+- **Native Windows Acrylic** in the manager and folder popup, with rounded content surfaces and translucent edges. The blurred colors come from the desktop and windows behind FolderDock, so their appearance varies with the background.
+- **System accent and theme**: controls and highlights follow the Windows accent color and light/dark theme. Windows supplies accessible solid-color fallbacks when transparency is disabled, a contrast theme is active, or Acrylic cannot be rendered.
+- Win11 rounded popup corners, always on top, hidden from Alt-Tab.
 - Single-instance: repeated launches are redirected to the running instance (AppInstance redirect).
 
 ## Installation
@@ -97,6 +99,7 @@ Key conventions: keys with a dot (`AddFolderLabel.Text`) bind to XAML elements v
 - Windows 11 does not allow pinning a folder to the taskbar directly and has no API for a "taskbar popup". Workaround: a shortcut to `FolderDock.exe --folder "<path>"` with `System.AppUserModel.ID` written into the shortcut's property store, unique per folder (SHA1 of the path). On start the process sets the same AUMID via `SetCurrentProcessExplicitAppUserModelID` — the taskbar matches the window to the right pinned icon. Launched without `--folder`, the process (and each window via `SHGetPropertyStoreForWindow`) uses the app's own AUMID instead.
 - One background process: `AppInstance.FindOrRegisterForKey` + `RedirectActivationToAsync`. A click on any shortcut lands in the live instance → instant popup with no cold start.
 - The popup is a WinUI 3 `Window` with `OverlappedPresenter.CreateForContextMenu()` (frameless), `IsAlwaysOnTop`, `WS_EX_TOOLWINDOW` (not in Alt-Tab), `DWMWA_WINDOW_CORNER_PREFERENCE=ROUND`. Its horizontal position is anchored to the cursor when opened and clamped to the selected monitor's work area; its bottom edge sits above the bottom of that work area, leaving a taskbar gap. The anchor stays fixed during navigation.
+- Both windows use `Window.SystemBackdrop` with `DesktopAcrylicBackdrop`; Windows manages blur, activation, and material fallbacks. WinUI `ThemeResource` brushes provide the current system accent and theme colors without a separate app color setting.
 - Thumbnails — `StorageFile.GetThumbnailAsync` (the same previews as Explorer), loaded asynchronously after the window is shown.
 
 ## Popup architecture

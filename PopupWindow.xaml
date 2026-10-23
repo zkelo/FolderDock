@@ -8,10 +8,8 @@
     <Grid x:Name="Root" RequestedTheme="Default"
           CornerRadius="8"
           BorderThickness="1"
-          BorderBrush="{ThemeResource SurfaceStrokeColorDefaultBrush}">
-        <Grid.Background>
-            <SolidColorBrush Color="{ThemeResource SolidBackgroundFillColorBase}" Opacity="0.97"/>
-        </Grid.Background>
+          BorderBrush="{ThemeResource SurfaceStrokeColorDefaultBrush}"
+          Background="Transparent">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
@@ -35,7 +33,7 @@
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
             <Button x:Name="BackButton" Grid.Column="0" Margin="0,0,6,0"
-                    Padding="6" Background="Transparent" BorderThickness="0"
+                    Padding="6" Background="Transparent" BorderThickness="0" CornerRadius="8"
                     Visibility="Collapsed"
                     Click="OnNavigateBack">
                 <FontIcon Glyph="&#xE72B;" FontSize="14"/>
@@ -44,32 +42,38 @@
                        Style="{ThemeResource BodyStrongTextBlockStyle}"
                        VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
             <TextBox x:Name="SearchBox" Grid.Row="1" Grid.ColumnSpan="4"
-                     Margin="2,6,2,2" MinHeight="32"
+                     Margin="2,6,2,2" MinHeight="32" CornerRadius="16"
                      VerticalAlignment="Center" TextChanged="OnSearchTextChanged"/>
             <StackPanel x:Name="HeaderActions" Grid.Column="3"
                         Orientation="Horizontal" VerticalAlignment="Center">
                 <ToggleButton x:Name="PinToggle" Margin="6,0,0,0"
-                              Padding="6" Background="Transparent" BorderThickness="0"
+                              Padding="6" Background="Transparent" BorderThickness="0" CornerRadius="8"
                               IsChecked="False" Click="OnTogglePin">
                     <FontIcon Glyph="&#xE718;" FontSize="14"/>
                 </ToggleButton>
                 <Button x:Name="ViewToggle" Margin="2,0,0,0"
-                        Padding="6" Background="Transparent" BorderThickness="0"
+                        Padding="6" Background="Transparent" BorderThickness="0" CornerRadius="8"
                         Click="OnToggleView">
                     <FontIcon x:Name="ViewToggleIcon" Glyph="&#xE8FD;" FontSize="14"/>
                 </Button>
                 <Button x:Name="OpenExplorerButton" Margin="2,0,0,0"
-                        Padding="6" Background="Transparent" BorderThickness="0"
+                        Padding="6" Background="Transparent" BorderThickness="0" CornerRadius="8"
                         Click="OnOpenInExplorer">
                     <FontIcon Glyph="&#xE838;" FontSize="14"/>
                 </Button>
                 <Button x:Name="CloseButton" Margin="2,0,0,0"
-                        Padding="6" Background="Transparent" BorderThickness="0"
+                        Padding="6" Background="Transparent" BorderThickness="0" CornerRadius="8"
                         Click="OnClosePopup">
                     <FontIcon Glyph="&#xE8BB;" FontSize="14"/>
                 </Button>
             </StackPanel>
         </Grid>
+
+        <!-- A translucent reading surface leaves the native acrylic exposed around it. -->
+        <Border Grid.Row="1" Grid.RowSpan="2" Margin="6,0,6,6" CornerRadius="10"
+                Background="{ThemeResource LayerFillColorDefaultBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1"
+                IsHitTestVisible="False"/>
 
         <!-- Сетка -->
         <GridView x:Name="ItemsGrid" Grid.Row="1"

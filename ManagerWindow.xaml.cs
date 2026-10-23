@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media;
 using Windows.Storage.Pickers;
 using WinRT.Interop;
 
@@ -26,6 +27,9 @@ public sealed partial class ManagerWindow : Window
     public ManagerWindow()
     {
         InitializeComponent();
+        // Настоящий desktop acrylic: Windows управляет размытием, темой,
+        // активацией и непрозрачным фоном при отключённой прозрачности.
+        SystemBackdrop = new DesktopAcrylicBackdrop();
         WindowAumid.Apply(WindowNative.GetWindowHandle(this), WindowAumid.AppId);
         SetAppIcon();
         ApplyAppInfo();
