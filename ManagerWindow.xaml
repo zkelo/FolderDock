@@ -8,22 +8,45 @@
     <!-- Заголовок перезаписывается в ApplyAppInfo: «FolderDock <версия>» -->
 
     <!-- Leave the outer frame clear so the native desktop acrylic stays visible. -->
-    <Grid Background="Transparent" Padding="16">
-        <Border Background="{ThemeResource LayerFillColorDefaultBrush}"
+    <Grid x:Name="ManagerRoot" Background="Transparent">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- The native caption buttons occupy the right side of the title bar. -->
+        <Grid x:Name="TitleBarDragRegion" Grid.Row="0" Height="32" Margin="0,0,152,0"
+              Padding="16,0,0,0" ColumnSpacing="8" Background="Transparent">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <FontIcon Glyph="&#xE8B7;" FontSize="14" VerticalAlignment="Center"
+                      Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+            <TextBlock x:Name="TitleBarText" Grid.Column="1" Text="FolderDock" FontSize="12"
+                       VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+        </Grid>
+
+        <Border Grid.Row="1" Margin="16" Background="{ThemeResource LayerFillColorDefaultBrush}"
                 BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                 BorderThickness="1" CornerRadius="16" Padding="24">
             <Grid RowSpacing="20">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
-                <Grid Grid.Row="0" ColumnSpacing="16">
+                <Grid Grid.Row="0" ColumnSpacing="16" RowSpacing="12">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="48"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
                     <Border Width="48" Height="48" CornerRadius="14"
                             VerticalAlignment="Top"
@@ -31,22 +54,20 @@
                         <FontIcon Glyph="&#xE8B7;" FontSize="24"
                                   Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"/>
                     </Border>
-                    <StackPanel Grid.Column="1" Spacing="6">
-                        <TextBlock Text="FolderDock" Style="{ThemeResource TitleTextBlockStyle}"/>
-                        <TextBlock x:Uid="ManagerIntro" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                   TextWrapping="Wrap"/>
-                    </StackPanel>
+                    <TextBlock Grid.Column="1" Text="FolderDock" VerticalAlignment="Center"
+                               Style="{ThemeResource TitleTextBlockStyle}"/>
+                    <Button Grid.Column="2" Click="OnAddFolder" Style="{ThemeResource AccentButtonStyle}"
+                            VerticalAlignment="Center" CornerRadius="8" Padding="16,10">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <FontIcon Glyph="&#xE8F4;" FontSize="16"/>
+                            <TextBlock x:Uid="AddFolderLabel"/>
+                        </StackPanel>
+                    </Button>
+                    <TextBlock Grid.Row="1" Grid.ColumnSpan="3" x:Uid="ManagerIntro"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap"/>
                 </Grid>
 
-                <Button Grid.Row="1" Click="OnAddFolder" Style="{ThemeResource AccentButtonStyle}"
-                        CornerRadius="8" Padding="16,10">
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <FontIcon Glyph="&#xE8F4;" FontSize="16"/>
-                        <TextBlock x:Uid="AddFolderLabel"/>
-                    </StackPanel>
-                </Button>
-
-                <ListView x:Name="PinsList" Grid.Row="2" SelectionMode="None"
+                <ListView x:Name="PinsList" Grid.Row="1" SelectionMode="None"
                           Background="Transparent">
                     <ListView.ItemContainerStyle>
                         <Style TargetType="ListViewItem">
@@ -70,13 +91,14 @@
                                     <FontIcon Glyph="&#xE8B7;" FontSize="20"
                                               Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
                                 </Border>
-                                <StackPanel Grid.Column="1">
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
                                     <TextBlock Text="{x:Bind Name}" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
                                     <TextBlock Text="{x:Bind Folder}" FontSize="12"
                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                                TextTrimming="CharacterEllipsis"/>
                                 </StackPanel>
                                 <Button Grid.Column="2" x:Uid="RevealShortcutButton"
+                                        VerticalAlignment="Center"
                                         Click="OnRevealShortcut" Tag="{x:Bind Lnk}" CornerRadius="8"/>
                             </Grid>
                         </DataTemplate>
@@ -84,7 +106,7 @@
                 </ListView>
 
                 <!-- Низ окна: строка обновлений + строка версии/сборки/ссылки -->
-                <StackPanel Grid.Row="3" Spacing="8">
+                <StackPanel Grid.Row="2" Spacing="8">
                     <!-- Обновления: компактно (FontSize 12, Opacity 0.8), но с удобной
                          областью нажатия (MinHeight 28) -->
                     <StackPanel Orientation="Horizontal" Spacing="16"
