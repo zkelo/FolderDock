@@ -21,7 +21,7 @@ This project is maintained entirely by AI models: **Claude Fable 5** and **GPT 6
 - **Adaptive search field**: the search box shares the folder-title row when the complete title and header controls fit; otherwise it moves to a separate row below.
 - Click a file → opens with the default app, passing **folder context** (`NeighboringFilesQuery`) to supported viewers so they can browse neighboring files. Windows Photos uses its viewer URI when it is the default app. If these launch methods fail, the app falls back to the normal shell launch. Popup closes unless pinned.
 - Click a subfolder → navigate inside right in the popup; a **Back** button returns to the previous folder in navigation history.
-- **Typed drag-and-drop**: the data package carries multiple representations — a single supported image is additionally offered as Bitmap (paste "as picture" into compatible apps), a single supported text file up to 256 KiB as Text, and files or folders as StorageItems. The receiving app picks the format it understands. Dragging requests **Move** by default; hold **Ctrl** to request Copy. The receiving app decides the completed operation. After a move the popup refreshes automatically.
+- **Native Windows file dragging**: drag any file, folder, or shortcut from the grid, list, or search results into Explorer, the desktop, the Recycle Bin, or an application that accepts files. Shortcuts are transferred as shortcut files. Windows chooses the default operation for the destination; **Ctrl** requests a copy, **Shift** a move, and **Ctrl+Shift** a shortcut. **Esc** cancels the drag. The popup stays alive throughout the gesture, and a pinned popup refreshes when the file operation finishes.
 - **Explorer context menu** (right-click an item): the real system shell menu — Open with, Send to, Copy/Cut/Delete/Rename, third-party extensions (7-Zip, TortoiseGit, …) — exactly as in Explorer. The same menu is available on rows in the manager window: right-click a pinned folder to **pin its shortcut to the taskbar**, rename or delete it — no Explorer round-trip.
 - "Open in Explorer" button.
 - **Pin the popup** with the button in its header to keep it open and on top when clicking outside, opening files, or choosing "Open in Explorer". Pinning survives navigation and grid/list changes, and resets each time a popup opens, including for another folder.
@@ -71,7 +71,7 @@ The Core tests cover popup sessions, name matching, recursive folder search, and
 dotnet test tests/FolderDock.Core.Tests/FolderDock.Core.Tests.csproj -c Release
 ```
 
-The xUnit tests reference `FolderDock.Core` directly. [CI](.github/workflows/tests.yml) runs these tests on Ubuntu and builds the WinUI app for x64 and ARM64 on Windows.
+The xUnit Core tests reference `FolderDock.Core` directly. [CI](.github/workflows/tests.yml) runs these tests on Ubuntu and builds the WinUI app for x64 and ARM64 on Windows. The x64 job also runs `dotnet test tests/FolderDock.Shell.Tests/FolderDock.Shell.Tests.csproj -c Release`, checking actual Shell data formats (including shortcut identity, Unicode names and folders) and delayed source-change notifications without starting an interactive drag.
 
 ## Usage
 
@@ -126,7 +126,10 @@ Dependencies point inward: **WinUI app → Core** and **Tests → Core** through
 | `FolderContents.cs` | Read result: entries + access-failure flag |
 | `FolderReader.cs` | Reading folder contents |
 | `ThumbnailLoader.cs` | Async Explorer thumbnails (cancellable) |
-| `TypedDataPackage.cs` | DataPackage: Bitmap/Text/StorageItems; sync fill for drag |
+| `TypedDataPackage.cs` | Bitmap/Text/StorageItems representations for the Share data package |
+| `ShellDragDrop.cs` | Native Shell IDataObject and SHDoDragDrop; file formats, modifier keys and cancellation |
+| `FolderChangeMonitor.cs` | Observes completed file operations, including changes in recursive search results |
+| `tests/FolderDock.Shell.Tests/` | Windows integration tests of real Shell file formats and folder monitoring |
 | `ShellContextMenu.cs` | Explorer shell context menu: IContextMenu/2/3, menu-message subclassing |
 | `ManagerWindow.xaml(.cs)` | Manager: adding folders, creating shortcuts, filtering dead pins |
 | `PinInfo.cs` | Manager list row model |

@@ -1,17 +1,18 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using FolderDock.Core;
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
-using Windows.ApplicationModel.DataTransfer;
 
 namespace FolderDock;
 
@@ -48,6 +49,10 @@ public sealed partial class PopupWindow : Window
     private bool _gridMode = true;
     private bool _isActive;
     private bool _shellMenuOpen;
+    private bool _dragInProgress;
+    private int _popupGeneration;
+    private FolderChangeMonitor? _folderMonitor;
+    private readonly DispatcherQueueTimer _folderRefreshTimer;
     private string? _lastDismissedFolder;
     private DateTime _lastDismissedAt;
     private DateTime _shownAt;
@@ -60,6 +65,15 @@ public sealed partial class PopupWindow : Window
         SystemBackdrop = new DesktopAcrylicBackdrop();
         _chrome = new PopupChrome(this);
         _share = new ShareCoordinator(_chrome, shareFinished: OnShareCompleted);
+        _folderRefreshTimer = DispatcherQueue.CreateTimer();
+        _folderRefreshTimer.Interval = TimeSpan.FromMilliseconds(200);
+        _folderRefreshTimer.IsRepeating = false;
+        _folderRefreshTimer.Tick += (_, _) =>
+        {
+            // Do not rebuild the source collection in the nested OLE message loop.
+            // DragEntry refreshes it when dragging has actually ended.
+            if (_chrome.IsVisible && !_dragInProgress) Reload();
+        };
         ItemsGrid.ItemsSource = _entries;
         ItemsList.ItemsSource = _entries;
         InitializeHeaderLabels();
@@ -98,6 +112,7 @@ public sealed partial class PopupWindow : Window
 
     public void ShowForFolder(string folder)
     {
+        _popupGeneration++;
         _session.Begin();
         RenderPinState();
         _rootFolder = Path.GetFullPath(folder);
@@ -126,7 +141,8 @@ public sealed partial class PopupWindow : Window
             IsVisible: _chrome.IsVisible,
             IsShareInProgress: _share.IsShareInProgress,
             IsShellMenuOpen: _shellMenuOpen,
-            TimeSinceShown: DateTime.UtcNow - _shownAt);
+            TimeSinceShown: DateTime.UtcNow - _shownAt,
+            IsDragInProgress: _dragInProgress);
 
         if (_session.ShouldDismiss(reason, context))
             HidePopup();
@@ -134,6 +150,8 @@ public sealed partial class PopupWindow : Window
 
     private void HidePopup()
     {
+        _popupGeneration++;
+        StopWatchingFolder();
         if (_chrome.IsVisible)
         {
             // Для toggle-дебаунса запоминаем КОРНЕВУЮ папку: повторный клик
@@ -160,13 +178,16 @@ public sealed partial class PopupWindow : Window
     {
         if (_currentFolder is null) return;
 
-        _contents = FolderReader.Read(_currentFolder);
+        StopWatchingFolder();
         if (resetSearch)
         {
             // Обновляем запрос до Text, чтобы событие не фильтровало повторно.
             _searchQuery = string.Empty;
             SearchBox.Text = string.Empty;
         }
+        // Subscribe before enumerating: a Shell operation can finish at any time.
+        WatchCurrentFolder();
+        _contents = FolderReader.Read(_currentFolder);
         ApplySearch();
 
         BackButton.Visibility = _navigationStack.Count > 0
@@ -177,6 +198,36 @@ public sealed partial class PopupWindow : Window
         _chrome.MoveToTaskbarArea();
     }
 
+    private void StopWatchingFolder()
+    {
+        _folderRefreshTimer.Stop();
+        _folderMonitor?.Dispose();
+        _folderMonitor = null;
+    }
+
+    private void WatchCurrentFolder()
+    {
+        if (_currentFolder is null) return;
+        try
+        {
+            FolderChangeMonitor? monitor = null;
+            monitor = new FolderChangeMonitor(_currentFolder, _searchQuery.Length > 0,
+                () => DispatcherQueue.TryEnqueue(() =>
+                {
+                    // Queued events from a previous folder/session must be ignored.
+                    if (_folderMonitor != monitor || !_chrome.IsVisible) return;
+                    _folderRefreshTimer.Stop();
+                    _folderRefreshTimer.Start();
+                }));
+            _folderMonitor = monitor;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException
+                                       or ArgumentException)
+        {
+            Debug.WriteLine($"FolderDock: folder monitor unavailable: {ex.Message}");
+        }
+    }
+
     private void OnSearchTextChanged(object sender, TextChangedEventArgs e)
     {
         // TextChanged может прийти при InitializeComponent, до готовности окна.
@@ -185,7 +236,9 @@ public sealed partial class PopupWindow : Window
         if (query == _searchQuery) return;
         var wasSearching = _searchQuery.Length > 0;
         _searchQuery = query;
+        StopWatchingFolder();
         ApplySearch();
+        WatchCurrentFolder();
         if (wasSearching != (_searchQuery.Length > 0))
         {
             ResizeToFit();
@@ -337,6 +390,7 @@ public sealed partial class PopupWindow : Window
 
     private async void OnItemClick(object sender, ItemClickEventArgs e)
     {
+        if (_dragInProgress) return;
         if (e.ClickedItem is FolderEntry entry)
             await OpenEntryAsync(entry);
     }
@@ -374,27 +428,53 @@ public sealed partial class PopupWindow : Window
 
     private void OnDragItemsStarting(object sender, DragItemsStartingEventArgs e)
     {
-        // Событие синхронное: e.Data нужно заполнить не выходя в асинхронность,
-        // иначе драг стартует с пустым пакетом (см. TypedDataPackage.FillForDrag)
-        var entries = e.Items.OfType<FolderEntry>().ToList();
-        if (entries.Count == 0)
-        {
-            e.Cancel = true;
+        // Let WinUI recognize the gesture, then cancel its data-transfer session.
+        // Starting a nested OLE drag inside this callback races WinUI's capture and
+        // cleanup. Run it only after the cancelled callback has fully unwound.
+        e.Cancel = true;
+        if (_dragInProgress || e.Items.OfType<FolderEntry>().FirstOrDefault() is not { } entry)
             return;
-        }
 
-        // Move по умолчанию (как в Проводнике), Copy при зажатом Ctrl.
-        // Приёмник вправе скорректировать операцию своими модификаторами при дропе.
-        var ctrlHeld = (Native.GetKeyState(Native.VK_CONTROL) & 0x8000) != 0;
-        TypedDataPackage.FillForDrag(e.Data, entries,
-            ctrlHeld ? DataPackageOperation.Copy : DataPackageOperation.Move);
+        var generation = _popupGeneration;
+        _dragInProgress = true;
+        if (!DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low,
+                () => DragEntry(entry.FullPath, generation)))
+        {
+            _dragInProgress = false;
+        }
     }
 
-    private void OnDragItemsCompleted(ListViewBase sender, DragItemsCompletedEventArgs args)
+    private void DragEntry(string path, int generation)
     {
-        // После перемещения исходные элементы исчезли из папки — обновляем список
-        if (args.DropResult == DataPackageOperation.Move)
-            Reload();
+        try
+        {
+            // The pointer may already have been released, or a redirected taskbar
+            // activation may have replaced/hidden this popup before the callback.
+            if (generation != _popupGeneration || !_chrome.IsVisible ||
+                (Native.GetKeyState(Native.VK_LBUTTON) & 0x8000) == 0)
+                return;
+
+            Native.ReleaseCapture();
+            ShellDragDrop.Start(_chrome.Hwnd, path);
+        }
+        catch (Exception ex) when (ex is System.Runtime.InteropServices.COMException
+                                       or IOException or UnauthorizedAccessException)
+        {
+            // A removed item, disconnected share or faulty Shell extension must
+            // not leave the popup stuck in its drag state or crash the application.
+            Debug.WriteLine($"FolderDock: file drag failed: {ex.Message}");
+        }
+        finally
+        {
+            _dragInProgress = false;
+            if (generation == _popupGeneration && _chrome.IsVisible)
+            {
+                // Refresh regardless of the returned effect: the Shell can perform
+                // an optimized move/recycle and report DROPEFFECT_NONE.
+                Reload();
+                RequestDismiss(PopupDismissalReason.DragCompleted);
+            }
+        }
     }
 
     private static FolderEntry? EntryFrom(object sender) =>

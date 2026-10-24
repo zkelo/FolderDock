@@ -23,10 +23,12 @@ public sealed class PopupSession
                 !context.IsShellMenuOpen &&
                 context.TimeSinceShown > DismissGracePeriod,
             PopupDismissalReason.ShareCompleted => !context.IsActive && context.IsVisible,
+            PopupDismissalReason.DragCompleted => !context.IsActive && context.IsVisible,
             PopupDismissalReason.ExternalLaunch => true,
             _ => throw new ArgumentOutOfRangeException(nameof(reason), reason, null)
         };
 
-        return allowedByEvent && (reason == PopupDismissalReason.Explicit || !IsPinned);
+        return allowedByEvent && (reason == PopupDismissalReason.Explicit ||
+            (!IsPinned && !context.IsDragInProgress));
     }
 }

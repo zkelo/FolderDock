@@ -50,6 +50,7 @@ public sealed class PopupSessionTests
     [InlineData(PopupDismissalReason.Deactivated)]
     [InlineData(PopupDismissalReason.ShareCompleted)]
     [InlineData(PopupDismissalReason.ExternalLaunch)]
+    [InlineData(PopupDismissalReason.DragCompleted)]
     public void PinKeepsPopupOpenForEveryAutomaticDismissalReason(
         PopupDismissalReason reason)
     {
@@ -164,6 +165,62 @@ public sealed class PopupSessionTests
         };
 
         Assert.True(session.ShouldDismiss(PopupDismissalReason.ExternalLaunch, context));
+    }
+
+    [Theory]
+    [InlineData(PopupDismissalReason.Deactivated)]
+    [InlineData(PopupDismissalReason.ShareCompleted)]
+    [InlineData(PopupDismissalReason.ExternalLaunch)]
+    [InlineData(PopupDismissalReason.DragCompleted)]
+    public void ActiveDragBlocksEveryAutomaticDismissal(PopupDismissalReason reason)
+    {
+        var session = new PopupSession();
+        var context = InactiveVisiblePopup with { IsDragInProgress = true };
+
+        Assert.False(session.ShouldDismiss(reason, context));
+    }
+
+    [Fact]
+    public void ExplicitDismissalStillWorksDuringDrag()
+    {
+        var session = new PopupSession();
+        session.TogglePin();
+
+        Assert.True(session.ShouldDismiss(PopupDismissalReason.Explicit,
+            InactiveVisiblePopup with { IsDragInProgress = true }));
+    }
+
+    [Theory]
+    [InlineData(false, true, true)]
+    [InlineData(true, true, false)]
+    [InlineData(false, false, false)]
+    [InlineData(true, false, false)]
+    public void DragCompletionReevaluatesCurrentFocusAndVisibility(
+        bool isActive, bool isVisible, bool expectedDismissal)
+    {
+        var session = new PopupSession();
+        var context = InactiveVisiblePopup with
+        {
+            IsActive = isActive,
+            IsVisible = isVisible,
+            TimeSinceShown = TimeSpan.Zero
+        };
+
+        Assert.Equal(expectedDismissal,
+            session.ShouldDismiss(PopupDismissalReason.DragCompleted, context));
+    }
+
+    [Fact]
+    public void CancelledDragAllowsSubsequentNormalDeactivation()
+    {
+        var session = new PopupSession();
+        Assert.False(session.ShouldDismiss(PopupDismissalReason.Deactivated,
+            InactiveVisiblePopup with { IsDragInProgress = true }));
+
+        Assert.False(session.ShouldDismiss(PopupDismissalReason.DragCompleted,
+            InactiveVisiblePopup with { IsActive = true }));
+        Assert.True(session.ShouldDismiss(PopupDismissalReason.Deactivated,
+            InactiveVisiblePopup));
     }
 
     [Theory]
