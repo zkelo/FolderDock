@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using Windows.ApplicationModel.DataTransfer;
 using Windows.Storage;
@@ -60,6 +61,68 @@ public static class TypedDataPackage
         else if (IsText(entry))
         {
             TryAddTextContent(package, entry.FullPath);
+        }
+    }
+
+    /// СИНХРОННОЕ заполнение для DragItemsStarting: событие обрабатывается
+    /// синхронно, любой await до записи в e.Data оставляет пакет пустым
+    /// (драг уже стартовал). Асинхронный резолв StorageItems/Bitmap отложен
+    /// в data-провайдеры — приёмник запросит формат, тогда и резолвим.
+    /// operation — Move по умолчанию (как в Проводнике), Copy при Ctrl;
+    /// приёмник вправе скорректировать по своим модификаторам в момент дропа.
+    public static void FillForDrag(DataPackage package,
+        IReadOnlyList<FolderEntry> entries, DataPackageOperation operation)
+    {
+        FillCommonProperties(package, entries);
+        package.RequestedOperation = operation;
+
+        // Снимок списка: e.Items может быть переиспользован после выхода
+        // из обработчика, а провайдер сработает позже (при дропе)
+        var snapshot = entries.ToArray();
+        package.SetDataProvider(StandardDataFormats.StorageItems, async request =>
+        {
+            var deferral = request.GetDeferral();
+            try
+            {
+                request.SetData(await ResolveStorageItemsAsync(snapshot));
+            }
+            catch
+            {
+                // Файл удалили между началом драга и дропом — приёмник
+                // получит пакет без этого формата, штатная деградация
+            }
+            finally
+            {
+                deferral.Complete();
+            }
+        });
+
+        if (!IsSingleFile(entries)) return;
+
+        var entry = entries[0];
+        if (IsImage(entry))
+        {
+            package.SetDataProvider(StandardDataFormats.Bitmap, async request =>
+            {
+                var deferral = request.GetDeferral();
+                try
+                {
+                    var file = await StorageFile.GetFileFromPathAsync(entry.FullPath);
+                    request.SetData(RandomAccessStreamReference.CreateFromFile(file));
+                }
+                catch
+                {
+                    // см. комментарий провайдера StorageItems
+                }
+                finally
+                {
+                    deferral.Complete();
+                }
+            });
+        }
+        else if (IsText(entry))
+        {
+            TryAddTextContent(package, entry.FullPath); // чтение синхронное
         }
     }
 

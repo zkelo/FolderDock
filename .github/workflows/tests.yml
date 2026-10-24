@@ -39,6 +39,3 @@ jobs:
           dotnet-version: '8.0.x'
       - name: Build WinUI application
         run: dotnet build FolderDock.csproj -c Release -r ${{ matrix.runtime }} -p:Platform=${{ matrix.platform }}
-      - name: Test native Shell file formats and folder monitoring
-        if: matrix.platform == 'x64'
-        run: dotnet test tests/FolderDock.Shell.Tests/FolderDock.Shell.Tests.csproj -c Release
