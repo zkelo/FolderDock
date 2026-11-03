@@ -4,6 +4,8 @@ using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.ComTypes;
 using System.Text;
 
+using FolderDock.Core;
+
 namespace FolderDock;
 
 public static class ShortcutFactory

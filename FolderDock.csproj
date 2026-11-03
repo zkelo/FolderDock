@@ -31,6 +31,10 @@
     <!-- Момент сборки (UTC, ISO 8601) — читается AppInfo.ReadBuildTimestamp -->
     <BuildTimestampUtc>$([System.DateTime]::UtcNow.ToString("o"))</BuildTimestampUtc>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <!-- Готовый машинный код сокращает JIT-работу при первом запуске. -->
+    <PublishReadyToRun>true</PublishReadyToRun>
+  </PropertyGroup>
   <ItemGroup>
     <AssemblyMetadata Include="BuildTimestampUtc" Value="$(BuildTimestampUtc)" />
   </ItemGroup>

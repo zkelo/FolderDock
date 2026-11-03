@@ -70,4 +70,12 @@
   <data name="UpdateErr_BadCurrent" xml:space="preserve"><value>Непонятная текущая версия: «{0}»</value></data>
   <data name="UpdateErr_NoInstaller" xml:space="preserve"><value>В релизе {0} нет установщика для {1}</value></data>
   <data name="UpdateErr_Network" xml:space="preserve"><value>Не удалось проверить обновления: {0}</value></data>
+
+  <!-- Background startup and asynchronous folder loading -->
+  <data name="Folder_Loading" xml:space="preserve"><value>Загрузка папки…</value></data>
+  <data name="StartAtLoginLabel.Text" xml:space="preserve"><value>Запускать в фоне при входе в Windows</value></data>
+  <data name="Startup_Help" xml:space="preserve"><value>Заранее готовит окно папки к первому клику. Автозапуск также можно отключить в параметрах Windows.</value></data>
+  <data name="Startup_ErrorTitle" xml:space="preserve"><value>Фоновый запуск</value></data>
+  <data name="Startup_ErrorBody" xml:space="preserve"><value>Не удалось изменить фоновый запуск: {0}</value></data>
+  <data name="Startup_StatusFailed" xml:space="preserve"><value>Не удалось настроить фоновый запуск.</value></data>
 </root>

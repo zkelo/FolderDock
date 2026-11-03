@@ -1,11 +1,11 @@
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using FolderDock.Core;
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
@@ -32,11 +32,14 @@ public sealed partial class PopupWindow : Window
     private readonly ShareCoordinator _share;
     private readonly PopupSession _session = new();
     private readonly ThumbnailLoader _thumbnails = new();
-    private readonly ObservableCollection<FolderEntry> _entries = new();
+    private IReadOnlyList<FolderEntry> _displayedEntries = Array.Empty<FolderEntry>();
     private readonly Stack<string> _navigationStack = new();
     private FolderContents _contents = new(Array.Empty<FolderEntry>(), Failed: false);
     private string _searchQuery = string.Empty;
     private CancellationTokenSource? _searchCancellation;
+    private CancellationTokenSource? _folderCancellation;
+    private bool _isLoadingContents;
+    private int _entriesVersion;
 
     /// Закреплённая (корневая) папка попапа. Задаёт идентичность окна на панели
     /// задач и участвует в toggle-логике; навигация вглубь её НЕ меняет.
@@ -60,10 +63,20 @@ public sealed partial class PopupWindow : Window
         SystemBackdrop = new DesktopAcrylicBackdrop();
         _chrome = new PopupChrome(this);
         _share = new ShareCoordinator(_chrome, shareFinished: OnShareCompleted);
-        ItemsGrid.ItemsSource = _entries;
-        ItemsList.ItemsSource = _entries;
         InitializeHeaderLabels();
         Activated += OnActivationChanged;
+    }
+
+    /// Prepare control templates while resident in the background. This never
+    /// shows or activates the window and does not touch any user folder.
+    public void PrepareForFirstShow()
+    {
+        if (_chrome.IsVisible) return;
+        var (width, height) = PopupLayout.Measure(0, _gridMode, separateSearchRow: true);
+        var size = new Windows.Foundation.Size(width, height);
+        Root.Measure(size);
+        Root.Arrange(new Windows.Foundation.Rect(0, 0, width, height));
+        Root.UpdateLayout();
     }
 
     private void InitializeHeaderLabels()
@@ -109,12 +122,7 @@ public sealed partial class PopupWindow : Window
         // (навигация по папкам) не должны двигать окно за курсором
         _chrome.AnchorToCursor();
         SetTitle(_rootFolder);
-        Reload(resetSearch: true);
-        _shownAt = DateTime.UtcNow;
-        _chrome.Show();
-        Activate();
-        // Без фокуса на XAML-контроле Esc не попадает в KeyboardAccelerators.
-        SearchBox.Focus(FocusState.Programmatic);
+        Reload(resetSearch: true, showWindow: true);
     }
 
     public void Dismiss() => RequestDismiss(PopupDismissalReason.Explicit);
@@ -142,7 +150,8 @@ public sealed partial class PopupWindow : Window
             _lastDismissedAt = DateTime.UtcNow;
         }
         CancelSearch();
-        _thumbnails.CancelPending(); // не грузим миниатюры скрытому окну
+        CancelFolderLoad();
+        CancelThumbnails();
         _chrome.Hide();
     }
 
@@ -156,18 +165,24 @@ public sealed partial class PopupWindow : Window
         TitleText.Text = string.IsNullOrEmpty(name) ? folder : name;
     }
 
-    private void Reload(bool resetSearch = false)
+    private void Reload(bool resetSearch = false, bool showWindow = false)
     {
-        if (_currentFolder is null) return;
+        if (_currentFolder is null || (!showWindow && !_chrome.IsVisible)) return;
 
-        _contents = FolderReader.Read(_currentFolder);
+        CancelFolderLoad();
+        CancelSearch();
+        _contents = new FolderContents(Array.Empty<FolderEntry>(), Failed: false);
+        _isLoadingContents = true;
         if (resetSearch)
         {
             // Обновляем запрос до Text, чтобы событие не фильтровало повторно.
             _searchQuery = string.Empty;
             SearchBox.Text = string.Empty;
         }
-        ApplySearch();
+        ReplaceEntries(Array.Empty<FolderEntry>());
+        SearchStatus.Visibility = Visibility.Collapsed;
+        EmptyText.Text = Loc.Get("Folder_Loading");
+        EmptyText.Visibility = Visibility.Visible;
 
         BackButton.Visibility = _navigationStack.Count > 0
             ? Visibility.Visible
@@ -175,6 +190,65 @@ public sealed partial class PopupWindow : Window
 
         ResizeToFit();
         _chrome.MoveToTaskbarArea();
+
+        if (showWindow)
+        {
+            _shownAt = DateTime.UtcNow;
+            _chrome.Show();
+            Activate();
+            // Без фокуса на XAML-контроле Esc не попадает в KeyboardAccelerators.
+            SearchBox.Focus(FocusState.Programmatic);
+        }
+
+        // Show the responsive shell before starting disk or thumbnail work.
+        if (!_chrome.IsVisible)
+        {
+            _isLoadingContents = false;
+            return;
+        }
+        _ = ReadContentsAsync(_currentFolder);
+        if (_searchQuery.Length > 0)
+            ApplySearch();
+    }
+
+    private void CancelFolderLoad()
+    {
+        _folderCancellation?.Cancel();
+        _folderCancellation = null;
+        _isLoadingContents = false;
+    }
+
+    private async Task ReadContentsAsync(string folder)
+    {
+        using var cancellation = new CancellationTokenSource();
+        _folderCancellation = cancellation;
+        var token = cancellation.Token;
+        try
+        {
+            var contents = await Task.Run(() => FolderReader.Read(folder, token), token);
+            // Reference identity also rejects an earlier request for the same path.
+            if (token.IsCancellationRequested || _folderCancellation != cancellation
+                || !PathsEqual(_currentFolder, folder) || !_chrome.IsVisible)
+                return;
+
+            _contents = contents;
+            _isLoadingContents = false;
+            // Typing during a slow read starts its own recursive search. Do not
+            // restart that search or overwrite results when the snapshot arrives.
+            if (_searchQuery.Length == 0)
+                ApplySearch();
+            ResizeToFit();
+            _chrome.MoveToTaskbarArea();
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
+        {
+            // Closing, navigating and a newer reload invalidate this snapshot.
+        }
+        finally
+        {
+            if (_folderCancellation == cancellation)
+                _folderCancellation = null;
+        }
     }
 
     private void OnSearchTextChanged(object sender, TextChangedEventArgs e)
@@ -196,14 +270,21 @@ public sealed partial class PopupWindow : Window
     private void ApplySearch()
     {
         CancelSearch();
-        _thumbnails.CancelPending();
         SearchStatus.Visibility = Visibility.Collapsed;
         if (_searchQuery.Length > 0 && _currentFolder is not null)
         {
-            _entries.Clear();
+            ReplaceEntries(Array.Empty<FolderEntry>());
             EmptyText.Text = Loc.Get("Search_InProgress");
             EmptyText.Visibility = Visibility.Visible;
             _ = SearchRecursivelyAsync(_currentFolder, _searchQuery);
+            return;
+        }
+
+        if (_isLoadingContents)
+        {
+            ReplaceEntries(Array.Empty<FolderEntry>());
+            EmptyText.Text = Loc.Get("Folder_Loading");
+            EmptyText.Visibility = Visibility.Visible;
             return;
         }
 
@@ -264,10 +345,39 @@ public sealed partial class PopupWindow : Window
 
     private void ShowEntries(IReadOnlyList<FolderEntry> matches)
     {
-        _entries.Clear();
-        foreach (var entry in matches)
-            _entries.Add(entry);
-        _ = _thumbnails.LoadAsync(matches.Where(entry => entry.Thumbnail is null).ToArray());
+        ReplaceEntries(matches);
+        if (matches.Count > 0)
+            CompositionTarget.Rendering += OnContentsRendering;
+    }
+
+    private void ReplaceEntries(IReadOnlyList<FolderEntry> entries)
+    {
+        CancelThumbnails();
+        _displayedEntries = entries;
+        // One replacement per host instead of notifying both hosts for each item.
+        ItemsGrid.ItemsSource = entries;
+        ItemsList.ItemsSource = entries;
+    }
+
+    private void CancelThumbnails()
+    {
+        _entriesVersion++;
+        CompositionTarget.Rendering -= OnContentsRendering;
+        _thumbnails.CancelPending();
+    }
+
+    private void OnContentsRendering(object? sender, object args)
+    {
+        CompositionTarget.Rendering -= OnContentsRendering;
+        var version = _entriesVersion;
+        // Let this frame render the names before initializing Windows thumbnail
+        // services. A dismissed/replaced folder must not start queued work.
+        DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () =>
+        {
+            if (version != _entriesVersion || !_chrome.IsVisible) return;
+            _ = _thumbnails.LoadAsync(
+                _displayedEntries.Where(entry => entry.Thumbnail is null).ToArray());
+        });
     }
 
     private void ResizeToFit()

@@ -24,6 +24,7 @@ public sealed partial class ManagerWindow : Window
     private readonly UISettings _uiSettings = new();
     private bool _updateCheckRunning;
     private bool _appearanceClosed;
+    private bool _refreshingStartup;
 
     private static string ShortcutsDir => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
@@ -105,6 +106,33 @@ public sealed partial class ManagerWindow : Window
         // Checked/Unchecked подписаны в XAML и сработают на этой установке,
         // но запишут то же самое значение — безвредно
         AutoUpdateCheck.IsChecked = _settings.AutoCheckUpdates;
+        ToolTipService.SetToolTip(StartAtLoginCheck, Loc.Get("Startup_Help"));
+        RefreshStartupSetting();
+    }
+
+    public void RefreshStartupSetting()
+    {
+        _refreshingStartup = true;
+        StartAtLoginCheck.IsChecked = LoginStartup.IsRegistered;
+        _refreshingStartup = false;
+        StartupStatusText.Text = LoginStartup.LastError is null ? string.Empty : Loc.Get("Startup_StatusFailed");
+        StartupStatusText.Visibility = LoginStartup.LastError is null ? Visibility.Collapsed : Visibility.Visible;
+    }
+
+    private async void OnStartAtLoginToggled(object sender, RoutedEventArgs e)
+    {
+        if (_refreshingStartup) return;
+        var enabled = StartAtLoginCheck.IsChecked == true;
+        if (LoginStartup.TrySetEnabled(enabled, out var error))
+        {
+            RefreshStartupSetting();
+            return;
+        }
+
+        // Show the actual registration after a failed write, not the requested
+        // checkbox state. Saving other settings cannot overwrite this choice.
+        RefreshStartupSetting();
+        await ShowDialogAsync(Loc.Get("Startup_ErrorTitle"), Loc.Format("Startup_ErrorBody", error));
     }
 
     private void OnAutoUpdateToggled(object sender, RoutedEventArgs e)
@@ -229,7 +257,10 @@ public sealed partial class ManagerWindow : Window
         // Актуализируем список при каждом возврате к окну:
         // ярлыки и папки могли удалить, пока менеджер был в фоне
         if (e.WindowActivationState != WindowActivationState.Deactivated)
+        {
+            RefreshStartupSetting();
             LoadExistingShortcuts();
+        }
     }
 
     private void LoadExistingShortcuts()

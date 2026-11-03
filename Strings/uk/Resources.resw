@@ -70,4 +70,12 @@
   <data name="UpdateErr_BadCurrent" xml:space="preserve"><value>Незрозуміла поточна версія: «{0}»</value></data>
   <data name="UpdateErr_NoInstaller" xml:space="preserve"><value>У релізі {0} немає інсталятора для {1}</value></data>
   <data name="UpdateErr_Network" xml:space="preserve"><value>Не вдалося перевірити оновлення: {0}</value></data>
+
+  <!-- Background startup and asynchronous folder loading -->
+  <data name="Folder_Loading" xml:space="preserve"><value>Завантаження папки…</value></data>
+  <data name="StartAtLoginLabel.Text" xml:space="preserve"><value>Запускати у фоні під час входу у Windows</value></data>
+  <data name="Startup_Help" xml:space="preserve"><value>Заздалегідь готує вікно папки до першого кліку. Автозапуск також можна вимкнути в параметрах Windows.</value></data>
+  <data name="Startup_ErrorTitle" xml:space="preserve"><value>Фоновий запуск</value></data>
+  <data name="Startup_ErrorBody" xml:space="preserve"><value>Не вдалося змінити фоновий запуск: {0}</value></data>
+  <data name="Startup_StatusFailed" xml:space="preserve"><value>Не вдалося налаштувати фоновий запуск.</value></data>
 </root>

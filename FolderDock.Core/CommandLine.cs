@@ -1,11 +1,23 @@
 using System;
 using System.Collections.Generic;
 
-namespace FolderDock;
+namespace FolderDock.Core;
 
 public static class CommandLine
 {
     private const string FolderOption = "--folder";
+    private const string BackgroundOption = "--background";
+
+    public static bool IsBackground(string[] args)
+    {
+        // A real folder activation always wins, including a folder literally
+        // named "--background". Login launches must never toggle a popup.
+        if (FolderFrom(args) is not null) return false;
+        return Array.Exists(args, arg =>
+            string.Equals(arg, BackgroundOption, StringComparison.OrdinalIgnoreCase));
+    }
+
+    public static bool IsBackground(string commandLine) => IsBackground(Tokenize(commandLine));
 
     public static string? FolderFrom(string[] args)
     {

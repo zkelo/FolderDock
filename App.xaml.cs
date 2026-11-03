@@ -1,47 +1,78 @@
 using System;
+using System.Diagnostics;
 using System.IO;
+using FolderDock.Core;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
-using Microsoft.Windows.AppLifecycle;
 
 namespace FolderDock;
 
 public partial class App : Application
 {
-    private readonly AppInstance _instance;
+    private readonly ActivationQueue _activations;
     private readonly DispatcherQueue _uiQueue;
     private PopupWindow? _popup;
     private ManagerWindow? _manager;
+    private bool _startupConfigurationQueued;
 
-    public App(AppInstance instance)
+    public App(ActivationQueue activations)
     {
-        _instance = instance;
+        _activations = activations;
         InitializeComponent();
         _uiQueue = DispatcherQueue.GetForCurrentThread();
-        _instance.Activated += OnRedirectedActivation;
     }
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
-        Route(CommandLine.FolderFrom(Environment.CommandLine));
+        Route(Environment.CommandLine);
+        _activations.Start(arguments => _uiQueue.TryEnqueue(() => Route(arguments)));
     }
 
-    private void OnRedirectedActivation(object? sender, AppActivationArguments e)
+    private void Route(string arguments)
     {
-        var folder = e.Kind == ExtendedActivationKind.Launch &&
-                     e.Data is Windows.ApplicationModel.Activation.ILaunchActivatedEventArgs launch
-            ? CommandLine.FolderFrom(launch.Arguments)
-            : null;
+        if (CommandLine.IsBackground(arguments))
+        {
+            PreparePopup();
+            return;
+        }
 
-        _uiQueue.TryEnqueue(() => Route(folder));
-    }
-
-    private void Route(string? folder)
-    {
-        if (folder is not null && Directory.Exists(folder))
+        var folder = CommandLine.FolderFrom(arguments);
+        try
+        {
+            // Normalize without touching the filesystem. Invalid command-line
+            // paths keep the old manager fallback; missing folders reach the
+            // popup's asynchronous read and its ordinary error state.
+            if (folder is not null) folder = Path.GetFullPath(folder);
+        }
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException
+                                   or IOException or System.Security.SecurityException)
+        {
+            folder = null;
+        }
+        // The popup reads and validates the path asynchronously. In particular,
+        // an offline network path must not block the first visible response.
+        if (folder is not null)
             TogglePopup(folder);
         else
             ShowManager();
+
+        if (_startupConfigurationQueued) return;
+        _startupConfigurationQueued = true;
+        _uiQueue.TryEnqueue(DispatcherQueuePriority.Low, () =>
+        {
+            var error = LoginStartup.EnsureConfigured();
+            if (error is not null)
+                Debug.WriteLine($"FolderDock: login startup registration failed: {error}");
+            _manager?.RefreshStartupSetting();
+            PreparePopup();
+        });
+    }
+
+    private void PreparePopup()
+    {
+        if (_popup is not null) return;
+        _popup = new PopupWindow();
+        _popup.PrepareForFirstShow();
     }
 
     private void TogglePopup(string folder)
