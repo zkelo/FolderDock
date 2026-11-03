@@ -1,16 +1,9 @@
 using System.Security;
+using FolderDock.Core;
 
-namespace FolderDock.Core;
+namespace FolderDock.Infrastructure;
 
-public sealed record RecursiveSearchEntry(string Name, string FullPath, bool IsDirectory);
-
-public sealed record RecursiveSearchResult(
-    IReadOnlyList<RecursiveSearchEntry> Entries,
-    bool Failed,
-    bool Incomplete,
-    bool LimitReached);
-
-public static class RecursiveFolderSearch
+public sealed class FileSystemFolderSearch : IFolderSearch
 {
     private static readonly EnumerationOptions SearchOptions = new()
     {
@@ -20,7 +13,11 @@ public static class RecursiveFolderSearch
         ReturnSpecialDirectories = false
     };
 
-    public static RecursiveSearchResult Search(
+    public Task<RecursiveSearchResult> SearchAsync(
+        string folder, string? query, CancellationToken cancellationToken = default) =>
+        Task.Run(() => Search(folder, query, cancellationToken), cancellationToken);
+
+    private static RecursiveSearchResult Search(
         string folder, string? query, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();

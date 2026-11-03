@@ -79,12 +79,55 @@ Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
 
 [Run]
 Filename: "{app}\{#MyAppExe}"; Description: "{cm:LaunchProgram,{#MyAppName}}"; Flags: nowait postinstall skipifsilent
+; A silent in-app update terminates the resident process. Restore it without
+; showing the manager or changing the user's startup preference.
+Filename: "{app}\{#MyAppExe}"; Parameters: "--background"; Flags: nowait runasoriginaluser skipifnotsilent
 
 [Code]
 // Тихое удаление ранее установленной версии перед установкой новой.
 // Inno Setup регистрирует деинсталлятор под ключом "<AppId>_is1".
 const
   UninstallKey = 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{7B7C2A4E-6F1D-4A0B-9E64-3C55D1A9F0DC}_is1';
+  StartupRunKey = 'Software\Microsoft\Windows\CurrentVersion\Run';
+
+function KeepStartupRegistration(): Boolean;
+var
+  Index: Integer;
+begin
+  Result := False;
+  for Index := 1 to ParamCount do
+    if CompareText(ParamStr(Index), '/KEEPSTARTUP') = 0 then
+    begin
+      Result := True;
+      Exit;
+    end;
+end;
+
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+var
+  Command, ExpectedCommand: String;
+  ResultCode: Integer;
+begin
+  if CurUninstallStep <> usUninstall then
+    Exit;
+
+  // The prepared popup keeps FolderDock resident even with no visible window.
+  // Release its executable/DLL handles before the uninstaller removes files.
+  Exec(ExpandConstant('{sys}\taskkill.exe'), '/F /IM {#MyAppExe}', '',
+    SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  if KeepStartupRegistration() then
+    Exit;
+
+  // Remove only this installation's current-user registration. An upgrade
+  // keeps it, including Windows' separate Startup Apps enable/disable choice.
+  ExpectedCommand := '"' + ExpandConstant('{app}\{#MyAppExe}') + '" --background';
+  if RegQueryStringValue(HKCU, StartupRunKey, 'FolderDock', Command) and
+     (CompareText(Command, ExpectedCommand) = 0) then
+  begin
+    RegDeleteValue(HKCU, StartupRunKey, 'FolderDock');
+    RegDeleteValue(HKCU, 'Software\FolderDock', 'StartupConfigured');
+  end;
+end;
 
 function GetUninstallString(): String;
 begin
@@ -108,7 +151,7 @@ begin
     SW_HIDE, ewWaitUntilTerminated, ResultCode);
 
   Uninst := RemoveQuotes(Uninst);
-  if not Exec(Uninst, '/VERYSILENT /NORESTART /SUPPRESSMSGBOXES', '',
+  if not Exec(Uninst, '/VERYSILENT /NORESTART /SUPPRESSMSGBOXES /KEEPSTARTUP', '',
     SW_HIDE, ewWaitUntilTerminated, ResultCode) then
   begin
     Result := 'Failed to remove the previous version (exit code ' + IntToStr(ResultCode) + ').';

@@ -33,6 +33,8 @@ This project is maintained entirely by AI models: **Claude Fable 5** and **GPT 6
 - **Native Windows Acrylic** in the manager and folder popup, with rounded content surfaces and translucent edges. The blurred colors come from the desktop and windows behind FolderDock, so their appearance varies with the background.
 - **System accent and theme**: controls and highlights follow the Windows accent color and light/dark theme. Windows supplies accessible solid-color fallbacks when transparency is disabled, a contrast theme is active, or Acrylic cannot be rendered.
 - Win11 rounded popup corners, always on top, hidden from Alt-Tab.
+- **Faster first opening after Windows sign-in**: the first normal launch enables background startup for the current user. At sign-in the app prepares a hidden folder window, without opening the manager or reading any folders. Disable “Start in the background when I sign in” in the manager; Windows Startup Apps can also disable it separately. Closing the manager leaves the prepared process resident.
+- **Responsive folder loading**: the popup displays a loading state immediately, enumerates the directory in one background pass, and starts thumbnails after a frame containing file names.
 - Single-instance: repeated launches are redirected to the running instance (AppInstance redirect).
 
 ## Installation
@@ -65,13 +67,14 @@ Output: `bin\x64\Release\net8.0-windows10.0.19041.0\win-x64\publish\FolderDock.e
 
 ## Tests
 
-The Core tests cover popup sessions, name matching, recursive folder search, and dependency boundaries. They need only the .NET 8 SDK and run on Windows, Linux, and macOS:
+Core tests cover popup sessions, login-startup policy, cancelled and stale folder loads, name matching, and dependency boundaries. Infrastructure tests cover launch parsing, activation buffering, directory snapshots, and recursive filesystem search. They need only the .NET 8 SDK and run on Windows, Linux, and macOS:
 
 ```sh
 dotnet test tests/FolderDock.Core.Tests/FolderDock.Core.Tests.csproj -c Release
+dotnet test tests/FolderDock.Infrastructure.Tests/FolderDock.Infrastructure.Tests.csproj -c Release
 ```
 
-The xUnit tests reference `FolderDock.Core` directly. [CI](.github/workflows/tests.yml) runs these tests on Ubuntu and builds the WinUI app for x64 and ARM64 on Windows.
+Core tests reference only `FolderDock.Core`; infrastructure tests reference `FolderDock.Infrastructure`. Architecture tests inspect compiled dependencies and prohibit filesystem and registry adapters inside Core. [CI](.github/workflows/tests.yml) runs these tests on Ubuntu and publishes the WinUI app with ReadyToRun for x64 and ARM64 on Windows and retains portable builds for 14 days.
 
 ## Usage
 
@@ -97,34 +100,41 @@ Key conventions: keys with a dot (`AddFolderLabel.Text`) bind to XAML elements v
 ## How it works
 
 - Windows 11 does not allow pinning a folder to the taskbar directly and has no API for a "taskbar popup". Workaround: a shortcut to `FolderDock.exe --folder "<path>"` with `System.AppUserModel.ID` written into the shortcut's property store, unique per folder (SHA1 of the path). On start the process sets the same AUMID via `SetCurrentProcessExplicitAppUserModelID` — the taskbar matches the window to the right pinned icon. Launched without `--folder`, the process (and each window via `SHGetPropertyStoreForWindow`) uses the app's own AUMID instead.
-- One background process: `AppInstance.FindOrRegisterForKey` + `RedirectActivationToAsync`. A click on any shortcut lands in the live instance → instant popup with no cold start.
+- One background process: `AppInstance.FindOrRegisterForKey` + `RedirectActivationToAsync`. Incoming activations are buffered while the UI starts. Login startup uses `--background` and the current-user `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` entry; a repeated background launch neither opens the manager nor toggles an existing popup.
+- The prepared process handles shortcut clicks without initializing WinUI again. Windows may delay login startup, so a click before preparation finishes can still require a cold start. Release publication uses ReadyToRun to reduce JIT work; exact opening times depend on the computer and need measurement on Windows.
+- Open the app normally once after installation or upgrade to configure startup. A saved disable choice and Windows Startup Apps restrictions are preserved. Moving a portable copy updates an existing registration to its new path. Uninstalling an installed copy removes its startup entry for the account running the uninstaller. Disable the setting in the original user’s manager before deleting a portable copy or uninstalling under a different administrator account.
 - The popup is a WinUI 3 `Window` with `OverlappedPresenter.CreateForContextMenu()` (frameless), `IsAlwaysOnTop`, `WS_EX_TOOLWINDOW` (not in Alt-Tab), `DWMWA_WINDOW_CORNER_PREFERENCE=ROUND`. Its horizontal position is anchored to the cursor when opened and clamped to the selected monitor's work area; its bottom edge sits above the bottom of that work area, leaving a taskbar gap. The anchor stays fixed during navigation.
 - Both windows use `Window.SystemBackdrop` with `DesktopAcrylicBackdrop`; Windows manages blur, activation, and material fallbacks. WinUI `ThemeResource` brushes provide the current system accent and theme colors without a separate app color setting.
 - Thumbnails — `StorageFile.GetThumbnailAsync` (the same previews as Explorer), loaded asynchronously after the window is shown.
 
-## Popup architecture
+## Architecture
 
-Popup pinning, dismissal policy, name matching, and recursive filesystem search live in `FolderDock.Core`, a plain `net8.0` library with no WinUI, Windows, or shell dependencies. Its `PopupSession` owns pin state, resets it with `Begin`, changes it with `TogglePin`, and decides dismissal with `ShouldDismiss` using a reason and context. Explicit dismissal always closes the popup; pinning prevents automatic dismissal.
+`FolderDock.Core` owns application rules: popup pinning and dismissal, name filtering, login-startup policy, and the lifetime of folder-load requests. It defines the ports `ILoginStartupStore`, `IFolderSnapshotReader`, and `IFolderSearch` and their results. It has no filesystem, registry, WinUI, or shell adapter dependencies. `FolderLoadSession` rejects cancelled and stale reads, including older requests for the same path; `LoginStartupService` preserves an explicit disable and returns an operation result instead of global error state.
 
-Dependencies point inward: **WinUI app → Core** and **Tests → Core** through project references. `PopupWindow` translates UI and platform events into session calls and window actions. It runs `RecursiveFolderSearch` on a background task with debounce and cancellation, converts results into UI entries, and displays status messages and relative paths. Windows integration stays in the app.
+`FolderDock.Infrastructure` implements those ports using the filesystem and the current-user Windows registry. It also parses launch arguments and buffers redirected activations. Concrete readers move blocking disk work onto background tasks. The WinUI app composes dependencies in `App` and injects them into windows; windows render results, translate input, and handle platform presentation such as thumbnail timing. The dependency direction is **WinUI app → Core**, **WinUI app → Infrastructure → Core**. Core tests use delayed readers and in-memory startup stores; filesystem integration tests live in the separate infrastructure test project.
 
 ## Structure
 
 | File | Purpose |
 |---|---|
 | `Program.cs` | Entry point: single-instance, activation redirect, process AUMID |
-| `CommandLine.cs` | Tokenizing `--folder` from arguments |
+| `FolderDock.Infrastructure/CommandLine.cs` | Parsing `--folder` and `--background` |
+| `FolderDock.Core/LoginStartupService.cs` | Background-startup policy and operation results |
+| `FolderDock.Infrastructure/WindowsLoginStartupStore.cs` | Current-user Windows registry adapter |
 | `App.xaml(.cs)` | Activation routing: popup or manager |
 | `PopupWindow.xaml(.cs)` | Popup UI, adaptive search header, background search, session integration, navigation |
-| `FolderDock.Core/` | Portable popup session and dismissal policy, name filtering, recursive search (`net8.0`) |
-| `FolderDock.Core/RecursiveFolderSearch.cs` | Cancellable recursive name search, inaccessible-folder handling, 500-result limit |
-| `tests/FolderDock.Core.Tests/` | xUnit tests with a project reference to Core |
+| `FolderDock.Core/` | Application rules, load sessions, contracts and results (`net8.0`) |
+| `FolderDock.Infrastructure/` | Filesystem, registry and activation adapters (`net8.0`) |
+| `FolderDock.Infrastructure/FileSystemFolderSearch.cs` | Cancellable recursive name search, inaccessible-folder handling, 500-result limit |
+| `tests/FolderDock.Core.Tests/` | Application-rule tests and dependency guards |
+| `tests/FolderDock.Infrastructure.Tests/` | Adapter integration tests and activation tests |
 | `PopupChrome.cs` | Window chrome: presenter, DWM, positioning, Share interop |
 | `PopupLayout.cs` | Pure popup size math (constants tied to XAML templates) |
 | `ShareCoordinator.cs` | Share flow: DataTransferManager, state, light-dismiss guard |
 | `FolderEntry.cs` | Folder item model |
 | `FolderContents.cs` | Read result: entries + access-failure flag |
-| `FolderReader.cs` | Reading folder contents |
+| `FolderDock.Infrastructure/FileSystemFolderSnapshotReader.cs` | One-pass background directory reader |
+| `FolderDock.Core/FolderLoadSession.cs` | Cancellation and rejection of stale folder loads |
 | `ThumbnailLoader.cs` | Async Explorer thumbnails (cancellable) |
 | `TypedDataPackage.cs` | DataPackage: Bitmap/Text/StorageItems; sync fill for drag |
 | `ShellContextMenu.cs` | Explorer shell context menu: IContextMenu/2/3, menu-message subclassing |

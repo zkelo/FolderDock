@@ -2,6 +2,7 @@ using System;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Threading.Tasks;
+using FolderDock.Core;
 using Microsoft.UI;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
@@ -22,15 +23,19 @@ public sealed partial class ManagerWindow : Window
     private readonly ObservableCollection<PinInfo> _pins = new();
     private readonly Settings _settings = Settings.Load();
     private readonly UISettings _uiSettings = new();
+    private readonly LoginStartupService _loginStartup;
     private bool _updateCheckRunning;
     private bool _appearanceClosed;
+    private bool _refreshingStartup;
 
     private static string ShortcutsDir => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "FolderDock", "Shortcuts");
 
-    public ManagerWindow()
+    public ManagerWindow(LoginStartupService loginStartup)
     {
+        ArgumentNullException.ThrowIfNull(loginStartup);
+        _loginStartup = loginStartup;
         InitializeComponent();
         // Настоящий desktop acrylic: Windows управляет размытием, темой,
         // активацией и непрозрачным фоном при отключённой прозрачности.
@@ -105,6 +110,54 @@ public sealed partial class ManagerWindow : Window
         // Checked/Unchecked подписаны в XAML и сработают на этой установке,
         // но запишут то же самое значение — безвредно
         AutoUpdateCheck.IsChecked = _settings.AutoCheckUpdates;
+        ToolTipService.SetToolTip(StartAtLoginCheck, Loc.Get("Startup_Help"));
+        RefreshStartupSetting();
+    }
+
+    private void RefreshStartupSetting() => RenderStartupResult(_loginStartup.GetStatus());
+
+    public void ShowStartupResult(LoginStartupResult result)
+    {
+        // A failed write can partially succeed. Query the actual registration
+        // before showing that operation's error, without storing a global error.
+        if (result is LoginStartupResult.Failure)
+            RefreshStartupSetting();
+        RenderStartupResult(result);
+    }
+
+    private void RenderStartupResult(LoginStartupResult result)
+    {
+        if (result is LoginStartupResult.Success status)
+        {
+            _refreshingStartup = true;
+            try
+            {
+                StartAtLoginCheck.IsChecked = status.IsRegistered;
+            }
+            finally
+            {
+                _refreshingStartup = false;
+            }
+            StartupStatusText.Visibility = Visibility.Collapsed;
+            ToolTipService.SetToolTip(StartupStatusText, null);
+        }
+        else if (result is LoginStartupResult.Failure failure)
+        {
+            StartupStatusText.Text = Loc.Get("Startup_StatusFailed");
+            StartupStatusText.Visibility = Visibility.Visible;
+            ToolTipService.SetToolTip(StartupStatusText, failure.Details);
+        }
+    }
+
+    private async void OnStartAtLoginToggled(object sender, RoutedEventArgs e)
+    {
+        if (_refreshingStartup) return;
+        var enabled = StartAtLoginCheck.IsChecked == true;
+        var result = _loginStartup.SetEnabled(enabled);
+        ShowStartupResult(result);
+        if (result is LoginStartupResult.Failure failure)
+            await ShowDialogAsync(Loc.Get("Startup_ErrorTitle"),
+                Loc.Format("Startup_ErrorBody", failure.Details));
     }
 
     private void OnAutoUpdateToggled(object sender, RoutedEventArgs e)
@@ -229,7 +282,10 @@ public sealed partial class ManagerWindow : Window
         // Актуализируем список при каждом возврате к окну:
         // ярлыки и папки могли удалить, пока менеджер был в фоне
         if (e.WindowActivationState != WindowActivationState.Deactivated)
+        {
+            RefreshStartupSetting();
             LoadExistingShortcuts();
+        }
     }
 
     private void LoadExistingShortcuts()

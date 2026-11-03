@@ -69,7 +69,7 @@ public sealed class PopupChrome
 
         var minX = workArea.X + ScreenEdgeMargin;
         var maxX = Math.Max(minX, workArea.X + workArea.Width - size.Width - ScreenEdgeMargin);
-        var x = Math.Clamp(anchor.X - size.Width / 2, minX, maxX);
+        var x = Math.Clamp(anchor.X - (size.Width / 2), minX, maxX);
         var y = Math.Max(workArea.Y + ScreenEdgeMargin,
                          workArea.Y + workArea.Height - size.Height - TaskbarGap);
 

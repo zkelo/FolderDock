@@ -1,17 +1,19 @@
 using FolderDock.Core;
+using FolderDock.Infrastructure;
 using Xunit;
 
-namespace FolderDock.Core.Tests;
+namespace FolderDock.Infrastructure.Tests;
 
 public sealed class RecursiveFolderSearchTests : IDisposable
 {
+    private readonly IFolderSearch _search = new FileSystemFolderSearch();
     private readonly string _temporaryDirectory = Path.Combine(
         Path.GetTempPath(), "FolderDock-search-tests-" + Guid.NewGuid().ToString("N"));
 
     public RecursiveFolderSearchTests() => Directory.CreateDirectory(_temporaryDirectory);
 
     [Fact]
-    public void FindsFilesAndDirectoriesAtEveryDepth()
+    public async Task FindsFilesAndDirectoriesAtEveryDepth()
     {
         var root = CreateDirectory("root");
         var rootFile = CreateFile("root", "TARGET root.txt");
@@ -20,7 +22,7 @@ public sealed class RecursiveFolderSearchTests : IDisposable
         var deepestDirectory = CreateDirectory("root", "other", "nested", "TARGET deep");
         var deepestFile = CreateFile("root", "other", "nested", "TARGET deep", "target deepest.txt");
 
-        var result = RecursiveFolderSearch.Search(root, "  tArGeT  ");
+        var result = await _search.SearchAsync(root, "  tArGeT  ");
 
         Assert.Equal(new[] { matchingDirectory, deepestDirectory, matchingNestedFile, deepestFile, rootFile }
                 .OrderBy(path => !Directory.Exists(path))
@@ -34,14 +36,14 @@ public sealed class RecursiveFolderSearchTests : IDisposable
     }
 
     [Fact]
-    public void ExtensionQueryMatchesRootAndDescendantsIgnoringCase()
+    public async Task ExtensionQueryMatchesRootAndDescendantsIgnoringCase()
     {
         var root = CreateDirectory("root");
         var first = CreateFile("root", "AnnualReport.TXT");
         var second = CreateFile("root", "subfolder", "Отчёт за октябрь.txt");
         CreateFile("root", "subfolder", "Photo.jpeg");
 
-        var result = RecursiveFolderSearch.Search(root, ".tXt");
+        var result = await _search.SearchAsync(root, ".tXt");
 
         Assert.Equal(new[] { first, second }.OrderBy(Path.GetFileName, StringComparer.CurrentCultureIgnoreCase),
             result.Entries.Select(entry => entry.FullPath));
@@ -49,20 +51,20 @@ public sealed class RecursiveFolderSearchTests : IDisposable
     }
 
     [Fact]
-    public void MatchesOnlyEntryNamesAndStaysInsideSelectedDirectory()
+    public async Task MatchesOnlyEntryNamesAndStaysInsideSelectedDirectory()
     {
         var root = CreateDirectory("target root");
         CreateFile("target root", "unrelated.txt");
         CreateFile("sibling", "target outside.txt");
         var expected = CreateFile("target root", "nested", "target inside.txt");
 
-        var result = RecursiveFolderSearch.Search(root, "target");
+        var result = await _search.SearchAsync(root, "target");
 
         Assert.Equal(expected, Assert.Single(result.Entries).FullPath);
     }
 
     [Fact]
-    public void SortsDirectoriesFirstAndUsesFullPathToBreakEqualNameTies()
+    public async Task SortsDirectoriesFirstAndUsesFullPathToBreakEqualNameTies()
     {
         var root = CreateDirectory("root");
         var directory = CreateDirectory("root", "z target folder");
@@ -70,7 +72,7 @@ public sealed class RecursiveFolderSearchTests : IDisposable
         var first = CreateFile("root", "a", "a target.txt");
         var last = CreateFile("root", "z target.txt");
 
-        var result = RecursiveFolderSearch.Search(root, "target");
+        var result = await _search.SearchAsync(root, "target");
 
         Assert.Equal(new[] { directory, first, second, last }, result.Entries.Select(entry => entry.FullPath));
     }
@@ -79,9 +81,9 @@ public sealed class RecursiveFolderSearchTests : IDisposable
     [InlineData(null)]
     [InlineData("")]
     [InlineData(" \t\r\n ")]
-    public void EmptyQueryReturnsEmptyWithoutOpeningDirectory(string? query)
+    public async Task EmptyQueryReturnsEmptyWithoutOpeningDirectory(string? query)
     {
-        var result = RecursiveFolderSearch.Search(Path.Combine(_temporaryDirectory, "missing"), query);
+        var result = await _search.SearchAsync(Path.Combine(_temporaryDirectory, "missing"), query);
 
         Assert.Empty(result.Entries);
         Assert.False(result.Failed);
@@ -90,9 +92,9 @@ public sealed class RecursiveFolderSearchTests : IDisposable
     }
 
     [Fact]
-    public void MissingRootReportsFailure()
+    public async Task MissingRootReportsFailure()
     {
-        var result = RecursiveFolderSearch.Search(Path.Combine(_temporaryDirectory, "missing"), "target");
+        var result = await _search.SearchAsync(Path.Combine(_temporaryDirectory, "missing"), "target");
 
         Assert.Empty(result.Entries);
         Assert.True(result.Failed);
@@ -101,18 +103,18 @@ public sealed class RecursiveFolderSearchTests : IDisposable
     }
 
     [Fact]
-    public void FileUsedAsRootReportsFailure()
+    public async Task FileUsedAsRootReportsFailure()
     {
         var file = CreateFile("file.txt");
 
-        var result = RecursiveFolderSearch.Search(file, "target");
+        var result = await _search.SearchAsync(file, "target");
 
         Assert.Empty(result.Entries);
         Assert.True(result.Failed);
     }
 
     [Fact]
-    public void LimitCountsMatchesAcrossDescendantsAfterNonmatchingEntries()
+    public async Task LimitCountsMatchesAcrossDescendantsAfterNonmatchingEntries()
     {
         var root = CreateDirectory("root");
         for (var index = 0; index < FolderSearch.MaxResults + 20; index++)
@@ -120,7 +122,7 @@ public sealed class RecursiveFolderSearchTests : IDisposable
         for (var index = 0; index < FolderSearch.MaxResults + 20; index++)
             CreateFile("root", "nested", $"target {index}.txt");
 
-        var result = RecursiveFolderSearch.Search(root, "target");
+        var result = await _search.SearchAsync(root, "target");
 
         Assert.Equal(FolderSearch.MaxResults, result.Entries.Count);
         Assert.All(result.Entries, entry => Assert.Contains("target", entry.Name));
@@ -129,30 +131,30 @@ public sealed class RecursiveFolderSearchTests : IDisposable
     }
 
     [Fact]
-    public void ExactlyFiveHundredMatchesReportsLimitReached()
+    public async Task ExactlyFiveHundredMatchesReportsLimitReached()
     {
         var root = CreateDirectory("root");
         for (var index = 0; index < FolderSearch.MaxResults; index++)
             CreateFile("root", $"target {index}.txt");
 
-        var result = RecursiveFolderSearch.Search(root, "target");
+        var result = await _search.SearchAsync(root, "target");
 
         Assert.Equal(FolderSearch.MaxResults, result.Entries.Count);
         Assert.True(result.LimitReached);
     }
 
     [Fact]
-    public void PreCancelledSearchThrowsCancellation()
+    public async Task PreCancelledSearchThrowsCancellation()
     {
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();
 
-        Assert.Throws<OperationCanceledException>(() => RecursiveFolderSearch.Search(
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => _search.SearchAsync(
             _temporaryDirectory, "target", cancellation.Token));
     }
 
     [Fact]
-    public void HiddenFilesAndDirectoryContentsAreSkippedOnWindows()
+    public async Task HiddenFilesAndDirectoryContentsAreSkippedOnWindows()
     {
         if (!OperatingSystem.IsWindows())
             return;
@@ -165,14 +167,14 @@ public sealed class RecursiveFolderSearchTests : IDisposable
         File.SetAttributes(hiddenFile, File.GetAttributes(hiddenFile) | FileAttributes.Hidden);
         File.SetAttributes(hiddenDirectory, File.GetAttributes(hiddenDirectory) | FileAttributes.Hidden);
 
-        var result = RecursiveFolderSearch.Search(root, "target");
+        var result = await _search.SearchAsync(root, "target");
 
         Assert.Equal(visibleFile, Assert.Single(result.Entries).FullPath);
         Assert.False(result.Incomplete);
     }
 
     [Fact]
-    public void DirectoryLinksAreReturnedWithoutFollowingOutsideOrLoops()
+    public async Task DirectoryLinksAreReturnedWithoutFollowingOutsideOrLoops()
     {
         var root = CreateDirectory("root");
         var outside = CreateDirectory("outside");
@@ -191,7 +193,7 @@ public sealed class RecursiveFolderSearchTests : IDisposable
             return;
         }
 
-        var result = RecursiveFolderSearch.Search(root, "target");
+        var result = await _search.SearchAsync(root, "target");
 
         Assert.Equal(new[] { outsideLink, loopLink }, result.Entries.Select(entry => entry.FullPath));
         Assert.All(result.Entries, entry => Assert.True(entry.IsDirectory));

@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
+using FolderDock.Infrastructure;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.Windows.AppLifecycle;
@@ -17,12 +18,28 @@ public static class Program
     public static int Main(string[] args)
     {
         WinRT.ComWrappersSupport.InitializeComWrappers();
-        ApplyTaskbarIdentity(CommandLine.FolderFrom(args));
+        var launch = CommandLine.Parse(args);
+        ApplyTaskbarIdentity(launch.FolderPath);
 
+        // Subscribe before publishing our instance key. A taskbar click can
+        // arrive while the login process is still creating its first window.
+        var activations = new ActivationQueue();
+        var currentInstance = AppInstance.GetCurrent();
+        currentInstance.Activated += (_, activation) =>
+        {
+            var arguments = activation.Kind == ExtendedActivationKind.Launch &&
+                            activation.Data is Windows.ApplicationModel.Activation.ILaunchActivatedEventArgs launch
+                ? launch.Arguments
+                : string.Empty;
+            activations.Enqueue(arguments);
+        };
         var mainInstance = AppInstance.FindOrRegisterForKey(SingleInstanceKey);
         if (!mainInstance.IsCurrent)
         {
-            ForwardActivation(mainInstance);
+            // A delayed login launch must not open the manager or dismiss a
+            // folder that the user has already opened in the resident process.
+            if (launch.Kind != LaunchKind.Background)
+                ForwardActivation(mainInstance);
             return 0;
         }
 
@@ -31,7 +48,7 @@ public static class Program
             SynchronizationContext.SetSynchronizationContext(
                 new DispatcherQueueSynchronizationContext(
                     DispatcherQueue.GetForCurrentThread()));
-            _ = new App(mainInstance);
+            _ = new App(activations);
         });
         return 0;
     }

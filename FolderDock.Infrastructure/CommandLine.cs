@@ -1,11 +1,29 @@
 using System;
 using System.Collections.Generic;
 
-namespace FolderDock;
+namespace FolderDock.Infrastructure;
 
 public static class CommandLine
 {
     private const string FolderOption = "--folder";
+    private const string BackgroundOption = "--background";
+
+    public static LaunchRequest Parse(string[] args)
+    {
+        // A real folder activation always wins, including a folder literally
+        // named "--background". Login launches must never toggle a popup.
+        var folder = FolderFrom(args);
+        if (folder is not null) return LaunchRequest.OpenFolder(folder);
+        var background = Array.Exists(args, arg =>
+            string.Equals(arg, BackgroundOption, StringComparison.OrdinalIgnoreCase));
+        return background ? LaunchRequest.Background : LaunchRequest.Manager;
+    }
+
+    public static LaunchRequest Parse(string commandLine) => Parse(Tokenize(commandLine));
+
+    public static bool IsBackground(string[] args) => Parse(args).Kind == LaunchKind.Background;
+
+    public static bool IsBackground(string commandLine) => Parse(commandLine).Kind == LaunchKind.Background;
 
     public static string? FolderFrom(string[] args)
     {

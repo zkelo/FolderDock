@@ -107,6 +107,14 @@
 
                 <!-- Низ окна: строка обновлений + строка версии/сборки/ссылки -->
                 <StackPanel Grid.Row="2" Spacing="8">
+                    <CheckBox x:Name="StartAtLoginCheck" MinHeight="28"
+                              HorizontalAlignment="Center"
+                              Checked="OnStartAtLoginToggled" Unchecked="OnStartAtLoginToggled">
+                        <TextBlock x:Uid="StartAtLoginLabel" FontSize="12"/>
+                    </CheckBox>
+                    <TextBlock x:Name="StartupStatusText" FontSize="12"
+                               HorizontalAlignment="Center" TextWrapping="Wrap"
+                               Visibility="Collapsed"/>
                     <!-- Обновления: компактно (FontSize 12, Opacity 0.8), но с удобной
                          областью нажатия (MinHeight 28) -->
                     <StackPanel Orientation="Horizontal" Spacing="16"

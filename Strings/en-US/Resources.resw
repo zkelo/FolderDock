@@ -70,4 +70,12 @@ Download and install? The app will restart.</value></data>
   <data name="UpdateErr_BadCurrent" xml:space="preserve"><value>Unrecognized current version: "{0}"</value></data>
   <data name="UpdateErr_NoInstaller" xml:space="preserve"><value>Release {0} has no installer for {1}</value></data>
   <data name="UpdateErr_Network" xml:space="preserve"><value>Could not check for updates: {0}</value></data>
+
+  <!-- Background startup and asynchronous folder loading -->
+  <data name="Folder_Loading" xml:space="preserve"><value>Loading folder…</value></data>
+  <data name="StartAtLoginLabel.Text" xml:space="preserve"><value>Start in the background when I sign in</value></data>
+  <data name="Startup_Help" xml:space="preserve"><value>Prepares the folder popup for your first click. Windows Startup Apps can also disable background startup.</value></data>
+  <data name="Startup_ErrorTitle" xml:space="preserve"><value>Background startup</value></data>
+  <data name="Startup_ErrorBody" xml:space="preserve"><value>Could not change background startup: {0}</value></data>
+  <data name="Startup_StatusFailed" xml:space="preserve"><value>Could not configure background startup.</value></data>
 </root>

@@ -14,7 +14,7 @@
     <SelfContained>true</SelfContained>
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
-    <DefaultItemExcludes>$(DefaultItemExcludes);FolderDock.Core\**;tests\**</DefaultItemExcludes>
+    <DefaultItemExcludes>$(DefaultItemExcludes);FolderDock.Core\**;FolderDock.Infrastructure\**;tests\**</DefaultItemExcludes>
     <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
     <AssemblyName>FolderDock</AssemblyName>
     <ApplicationIcon>Assets\FolderDock.ico</ApplicationIcon>
@@ -31,6 +31,10 @@
     <!-- Момент сборки (UTC, ISO 8601) — читается AppInfo.ReadBuildTimestamp -->
     <BuildTimestampUtc>$([System.DateTime]::UtcNow.ToString("o"))</BuildTimestampUtc>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <!-- Готовый машинный код сокращает JIT-работу при первом запуске. -->
+    <PublishReadyToRun>true</PublishReadyToRun>
+  </PropertyGroup>
   <ItemGroup>
     <AssemblyMetadata Include="BuildTimestampUtc" Value="$(BuildTimestampUtc)" />
   </ItemGroup>
@@ -41,6 +45,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="FolderDock.Core\FolderDock.Core.csproj" />
+    <ProjectReference Include="FolderDock.Infrastructure\FolderDock.Infrastructure.csproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.6.250108002" />
