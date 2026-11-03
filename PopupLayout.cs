@@ -34,10 +34,10 @@ public static class PopupLayout
         var columns = Math.Clamp(
             (int)Math.Ceiling(Math.Sqrt(Math.Max(count, 1))), MinColumns, MaxColumns);
         var rows = Math.Clamp((int)Math.Ceiling(count / (double)columns), 1, MaxRows);
-        return (columns * GridCellWidth + GridChromeWidth,
-                rows * GridCellHeight + HeaderHeight);
+        return ((columns * GridCellWidth) + GridChromeWidth,
+                (rows * GridCellHeight) + HeaderHeight);
     }
 
     private static (int Width, int Height) List(int count) =>
-        (ListWidth, Math.Clamp(count, 1, MaxListRows) * ListRowHeight + HeaderHeight);
+        (ListWidth, (Math.Clamp(count, 1, MaxListRows) * ListRowHeight) + HeaderHeight);
 }
