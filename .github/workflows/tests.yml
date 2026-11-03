@@ -18,8 +18,10 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
-      - name: Test popup session rules
+      - name: Test application rules and dependency boundaries
         run: dotnet test tests/FolderDock.Core.Tests/FolderDock.Core.Tests.csproj --configuration Release
+      - name: Test infrastructure adapters
+        run: dotnet test tests/FolderDock.Infrastructure.Tests/FolderDock.Infrastructure.Tests.csproj --configuration Release
 
   windows-build:
     name: Windows ${{ matrix.platform }} build
@@ -44,7 +46,10 @@ jobs:
           --output "${{ runner.temp }}/FolderDock-${{ matrix.runtime }}"
       - name: Test Windows filesystem behavior
         if: matrix.platform == 'x64'
-        run: dotnet test tests/FolderDock.Core.Tests/FolderDock.Core.Tests.csproj -c Release
+        run: |
+          dotnet test tests/FolderDock.Core.Tests/FolderDock.Core.Tests.csproj -c Release
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet test tests/FolderDock.Infrastructure.Tests/FolderDock.Infrastructure.Tests.csproj -c Release
       - name: Validate installer
         shell: pwsh
         run: >

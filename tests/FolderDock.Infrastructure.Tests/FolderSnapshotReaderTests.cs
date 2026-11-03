@@ -1,8 +1,9 @@
 using System.Globalization;
 using FolderDock.Core;
+using FolderDock.Infrastructure;
 using Xunit;
 
-namespace FolderDock.Core.Tests;
+namespace FolderDock.Infrastructure.Tests;
 
 public sealed class FolderSnapshotReaderTests : IDisposable
 {
@@ -12,7 +13,7 @@ public sealed class FolderSnapshotReaderTests : IDisposable
     public FolderSnapshotReaderTests() => Directory.CreateDirectory(_root);
 
     [Fact]
-    public void ReadsOnlyDirectChildrenWithDirectoriesFirstAndCultureAwareNames()
+    public async Task ReadsOnlyDirectChildrenWithDirectoriesFirstAndCultureAwareNames()
     {
         var previousCulture = CultureInfo.CurrentCulture;
         try
@@ -24,7 +25,7 @@ public sealed class FolderSnapshotReaderTests : IDisposable
             var firstFile = CreateFile("a.txt");
             File.WriteAllText(Path.Combine(firstDirectory, "not-a-direct-child.txt"), "");
 
-            var result = FolderSnapshotReader.Read(_root);
+            var result = await new FileSystemFolderSnapshotReader().ReadAsync(_root);
 
             Assert.False(result.Failed);
             Assert.Equal(new[] { firstDirectory, lastDirectory, firstFile, lastFile },
@@ -40,27 +41,27 @@ public sealed class FolderSnapshotReaderTests : IDisposable
     }
 
     [Fact]
-    public void EmptyFolderIsSuccessful()
+    public async Task EmptyFolderIsSuccessful()
     {
-        var result = FolderSnapshotReader.Read(_root);
+        var result = await new FileSystemFolderSnapshotReader().ReadAsync(_root);
 
         Assert.Empty(result.Entries);
         Assert.False(result.Failed);
     }
 
     [Fact]
-    public void MissingFolderReportsFailure()
+    public async Task MissingFolderReportsFailure()
     {
-        var result = FolderSnapshotReader.Read(Path.Combine(_root, "missing"));
+        var result = await new FileSystemFolderSnapshotReader().ReadAsync(Path.Combine(_root, "missing"));
 
         Assert.Empty(result.Entries);
         Assert.True(result.Failed);
     }
 
     [Fact]
-    public void FileUsedAsFolderReportsFailure()
+    public async Task FileUsedAsFolderReportsFailure()
     {
-        var result = FolderSnapshotReader.Read(CreateFile("file.txt"));
+        var result = await new FileSystemFolderSnapshotReader().ReadAsync(CreateFile("file.txt"));
 
         Assert.Empty(result.Entries);
         Assert.True(result.Failed);
@@ -69,31 +70,31 @@ public sealed class FolderSnapshotReaderTests : IDisposable
     [Theory]
     [InlineData("")]
     [InlineData("invalid\0path")]
-    public void InvalidPathReportsFailure(string path)
+    public async Task InvalidPathReportsFailure(string path)
     {
-        var result = FolderSnapshotReader.Read(path);
+        var result = await new FileSystemFolderSnapshotReader().ReadAsync(path);
 
         Assert.Empty(result.Entries);
         Assert.True(result.Failed);
     }
 
     [Fact]
-    public void CancelledReadThrowsInsteadOfReportingAnAccessError()
+    public async Task CancelledReadThrowsInsteadOfReportingAnAccessError()
     {
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();
 
-        Assert.Throws<OperationCanceledException>(() =>
-            FolderSnapshotReader.Read(Path.Combine(_root, "missing"), cancellation.Token));
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            new FileSystemFolderSnapshotReader().ReadAsync(Path.Combine(_root, "missing"), cancellation.Token));
     }
 
     [Fact]
-    public void ReadsAllEntriesBeforeTheUiAppliesItsDisplayLimit()
+    public async Task ReadsAllEntriesBeforeTheUiAppliesItsDisplayLimit()
     {
         for (var index = FolderSearch.MaxResults + 10; index >= 0; index--)
             CreateFile($"item {index:D4}.txt");
 
-        var result = FolderSnapshotReader.Read(_root);
+        var result = await new FileSystemFolderSnapshotReader().ReadAsync(_root);
 
         Assert.False(result.Failed);
         Assert.Equal(FolderSearch.MaxResults + 11, result.Entries.Count);
@@ -102,7 +103,7 @@ public sealed class FolderSnapshotReaderTests : IDisposable
     }
 
     [Fact]
-    public void WindowsHiddenEntriesAreExcludedButSystemEntriesRemainVisible()
+    public async Task WindowsHiddenEntriesAreExcludedButSystemEntriesRemainVisible()
     {
         if (!OperatingSystem.IsWindows()) return;
         var hiddenFile = CreateFile("hidden.txt");
@@ -113,14 +114,14 @@ public sealed class FolderSnapshotReaderTests : IDisposable
         File.SetAttributes(hiddenDirectory, FileAttributes.Directory | FileAttributes.Hidden);
         File.SetAttributes(systemFile, FileAttributes.System);
 
-        var result = FolderSnapshotReader.Read(_root);
+        var result = await new FileSystemFolderSnapshotReader().ReadAsync(_root);
 
         Assert.False(result.Failed);
         Assert.Equal(new[] { systemFile, visibleFile }, result.Entries.Select(entry => entry.FullPath));
     }
 
     [Fact]
-    public void DirectoryLinkIsListedWithoutReadingItsTargetContents()
+    public async Task DirectoryLinkIsListedWithoutReadingItsTargetContents()
     {
         var target = CreateDirectory("target");
         File.WriteAllText(Path.Combine(target, "nested.txt"), "");
@@ -135,7 +136,7 @@ public sealed class FolderSnapshotReaderTests : IDisposable
             return;
         }
 
-        var result = FolderSnapshotReader.Read(_root);
+        var result = await new FileSystemFolderSnapshotReader().ReadAsync(_root);
 
         Assert.False(result.Failed);
         Assert.Equal(new[] { link, target }, result.Entries.Select(entry => entry.FullPath));

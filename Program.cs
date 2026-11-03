@@ -2,7 +2,7 @@ using System;
 using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
-using FolderDock.Core;
+using FolderDock.Infrastructure;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.Windows.AppLifecycle;
@@ -18,7 +18,8 @@ public static class Program
     public static int Main(string[] args)
     {
         WinRT.ComWrappersSupport.InitializeComWrappers();
-        ApplyTaskbarIdentity(CommandLine.FolderFrom(args));
+        var launch = CommandLine.Parse(args);
+        ApplyTaskbarIdentity(launch.FolderPath);
 
         // Subscribe before publishing our instance key. A taskbar click can
         // arrive while the login process is still creating its first window.
@@ -37,7 +38,7 @@ public static class Program
         {
             // A delayed login launch must not open the manager or dismiss a
             // folder that the user has already opened in the resident process.
-            if (!CommandLine.IsBackground(args))
+            if (launch.Kind != LaunchKind.Background)
                 ForwardActivation(mainInstance);
             return 0;
         }

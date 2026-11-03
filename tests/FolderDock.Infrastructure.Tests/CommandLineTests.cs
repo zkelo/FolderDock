@@ -1,10 +1,20 @@
-using FolderDock.Core;
+using FolderDock.Infrastructure;
 using Xunit;
 
-namespace FolderDock.Core.Tests;
+namespace FolderDock.Infrastructure.Tests;
 
 public sealed class CommandLineTests
 {
+    [Fact]
+    public void ParsingReturnsOneUnambiguousLaunchIntent()
+    {
+        Assert.Equal(LaunchKind.Manager, CommandLine.Parse("").Kind);
+        Assert.Equal(LaunchKind.Background, CommandLine.Parse("--background").Kind);
+        var folder = CommandLine.Parse("--background --folder \"C:\\My Photos\"");
+        Assert.Equal(LaunchKind.Folder, folder.Kind);
+        Assert.Equal(@"C:\My Photos", folder.FolderPath);
+    }
+
     [Theory]
     [InlineData("\"C:\\Program Files\\FolderDock\\FolderDock.exe\" --background", true)]
     [InlineData("--BACKGROUND", true)]

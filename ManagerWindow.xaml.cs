@@ -2,6 +2,7 @@ using System;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Threading.Tasks;
+using FolderDock.Core;
 using Microsoft.UI;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
@@ -22,6 +23,7 @@ public sealed partial class ManagerWindow : Window
     private readonly ObservableCollection<PinInfo> _pins = new();
     private readonly Settings _settings = Settings.Load();
     private readonly UISettings _uiSettings = new();
+    private readonly LoginStartupService _loginStartup;
     private bool _updateCheckRunning;
     private bool _appearanceClosed;
     private bool _refreshingStartup;
@@ -30,8 +32,10 @@ public sealed partial class ManagerWindow : Window
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "FolderDock", "Shortcuts");
 
-    public ManagerWindow()
+    public ManagerWindow(LoginStartupService loginStartup)
     {
+        ArgumentNullException.ThrowIfNull(loginStartup);
+        _loginStartup = loginStartup;
         InitializeComponent();
         // Настоящий desktop acrylic: Windows управляет размытием, темой,
         // активацией и непрозрачным фоном при отключённой прозрачности.
@@ -110,30 +114,50 @@ public sealed partial class ManagerWindow : Window
         RefreshStartupSetting();
     }
 
-    public void RefreshStartupSetting()
+    private void RefreshStartupSetting() => RenderStartupResult(_loginStartup.GetStatus());
+
+    public void ShowStartupResult(LoginStartupResult result)
     {
-        _refreshingStartup = true;
-        StartAtLoginCheck.IsChecked = LoginStartup.IsRegistered;
-        _refreshingStartup = false;
-        StartupStatusText.Text = LoginStartup.LastError is null ? string.Empty : Loc.Get("Startup_StatusFailed");
-        StartupStatusText.Visibility = LoginStartup.LastError is null ? Visibility.Collapsed : Visibility.Visible;
+        // A failed write can partially succeed. Query the actual registration
+        // before showing that operation's error, without storing a global error.
+        if (result is LoginStartupResult.Failure)
+            RefreshStartupSetting();
+        RenderStartupResult(result);
+    }
+
+    private void RenderStartupResult(LoginStartupResult result)
+    {
+        if (result is LoginStartupResult.Success status)
+        {
+            _refreshingStartup = true;
+            try
+            {
+                StartAtLoginCheck.IsChecked = status.IsRegistered;
+            }
+            finally
+            {
+                _refreshingStartup = false;
+            }
+            StartupStatusText.Visibility = Visibility.Collapsed;
+            ToolTipService.SetToolTip(StartupStatusText, null);
+        }
+        else if (result is LoginStartupResult.Failure failure)
+        {
+            StartupStatusText.Text = Loc.Get("Startup_StatusFailed");
+            StartupStatusText.Visibility = Visibility.Visible;
+            ToolTipService.SetToolTip(StartupStatusText, failure.Details);
+        }
     }
 
     private async void OnStartAtLoginToggled(object sender, RoutedEventArgs e)
     {
         if (_refreshingStartup) return;
         var enabled = StartAtLoginCheck.IsChecked == true;
-        if (LoginStartup.TrySetEnabled(enabled, out var error))
-        {
-            RefreshStartupSetting();
-            return;
-        }
-
-        // Show the actual registration after a failed write, not the requested
-        // checkbox state. Saving other settings cannot overwrite this choice.
-        RefreshStartupSetting();
-        await ShowDialogAsync(Loc.Get("Startup_ErrorTitle"),
-            Loc.Format("Startup_ErrorBody", error ?? Loc.Get("Startup_StatusFailed")));
+        var result = _loginStartup.SetEnabled(enabled);
+        ShowStartupResult(result);
+        if (result is LoginStartupResult.Failure failure)
+            await ShowDialogAsync(Loc.Get("Startup_ErrorTitle"),
+                Loc.Format("Startup_ErrorBody", failure.Details));
     }
 
     private void OnAutoUpdateToggled(object sender, RoutedEventArgs e)

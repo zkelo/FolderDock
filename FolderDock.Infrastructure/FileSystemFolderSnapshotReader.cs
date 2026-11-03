@@ -1,12 +1,9 @@
 using System.Security;
+using FolderDock.Core;
 
-namespace FolderDock.Core;
+namespace FolderDock.Infrastructure;
 
-public sealed record FolderSnapshotEntry(string Name, string FullPath, bool IsDirectory);
-
-public sealed record FolderSnapshot(IReadOnlyList<FolderSnapshotEntry> Entries, bool Failed);
-
-public static class FolderSnapshotReader
+public sealed class FileSystemFolderSnapshotReader : IFolderSnapshotReader
 {
     private static readonly EnumerationOptions ReadOptions = new()
     {
@@ -16,7 +13,10 @@ public static class FolderSnapshotReader
         ReturnSpecialDirectories = false
     };
 
-    public static FolderSnapshot Read(string folder, CancellationToken cancellationToken = default)
+    public Task<FolderSnapshot> ReadAsync(string folder, CancellationToken cancellationToken = default) =>
+        Task.Run(() => Read(folder, cancellationToken), cancellationToken);
+
+    private static FolderSnapshot Read(string folder, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         try
@@ -53,12 +53,12 @@ public static class FolderSnapshotReader
                     : StringComparer.CurrentCultureIgnoreCase.Compare(left.Name, right.Name);
             });
             cancellationToken.ThrowIfCancellationRequested();
-            return new FolderSnapshot(entries, Failed: false);
+            return new FolderSnapshot(entries.ToArray(), Failed: false);
         }
         catch (Exception exception) when (IsFileSystemError(exception))
         {
             cancellationToken.ThrowIfCancellationRequested();
-            return new FolderSnapshot(Array.Empty<FolderSnapshotEntry>(), Failed: true);
+            return FolderSnapshot.Unavailable;
         }
     }
 

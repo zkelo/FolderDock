@@ -1,11 +1,47 @@
 using System.Collections.Concurrent;
-using FolderDock.Core;
+using FolderDock.Infrastructure;
 using Xunit;
 
-namespace FolderDock.Core.Tests;
+namespace FolderDock.Infrastructure.Tests;
 
 public sealed class ActivationQueueTests
 {
+    [Fact]
+    public void RejectedDispatchRetainsTheClickForTheNextSchedulingAttempt()
+    {
+        var activations = new ActivationQueue();
+        var scheduled = new List<string>();
+        var accepting = false;
+        activations.Enqueue("first");
+        activations.Start(arguments =>
+        {
+            if (!accepting) return false;
+            scheduled.Add(arguments);
+            return true;
+        });
+        accepting = true;
+        activations.Enqueue("second");
+
+        Assert.Equal(new[] { "first", "second" }, scheduled);
+    }
+
+    [Fact]
+    public void DispatcherCanEnqueueAnotherActivationWithoutReordering()
+    {
+        var activations = new ActivationQueue();
+        var scheduled = new List<string>();
+        activations.Enqueue("first");
+        activations.Enqueue("second");
+        activations.Start(arguments =>
+        {
+            scheduled.Add(arguments);
+            if (arguments == "first") activations.Enqueue("third");
+            return true;
+        });
+
+        Assert.Equal(new[] { "first", "second", "third" }, scheduled);
+    }
+
     [Fact]
     public void ClicksDuringColdStartupWaitForInitialLaunchAndKeepTheirOrder()
     {
@@ -16,7 +52,7 @@ public sealed class ActivationQueueTests
         activations.Enqueue("--folder second");
         Assert.Empty(scheduled);
 
-        activations.Start(scheduled.Enqueue);
+        activations.Start(arguments => { scheduled.Enqueue(arguments); return true; });
         activations.Enqueue("--folder third");
 
         Assert.Equal(new[] { "--folder first", "--folder second", "--folder third" }, scheduled);
@@ -41,6 +77,7 @@ public sealed class ActivationQueueTests
                 Assert.True(releaseDispatch.Wait(TimeSpan.FromSeconds(10)));
             }
             scheduled.Enqueue(arguments);
+            return true;
         }));
 
         Assert.True(dispatchEntered.Wait(TimeSpan.FromSeconds(10)));
@@ -71,7 +108,7 @@ public sealed class ActivationQueueTests
             .Select(index => Task.Run(() => activations.Enqueue(index.ToString())))
             .ToArray();
 
-        activations.Start(scheduled.Enqueue);
+        activations.Start(arguments => { scheduled.Enqueue(arguments); return true; });
         await Task.WhenAll(arrivals);
 
         Assert.Equal(100, scheduled.Count);

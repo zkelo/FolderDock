@@ -14,7 +14,7 @@
     <SelfContained>true</SelfContained>
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
-    <DefaultItemExcludes>$(DefaultItemExcludes);FolderDock.Core\**;tests\**</DefaultItemExcludes>
+    <DefaultItemExcludes>$(DefaultItemExcludes);FolderDock.Core\**;FolderDock.Infrastructure\**;tests\**</DefaultItemExcludes>
     <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
     <AssemblyName>FolderDock</AssemblyName>
     <ApplicationIcon>Assets\FolderDock.ico</ApplicationIcon>
@@ -45,6 +45,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="FolderDock.Core\FolderDock.Core.csproj" />
+    <ProjectReference Include="FolderDock.Infrastructure\FolderDock.Infrastructure.csproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.6.250108002" />
