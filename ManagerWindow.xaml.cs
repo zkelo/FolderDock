@@ -132,7 +132,8 @@ public sealed partial class ManagerWindow : Window
         // Show the actual registration after a failed write, not the requested
         // checkbox state. Saving other settings cannot overwrite this choice.
         RefreshStartupSetting();
-        await ShowDialogAsync(Loc.Get("Startup_ErrorTitle"), Loc.Format("Startup_ErrorBody", error));
+        await ShowDialogAsync(Loc.Get("Startup_ErrorTitle"),
+            Loc.Format("Startup_ErrorBody", error ?? Loc.Get("Startup_StatusFailed")));
     }
 
     private void OnAutoUpdateToggled(object sender, RoutedEventArgs e)
