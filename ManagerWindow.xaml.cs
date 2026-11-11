@@ -216,31 +216,7 @@ public sealed partial class ManagerWindow : Window
         try
         {
             var result = await _updates.CheckAsync(cancellationToken);
-            if (_isClosed) return;
-
-            if (result is UpdateCheckResult.Failure failure)
-            {
-                var message = UpdateCheckMessages.Format(failure);
-                ShowUpdateStatus(message);
-                if (!silentWhenUpToDate)
-                    await ShowDialogAsync(Loc.Get("Update_CheckTitle"), message);
-                return;
-            }
-
-            if (result is UpdateCheckResult.UpToDate)
-            {
-                ShowUpdateStatus(Loc.Format("Update_UpToDateStatus", AppInfo.Version));
-                if (!silentWhenUpToDate)
-                    await ShowDialogAsync(Loc.Get("Update_CheckTitle"),
-                        Loc.Format("Update_UpToDateDialog", AppInfo.Version));
-                return;
-            }
-
-            if (result is UpdateCheckResult.Available available)
-            {
-                ShowUpdateStatus(Loc.Format("Update_AvailableStatus", available.LatestVersion));
-                await OfferUpdateAsync(available, cancellationToken);
-            }
+            await ShowUpdateCheckResultAsync(result, silentWhenUpToDate, cancellationToken);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -250,6 +226,34 @@ public sealed partial class ManagerWindow : Window
         {
             _updateCheckRunning = false;
             if (!_isClosed) CheckUpdatesButton.IsEnabled = true;
+        }
+    }
+
+    private async Task ShowUpdateCheckResultAsync(UpdateCheckResult result,
+        bool silentWhenUpToDate, CancellationToken cancellationToken)
+    {
+        if (_isClosed) return;
+
+        switch (result)
+        {
+            case UpdateCheckResult.Failure failure:
+                var message = UpdateCheckMessages.Format(failure);
+                ShowUpdateStatus(message);
+                if (!silentWhenUpToDate)
+                    await ShowDialogAsync(Loc.Get("Update_CheckTitle"), message);
+                break;
+
+            case UpdateCheckResult.UpToDate:
+                ShowUpdateStatus(Loc.Format("Update_UpToDateStatus", AppInfo.Version));
+                if (!silentWhenUpToDate)
+                    await ShowDialogAsync(Loc.Get("Update_CheckTitle"),
+                        Loc.Format("Update_UpToDateDialog", AppInfo.Version));
+                break;
+
+            case UpdateCheckResult.Available available:
+                ShowUpdateStatus(Loc.Format("Update_AvailableStatus", available.LatestVersion));
+                await OfferUpdateAsync(available, cancellationToken);
+                break;
         }
     }
 
