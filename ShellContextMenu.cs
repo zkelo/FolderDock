@@ -43,6 +43,7 @@ internal static class ShellContextMenu
     public static bool Show(IntPtr ownerHwnd, string path)
     {
         var pidl = IntPtr.Zero;
+        var folderPtr = IntPtr.Zero;
         var contextMenuPtr = IntPtr.Zero;
         var menu = IntPtr.Zero;
         object? folderObj = null;
@@ -55,9 +56,8 @@ internal static class ShellContextMenu
 
             var folderIid = IID_IShellFolder;
             Marshal.ThrowExceptionForHR(
-                SHBindToParent(pidl, ref folderIid, out var folderPtr, out var childPidl));
+                SHBindToParent(pidl, ref folderIid, out folderPtr, out var childPidl));
             folderObj = Marshal.GetObjectForIUnknown(folderPtr);
-            Marshal.Release(folderPtr); // GetObjectForIUnknown сделал свой AddRef
             var folder = (IShellFolder)folderObj;
 
             // childPidl принадлежит pidl — освобождать отдельно не нужно
@@ -105,6 +105,7 @@ internal static class ShellContextMenu
             if (cmObj is not null) Marshal.ReleaseComObject(cmObj);
             if (contextMenuPtr != IntPtr.Zero) Marshal.Release(contextMenuPtr);
             if (folderObj is not null) Marshal.ReleaseComObject(folderObj);
+            if (folderPtr != IntPtr.Zero) Marshal.Release(folderPtr);
             if (pidl != IntPtr.Zero) ILFree(pidl);
         }
     }
@@ -144,7 +145,12 @@ internal static class ShellContextMenu
             return CallWindowProc(_previousProc, hwnd, msg, wParam, lParam);
         }
 
-        public void Dispose() => SetWindowLongPtr(_hwnd, GWLP_WNDPROC, _previousProc);
+        public void Dispose()
+        {
+            SetWindowLongPtr(_hwnd, GWLP_WNDPROC, _previousProc);
+            // The native window procedure points at this delegate until restored.
+            GC.KeepAlive(_hook);
+        }
     }
 
     private delegate IntPtr WndProcDelegate(IntPtr hwnd, uint msg, IntPtr wParam, IntPtr lParam);

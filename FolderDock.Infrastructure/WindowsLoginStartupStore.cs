@@ -85,11 +85,11 @@ public sealed class WindowsLoginStartupStore : ILoginStartupStore
         }
         catch (Exception exception) when (exception is UnauthorizedAccessException or SecurityException)
         {
-            throw new LoginStartupException(LoginStartupError.AccessDenied, exception.Message);
+            throw new LoginStartupException(LoginStartupError.AccessDenied, exception.Message, exception);
         }
         catch (IOException exception)
         {
-            throw new LoginStartupException(LoginStartupError.StorageUnavailable, exception.Message);
+            throw new LoginStartupException(LoginStartupError.StorageUnavailable, exception.Message, exception);
         }
     }
 }

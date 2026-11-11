@@ -27,32 +27,45 @@ public static class ShortcutFactory
                   ?? throw new InvalidOperationException(Loc.Get("Exe_PathError"));
 
         var link = (IShellLinkW)new CShellLink();
-        link.SetPath(exe);
-        link.SetArguments($"--folder \"{argumentPath}\"");
-        link.SetWorkingDirectory(Path.GetDirectoryName(exe)!);
-        link.SetDescription($"FolderDock: {folderPath}");
-        link.SetIconLocation(SystemLibrary("imageres.dll"), FolderIconIndex);
+        try
+        {
+            link.SetPath(exe);
+            link.SetArguments($"--folder \"{argumentPath}\"");
+            link.SetWorkingDirectory(Path.GetDirectoryName(exe)!);
+            link.SetDescription($"FolderDock: {folderPath}");
+            link.SetIconLocation(SystemLibrary("imageres.dll"), FolderIconIndex);
 
-        WriteAumid(link, FolderAumid.For(folderPath));
-        ((IPersistFile)link).Save(lnkPath, true);
-        return lnkPath;
+            WriteAumid(link, FolderAumid.For(folderPath));
+            ((IPersistFile)link).Save(lnkPath, true);
+            return lnkPath;
+        }
+        finally
+        {
+            Marshal.FinalReleaseComObject(link);
+        }
     }
 
     /// Читает путь папки из аргументов существующего ярлыка (--folder "...").
     /// null — ярлык не читается или не содержит --folder.
     public static string? ReadFolderFromShortcut(string lnkPath)
     {
+        IShellLinkW? link = null;
         try
         {
-            var link = (IShellLinkW)new CShellLink();
+            link = (IShellLinkW)new CShellLink();
             ((IPersistFile)link).Load(lnkPath, 0 /* STGM_READ */);
             var args = new StringBuilder(MaxArgumentsLength);
             link.GetArguments(args, args.Capacity);
             return CommandLine.FolderFrom(args.ToString());
         }
-        catch
+        catch (Exception exception)
         {
+            System.Diagnostics.Trace.WriteLine($"FolderDock: shortcut could not be read: {exception}");
             return null;
+        }
+        finally
+        {
+            if (link is not null) Marshal.FinalReleaseComObject(link);
         }
     }
 

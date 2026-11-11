@@ -1,5 +1,6 @@
 using System;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
 using FolderDock.Core;
@@ -21,21 +22,27 @@ public sealed partial class ManagerWindow : Window
     private const int DefaultHeight = 620;
 
     private readonly ObservableCollection<PinInfo> _pins = new();
-    private readonly Settings _settings = Settings.Load();
+    private readonly SettingsService _settings;
+    private readonly PinnedFolderService _pinnedFolders;
+    private readonly UpdateService _updates;
     private readonly UISettings _uiSettings = new();
     private readonly LoginStartupService _loginStartup;
     private bool _updateCheckRunning;
     private bool _appearanceClosed;
     private bool _refreshingStartup;
 
-    private static string ShortcutsDir => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "FolderDock", "Shortcuts");
-
-    public ManagerWindow(LoginStartupService loginStartup)
+    public ManagerWindow(LoginStartupService loginStartup, SettingsService settings,
+        PinnedFolderService pinnedFolders, UpdateService updates)
     {
         ArgumentNullException.ThrowIfNull(loginStartup);
+        ArgumentNullException.ThrowIfNull(settings);
+        ArgumentNullException.ThrowIfNull(pinnedFolders);
+        ArgumentNullException.ThrowIfNull(updates);
         _loginStartup = loginStartup;
+        _settings = settings;
+        _pinnedFolders = pinnedFolders;
+        _updates = updates;
+        ReportSettingsError(_settings.Load());
         InitializeComponent();
         // Настоящий desktop acrylic: Windows управляет размытием, темой,
         // активацией и непрозрачным фоном при отключённой прозрачности.
@@ -50,7 +57,7 @@ public sealed partial class ManagerWindow : Window
         AppWindow.Resize(new Windows.Graphics.SizeInt32(DefaultWidth, DefaultHeight));
         Activated += OnActivated;
 
-        if (_settings.AutoCheckUpdates)
+        if (_settings.Current.AutoCheckUpdates)
             _ = CheckForUpdatesAsync(silentWhenUpToDate: true);
     }
 
@@ -109,7 +116,7 @@ public sealed partial class ManagerWindow : Window
     {
         // Checked/Unchecked подписаны в XAML и сработают на этой установке,
         // но запишут то же самое значение — безвредно
-        AutoUpdateCheck.IsChecked = _settings.AutoCheckUpdates;
+        AutoUpdateCheck.IsChecked = _settings.Current.AutoCheckUpdates;
         ToolTipService.SetToolTip(StartAtLoginCheck, Loc.Get("Startup_Help"));
         RefreshStartupSetting();
     }
@@ -162,10 +169,13 @@ public sealed partial class ManagerWindow : Window
 
     private void OnAutoUpdateToggled(object sender, RoutedEventArgs e)
     {
-        var isOn = AutoUpdateCheck.IsChecked == true;
-        if (_settings.AutoCheckUpdates == isOn) return;
-        _settings.AutoCheckUpdates = isOn;
-        _settings.Save();
+        ReportSettingsError(_settings.SetAutoCheckUpdates(AutoUpdateCheck.IsChecked == true));
+    }
+
+    private static void ReportSettingsError(SettingsResult result)
+    {
+        if (result.Error is not null)
+            Trace.WriteLine($"FolderDock: settings persistence failed: {result.Error}");
     }
 
     private async void OnCheckUpdates(object sender, RoutedEventArgs e) =>
@@ -179,17 +189,18 @@ public sealed partial class ManagerWindow : Window
         ShowUpdateStatus(Loc.Get("Update_Checking"));
         try
         {
-            var result = await UpdateService.CheckAsync();
+            var result = await _updates.CheckAsync();
 
-            if (result.Error is not null)
+            if (result is UpdateCheckResult.Failure failure)
             {
-                ShowUpdateStatus(result.Error);
+                var message = UpdateCheckMessages.Format(failure);
+                ShowUpdateStatus(message);
                 if (!silentWhenUpToDate)
-                    await ShowDialogAsync(Loc.Get("Update_CheckTitle"), result.Error);
+                    await ShowDialogAsync(Loc.Get("Update_CheckTitle"), message);
                 return;
             }
 
-            if (!result.UpdateAvailable)
+            if (result is UpdateCheckResult.UpToDate)
             {
                 ShowUpdateStatus(Loc.Format("Update_UpToDateStatus", AppInfo.Version));
                 if (!silentWhenUpToDate)
@@ -198,8 +209,11 @@ public sealed partial class ManagerWindow : Window
                 return;
             }
 
-            ShowUpdateStatus(Loc.Format("Update_AvailableStatus", result.LatestVersion!));
-            await OfferUpdateAsync(result);
+            if (result is UpdateCheckResult.Available available)
+            {
+                ShowUpdateStatus(Loc.Format("Update_AvailableStatus", available.LatestVersion));
+                await OfferUpdateAsync(available);
+            }
         }
         finally
         {
@@ -208,12 +222,12 @@ public sealed partial class ManagerWindow : Window
         }
     }
 
-    private async Task OfferUpdateAsync(UpdateCheckResult update)
+    private async Task OfferUpdateAsync(UpdateCheckResult.Available update)
     {
         var dialog = new ContentDialog
         {
             Title = Loc.Get("Update_DialogTitle"),
-            Content = Loc.Format("Update_DialogBody", update.LatestVersion!, AppInfo.Version),
+            Content = Loc.Format("Update_DialogBody", update.LatestVersion, AppInfo.Version),
             PrimaryButtonText = Loc.Get("Update_Now"),
             CloseButtonText = Loc.Get("Update_Later"),
             DefaultButton = ContentDialogButton.Primary,
@@ -221,10 +235,10 @@ public sealed partial class ManagerWindow : Window
         };
         if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
 
-        ShowUpdateStatus(Loc.Format("Update_Downloading", update.LatestVersion!));
+        ShowUpdateStatus(Loc.Format("Update_Downloading", update.LatestVersion));
         try
         {
-            await UpdateService.DownloadAndInstallAsync(update);
+            await _updates.InstallAsync(update);
             // Установщик убьёт процесс сам (taskkill в PrepareToInstall)
             ShowUpdateStatus(Loc.Get("Update_Installing"));
         }
@@ -291,15 +305,14 @@ public sealed partial class ManagerWindow : Window
     private void LoadExistingShortcuts()
     {
         _pins.Clear();
-        if (!Directory.Exists(ShortcutsDir)) return;
-
-        foreach (var lnk in Directory.EnumerateFiles(ShortcutsDir, "*.lnk"))
+        try
         {
-            // Показываем только ярлыки, чья целевая папка существует на диске
-            var folder = ShortcutFactory.ReadFolderFromShortcut(lnk);
-            if (folder is null || !Directory.Exists(folder)) continue;
-
-            _pins.Add(PinInfo.FromShortcut(lnk, folder));
+            foreach (var shortcut in _pinnedFolders.GetAvailable())
+                _pins.Add(PinInfo.FromShortcut(shortcut));
+        }
+        catch (FolderShortcutException exception)
+        {
+            Trace.WriteLine($"FolderDock: shortcuts could not be loaded: {exception}");
         }
     }
 
@@ -310,8 +323,7 @@ public sealed partial class ManagerWindow : Window
 
         try
         {
-            var lnk = ShortcutFactory.CreateFolderShortcut(folder, ShortcutsDir);
-            _pins.Add(PinInfo.FromShortcut(lnk, folder));
+            _pins.Add(PinInfo.FromShortcut(_pinnedFolders.Create(folder)));
             // Проводник больше не открываем: закрепление доступно прямо здесь —
             // ПКМ по строке списка → системное меню шелла → «Закрепить на панели задач»
             await ShowDialogAsync(Loc.Get("Dialog_ShortcutCreatedTitle"),
