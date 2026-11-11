@@ -41,7 +41,7 @@ This project is maintained entirely by AI models: **Claude Fable 5** and **GPT 6
 
 Grab `FolderDock-Setup-<version>-<arch>.exe` from [Releases](https://github.com/zkelo/FolderDock/releases) and run it. The installer lets you pick the install folder, optionally creates a Start Menu group, and silently removes a previously installed version before upgrading.
 
-Builds are available for **x64** and **ARM64**. Portable `FolderDock-<version>-win-<arch>.zip` archives are also produced by the release workflow; extract the entire archive before running `FolderDock.exe`.
+Installers are available for **x64** and **ARM64**. Releases publish only `FolderDock-Setup-<version>-x64.exe` and `FolderDock-Setup-<version>-arm64.exe`; portable application archives are not attached.
 
 ## Building (on Windows)
 
