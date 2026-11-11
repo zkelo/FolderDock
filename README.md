@@ -67,14 +67,14 @@ Output: `bin\x64\Release\net8.0-windows10.0.19041.0\win-x64\publish\FolderDock.e
 
 ## Tests
 
-Core tests cover popup sessions, login-startup policy, cancelled and stale folder loads, name matching, and dependency boundaries. Infrastructure tests cover launch parsing, activation buffering, directory snapshots, and recursive filesystem search. They need only the .NET 8 SDK and run on Windows, Linux, and macOS:
+Core tests cover popup sessions, navigation and search state, cancelled and stale requests, login-startup policy, settings fallback, available shortcuts, release selection, and dependency boundaries. Infrastructure tests cover launch parsing, activation buffering, directory snapshots, recursive search, JSON settings compatibility, GitHub response parsing, and installer download failure and cancellation. HTTP responses and installer launches are simulated; filesystem tests use temporary directories. They need only the .NET 8 SDK and run on Windows, Linux, and macOS:
 
 ```sh
 dotnet test tests/FolderDock.Core.Tests/FolderDock.Core.Tests.csproj -c Release
 dotnet test tests/FolderDock.Infrastructure.Tests/FolderDock.Infrastructure.Tests.csproj -c Release
 ```
 
-Core tests reference only `FolderDock.Core`; infrastructure tests reference `FolderDock.Infrastructure`. Architecture tests inspect compiled dependencies and prohibit filesystem and registry adapters inside Core. [CI](.github/workflows/tests.yml) runs these tests on Ubuntu and publishes the WinUI app with ReadyToRun for x64 and ARM64 on Windows and retains portable builds for 14 days.
+Core tests reference only `FolderDock.Core`; infrastructure tests reference `FolderDock.Infrastructure`. Architecture tests inspect compiled dependencies and guard Core against filesystem, registry, network, process, serialization, and native/COM dependencies. They also reject references from Infrastructure back to the UI. [CI](.github/workflows/tests.yml) runs these tests on Ubuntu and Windows, publishes the WinUI app with ReadyToRun for x64 and ARM64 on Windows, and retains portable builds for 14 days.
 
 ## Usage
 
@@ -109,9 +109,11 @@ Key conventions: keys with a dot (`AddFolderLabel.Text`) bind to XAML elements v
 
 ## Architecture
 
-`FolderDock.Core` owns application rules: popup pinning and dismissal, name filtering, login-startup policy, and the lifetime of folder-load requests. It defines the ports `ILoginStartupStore`, `IFolderSnapshotReader`, and `IFolderSearch` and their results. It has no filesystem, registry, WinUI, or shell adapter dependencies. `FolderLoadSession` rejects cancelled and stale reads, including older requests for the same path; `LoginStartupService` preserves an explicit disable and returns an operation result instead of global error state.
+`FolderDock.Core` owns application rules and the interfaces needed to carry them out. These include popup pinning and dismissal, navigation and search state, cancellation and stale-result rejection, login-startup policy, settings fallback, filtering unavailable shortcut targets, and choosing an update for the current version and architecture. The shared `LatestRequestSession` coordinates folder-load and search requests. Settings remain usable in the current session if persistence fails; update results contain data and error categories rather than UI text.
 
-`FolderDock.Infrastructure` implements those ports using the filesystem and the current-user Windows registry. It also parses launch arguments and buffers redirected activations. Concrete readers move blocking disk work onto background tasks. The WinUI app composes dependencies in `App` and injects them into windows; windows render results, translate input, and handle platform presentation such as thumbnail timing. The dependency direction is **WinUI app → Core**, **WinUI app → Infrastructure → Core**. Core tests use delayed readers and in-memory startup stores; filesystem integration tests live in the separate infrastructure test project.
+`FolderDock.Infrastructure` implements filesystem, registry, JSON settings, HTTP release, and installer adapters. It also parses launch arguments and buffers redirected activations. Concrete readers move blocking disk work onto background tasks, and settings writes replace the JSON file atomically. Windows Shell shortcuts and WinUI-specific adapters remain in the application project. `App` composes dependencies and injects them into windows; windows translate input, render results, localize errors, and manage presentation such as thumbnail timing.
+
+The dependency direction is **WinUI app → Core**, **WinUI app → Infrastructure → Core**. Core has no dependency on either outer layer or on operating-system, network, or persistence adapters. See [Architecture and maintenance guide](docs/architecture.md) for responsibilities, dependency rules, and validation guidance.
 
 ## Structure
 
@@ -121,10 +123,10 @@ Key conventions: keys with a dot (`AddFolderLabel.Text`) bind to XAML elements v
 | `FolderDock.Infrastructure/CommandLine.cs` | Parsing `--folder` and `--background` |
 | `FolderDock.Core/LoginStartupService.cs` | Background-startup policy and operation results |
 | `FolderDock.Infrastructure/WindowsLoginStartupStore.cs` | Current-user Windows registry adapter |
-| `App.xaml(.cs)` | Activation routing: popup or manager |
-| `PopupWindow.xaml(.cs)` | Popup UI, adaptive search header, background search, session integration, navigation |
-| `FolderDock.Core/` | Application rules, load sessions, contracts and results (`net8.0`) |
-| `FolderDock.Infrastructure/` | Filesystem, registry and activation adapters (`net8.0`) |
+| `App.xaml(.cs)` | Dependency composition and activation routing: popup or manager |
+| `PopupWindow.xaml(.cs)` | Popup presentation, input handling, adaptive search header and session integration |
+| `FolderDock.Core/` | Application rules, request sessions, contracts and results (`net8.0`) |
+| `FolderDock.Infrastructure/` | Filesystem, registry, settings, update and activation adapters (`net8.0`) |
 | `FolderDock.Infrastructure/FileSystemFolderSearch.cs` | Cancellable recursive name search, inaccessible-folder handling, 500-result limit |
 | `tests/FolderDock.Core.Tests/` | Application-rule tests and dependency guards |
 | `tests/FolderDock.Infrastructure.Tests/` | Adapter integration tests and activation tests |
@@ -135,16 +137,26 @@ Key conventions: keys with a dot (`AddFolderLabel.Text`) bind to XAML elements v
 | `FolderContents.cs` | Read result: entries + access-failure flag |
 | `FolderDock.Infrastructure/FileSystemFolderSnapshotReader.cs` | One-pass background directory reader |
 | `FolderDock.Core/FolderLoadSession.cs` | Cancellation and rejection of stale folder loads |
+| `FolderDock.Core/FolderSearchSession.cs` | Search debounce, cancellation and rejection of stale search results |
+| `FolderDock.Core/LatestRequestSession.cs` | Shared request lifetime and completion tracking |
+| `FolderDock.Core/FolderNavigation.cs` | Root folder, navigation history and search query state |
 | `ThumbnailLoader.cs` | Async Explorer thumbnails (cancellable) |
 | `TypedDataPackage.cs` | DataPackage: Bitmap/Text/StorageItems; sync fill for drag |
 | `ShellContextMenu.cs` | Explorer shell context menu: IContextMenu/2/3, menu-message subclassing |
-| `ManagerWindow.xaml(.cs)` | Manager: adding folders, creating shortcuts, filtering dead pins |
+| `ManagerWindow.xaml(.cs)` | Manager presentation: preferences, folder selection, shortcut rows and update dialogs |
 | `PinInfo.cs` | Manager list row model |
 | `AppInfo.cs` | Version, build timestamp, repository URL for the UI |
 | `Localization.cs` | `Loc.Get`/`Loc.Format` — access to .resw strings |
 | `Strings/<lang>/Resources.resw` | UI strings per language (en-US, ru, uk) |
-| `Settings.cs` | JSON settings in `%LOCALAPPDATA%\FolderDock` |
-| `UpdateService.cs` | Update check via GitHub Releases API, installer download |
+| `FolderDock.Core/SettingsService.cs` | Active preferences and fallback after persistence failures |
+| `FolderDock.Infrastructure/JsonSettingsStore.cs` | Compatible JSON settings reads and atomic writes |
+| `FolderDock.Core/PinnedFolderService.cs` | Available shortcut targets and shortcut creation use case |
+| `WindowsFolderShortcutStore.cs` | Windows shortcut directory adapter |
+| `FolderDock.Core/UpdateService.cs` | Release comparison and architecture-specific installer selection |
+| `FolderDock.Infrastructure/GitHubReleaseSource.cs` | GitHub HTTP requests and release payload parsing |
+| `FolderDock.Infrastructure/DownloadedUpdateInstaller.cs` | Installer downloads, cancellation and failed-download cleanup |
+| `FolderDock.Infrastructure/ProcessUpdateInstallerLauncher.cs` | Starting the downloaded installer |
+| `UpdateCheckMessages.cs` | Localized messages for update errors |
 | `ShortcutFactory.cs` | COM IShellLink + IPropertyStore: .lnk with AUMID, reading args back |
 | `FolderAumid.cs` | AppUserModelID from a folder path |
 | `WindowAumid.cs` | Per-window AUMID via SHGetPropertyStoreForWindow |
@@ -152,6 +164,7 @@ Key conventions: keys with a dot (`AddFolderLabel.Text`) bind to XAML elements v
 | `Shell.cs` | Launching files (Photos URI / NeighboringFilesQuery) and Explorer |
 | `FileAssociation.cs` | Default-app detection per extension (AssocQueryString) |
 | `Native.cs` | Win32/COM: DWM, cursor, DPI, window styles, Share interop |
+| `docs/architecture.md` | Layer responsibilities, dependency rules and validation guidance |
 | `installer/FolderDock.iss` | Inno Setup script (install dir, Start Menu, MIT license, upgrade) |
 
 ## Limitations
