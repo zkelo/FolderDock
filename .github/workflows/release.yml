@@ -100,15 +100,6 @@ jobs:
           Copy-Item signed-exe\x64\FolderDock.exe "bin\x64\Release\$env:TFM\win-x64\publish\" -Force
           Copy-Item signed-exe\arm64\FolderDock.exe "bin\ARM64\Release\$env:TFM\win-arm64\publish\" -Force
 
-      - name: Pack artifacts
-        shell: pwsh
-        run: |
-          $v = "${{ steps.semver.outputs.new_version }}"
-          Compress-Archive -Path "bin\x64\Release\$env:TFM\win-x64\publish\*" `
-            -DestinationPath "FolderDock-$v-win-x64.zip"
-          Compress-Archive -Path "bin\ARM64\Release\$env:TFM\win-arm64\publish\*" `
-            -DestinationPath "FolderDock-$v-win-arm64.zip"
-
       # Inno Setup предустановлен на windows-latest (ISCC в PATH)
       - name: Build installers (Inno Setup)
         shell: pwsh
@@ -170,7 +161,7 @@ jobs:
           tag_name: ${{ steps.tag.outputs.new_tag }}
           name: FolderDock ${{ steps.tag.outputs.new_tag }}
           body: ${{ steps.tag.outputs.changelog }}
+          fail_on_unmatched_files: true
           files: |
-            FolderDock-*-win-x64.zip
-            FolderDock-*-win-arm64.zip
-            FolderDock-Setup-*.exe
+            FolderDock-Setup-${{ steps.semver.outputs.new_version }}-x64.exe
+            FolderDock-Setup-${{ steps.semver.outputs.new_version }}-arm64.exe

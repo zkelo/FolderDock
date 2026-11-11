@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -86,10 +87,11 @@ public static class TypedDataPackage
             {
                 request.SetData(await ResolveStorageItemsAsync(snapshot));
             }
-            catch
+            catch (Exception exception)
             {
                 // Файл удалили между началом драга и дропом — приёмник
                 // получит пакет без этого формата, штатная деградация
+                Debug.WriteLine($"FolderDock: drag storage items unavailable: {exception}");
             }
             finally
             {
@@ -110,9 +112,10 @@ public static class TypedDataPackage
                     var file = await StorageFile.GetFileFromPathAsync(entry.FullPath);
                     request.SetData(RandomAccessStreamReference.CreateFromFile(file));
                 }
-                catch
+                catch (Exception exception)
                 {
                     // см. комментарий провайдера StorageItems
+                    Debug.WriteLine($"FolderDock: drag bitmap unavailable: {exception}");
                 }
                 finally
                 {
@@ -153,10 +156,11 @@ public static class TypedDataPackage
             if (info.Exists && info.Length <= MaxInlineTextBytes)
                 package.SetText(File.ReadAllText(path));
         }
-        catch
+        catch (Exception exception)
         {
             // Файл исчез/недоступен: пакет останется без текстового
             // представления, StorageItems всё равно доедут
+            Debug.WriteLine($"FolderDock: text representation unavailable: {exception}");
         }
     }
 }

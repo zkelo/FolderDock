@@ -16,10 +16,17 @@ internal static class WindowAumid
         {
             var iid = new Guid("886D8EEB-8CF2-4446-8D02-CDBA1DBDCF99"); // IPropertyStore
             SHGetPropertyStoreForWindow(hwnd, ref iid, out var store);
-            var key = PropertyKey.AppUserModelId;
-            using var value = PropVariant.FromString(aumid);
-            store.SetValue(ref key, value);
-            store.Commit();
+            try
+            {
+                var key = PropertyKey.AppUserModelId;
+                using var value = PropVariant.FromString(aumid);
+                store.SetValue(ref key, value);
+                store.Commit();
+            }
+            finally
+            {
+                Marshal.ReleaseComObject(store);
+            }
         }
         catch
         {

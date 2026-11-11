@@ -72,15 +72,20 @@ public static class Program
     private static void ForwardActivation(AppInstance mainInstance)
     {
         var activation = AppInstance.GetCurrent().GetActivatedEventArgs();
-        // SemaphoreSlim намеренно не в using: при таймауте фоновый Release
-        // сработал бы по задиспоженному объекту (ObjectDisposedException)
-        var completed = new SemaphoreSlim(0, 1);
-        Task.Run(async () =>
+        // Redirect on a worker so the initial STA thread can wait without a
+        // dispatcher. Task owns its completion signal, including after timeout.
+        var redirect = Task.Run(async () =>
         {
-            try { await mainInstance.RedirectActivationToAsync(activation); }
-            finally { completed.Release(); }
+            try
+            {
+                await mainInstance.RedirectActivationToAsync(activation);
+            }
+            catch (Exception exception)
+            {
+                Debug.WriteLine($"FolderDock: activation redirect failed: {exception}");
+            }
         });
-        if (!completed.Wait(RedirectTimeout))
+        if (!redirect.Wait(RedirectTimeout))
             Debug.WriteLine("FolderDock: activation redirect timed out, click is lost");
     }
 }

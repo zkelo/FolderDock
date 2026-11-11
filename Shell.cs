@@ -46,10 +46,11 @@ public static class Shell
             };
             return await Launcher.LaunchFileAsync(file, options);
         }
-        catch
+        catch (Exception exception)
         {
             // Папка недоступна/файл исчез/тип не поддержан Launcher'ом —
             // фолбэк на обычный ShellExecute у вызывающего
+            Debug.WriteLine($"FolderDock: neighboring-file launch failed: {exception}");
             return false;
         }
     }
@@ -58,12 +59,17 @@ public static class Shell
     {
         try
         {
-            Process.Start(new ProcessStartInfo { FileName = path, UseShellExecute = true });
+            using var process = Process.Start(new ProcessStartInfo
+            {
+                FileName = path,
+                UseShellExecute = true
+            });
         }
-        catch
+        catch (Exception exception)
         {
             // Ассоциация сломана или файл удалён между показом и кликом;
             // shell сам показывает свой диалог ошибки в большинстве случаев
+            Debug.WriteLine($"FolderDock: shell launch failed: {exception}");
         }
     }
 
@@ -77,17 +83,18 @@ public static class Shell
     {
         try
         {
-            Process.Start(new ProcessStartInfo
+            using var process = Process.Start(new ProcessStartInfo
             {
                 FileName = "explorer.exe",
                 Arguments = arguments,
                 UseShellExecute = true
             });
         }
-        catch
+        catch (Exception exception)
         {
             // explorer.exe недоступен только в сильно урезанных средах;
             // падать из-за вспомогательного действия не стоит
+            Debug.WriteLine($"FolderDock: Explorer launch failed: {exception}");
         }
     }
 }

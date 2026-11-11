@@ -1,4 +1,4 @@
-using System.IO;
+using FolderDock.Core;
 
 namespace FolderDock;
 
@@ -9,10 +9,10 @@ public sealed class PinInfo
     public required string Folder { get; init; }
     public required string Lnk { get; init; }
 
-    public static PinInfo FromShortcut(string lnk, string folder) => new()
+    public static PinInfo FromShortcut(FolderShortcut shortcut) => new()
     {
-        Name = Path.GetFileNameWithoutExtension(lnk),
-        Folder = folder,
-        Lnk = lnk
+        Name = shortcut.Name,
+        Folder = shortcut.FolderPath,
+        Lnk = shortcut.ShortcutPath
     };
 }

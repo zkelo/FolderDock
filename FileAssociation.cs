@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -54,9 +55,10 @@ internal static class FileAssociation
                     return true;
             return false;
         }
-        catch
+        catch (Exception exception)
         {
             // Реестр недоступен/битые ассоциации — считаем, что не «Фото»
+            Debug.WriteLine($"FolderDock: file association lookup failed: {exception}");
             return false;
         }
     }
