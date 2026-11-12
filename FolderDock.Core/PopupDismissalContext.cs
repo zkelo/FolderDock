@@ -5,4 +5,5 @@ public readonly record struct PopupDismissalContext(
     bool IsVisible,
     bool IsShareInProgress,
     bool IsShellMenuOpen,
-    TimeSpan TimeSinceShown);
+    TimeSpan TimeSinceShown,
+    bool IsDragInProgress = false);

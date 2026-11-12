@@ -50,6 +50,9 @@ jobs:
           dotnet test tests/FolderDock.Core.Tests/FolderDock.Core.Tests.csproj -c Release
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           dotnet test tests/FolderDock.Infrastructure.Tests/FolderDock.Infrastructure.Tests.csproj -c Release
+      - name: Test native Windows Shell file formats
+        if: matrix.platform == 'x64'
+        run: dotnet test tests/FolderDock.Shell.Tests/FolderDock.Shell.Tests.csproj -c Release
       - name: Validate installer
         shell: pwsh
         run: >

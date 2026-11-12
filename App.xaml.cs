@@ -97,7 +97,8 @@ public partial class App : Application
 
     private static PopupWindow CreatePopup() => new(
         new FolderLoadSession(new FileSystemFolderSnapshotReader()),
-        new FolderSearchSession(new FileSystemFolderSearch()));
+        new FolderSearchSession(new FileSystemFolderSearch()),
+        new ShellDragDrop(), new FileSystemFolderChangeSource());
 
     private void TogglePopup(string folder)
     {

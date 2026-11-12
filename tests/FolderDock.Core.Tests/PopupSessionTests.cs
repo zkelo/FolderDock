@@ -50,6 +50,7 @@ public sealed class PopupSessionTests
     [InlineData(PopupDismissalReason.Deactivated)]
     [InlineData(PopupDismissalReason.ShareCompleted)]
     [InlineData(PopupDismissalReason.ExternalLaunch)]
+    [InlineData(PopupDismissalReason.DragCompleted)]
     public void PinKeepsPopupOpenForEveryAutomaticDismissalReason(
         PopupDismissalReason reason)
     {
@@ -74,7 +75,8 @@ public sealed class PopupSessionTests
             IsVisible: false,
             IsShareInProgress: true,
             IsShellMenuOpen: true,
-            TimeSinceShown: TimeSpan.FromMilliseconds(-1));
+            TimeSinceShown: TimeSpan.FromMilliseconds(-1),
+            IsDragInProgress: true);
 
         Assert.True(session.ShouldDismiss(PopupDismissalReason.Explicit, context));
     }
@@ -182,4 +184,39 @@ public sealed class PopupSessionTests
         Assert.Throws<ArgumentOutOfRangeException>(() =>
             session.ShouldDismiss((PopupDismissalReason)invalidReason, InactiveVisiblePopup));
     }
+    [Theory]
+    [InlineData(PopupDismissalReason.Deactivated)]
+    [InlineData(PopupDismissalReason.ShareCompleted)]
+    [InlineData(PopupDismissalReason.ExternalLaunch)]
+    [InlineData(PopupDismissalReason.DragCompleted)]
+    public void DragKeepsAnUnpinnedPopupAliveUntilTheNativeLoopReturns(
+        PopupDismissalReason reason)
+    {
+        var session = new PopupSession();
+        var duringDrag = InactiveVisiblePopup with { IsDragInProgress = true };
+
+        Assert.False(session.ShouldDismiss(reason, duringDrag));
+        Assert.True(session.ShouldDismiss(reason, InactiveVisiblePopup));
+    }
+
+    [Theory]
+    [InlineData(false, true, false, true)]
+    [InlineData(true, true, false, false)]
+    [InlineData(false, false, false, false)]
+    [InlineData(false, true, true, false)]
+    public void DragCompletionUsesCurrentActivationVisibilityAndPinState(
+        bool active, bool visible, bool pinned, bool expected)
+    {
+        var session = new PopupSession();
+        if (pinned) session.TogglePin();
+        var context = InactiveVisiblePopup with
+        {
+            IsActive = active,
+            IsVisible = visible,
+            TimeSinceShown = TimeSpan.Zero
+        };
+
+        Assert.Equal(expected, session.ShouldDismiss(PopupDismissalReason.DragCompleted, context));
+    }
+
 }
