@@ -57,7 +57,9 @@ during a drag. The window invalidates stale drag completions when it is reopened
 or hidden. `IFolderChangeSource` belongs to Core; its filesystem adapter reports
 changes, while `FolderRefreshController` marshals and coalesces notifications on
 the UI queue. Watcher registration runs off the UI thread and stale registrations
-are disposed. Recursive observation is enabled for search results only.
+are disposed. Unhealthy subscriptions are replaced on the next refresh; failed
+registration remains a graceful fallback. Recursive observation is enabled for
+search results only.
 
 ## Changes and validation
 

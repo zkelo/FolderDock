@@ -5,7 +5,7 @@ namespace FolderDock.Infrastructure;
 
 public sealed class FileSystemFolderChangeSource : IFolderChangeSource
 {
-    public IDisposable Watch(string folder, bool recursive, Action changed)
+    public IFolderChangeSubscription Watch(string folder, bool recursive, Action changed)
     {
         ArgumentNullException.ThrowIfNull(changed);
         try
@@ -19,11 +19,16 @@ public sealed class FileSystemFolderChangeSource : IFolderChangeSource
         }
     }
 
-    private sealed class Subscription : IDisposable
+    private sealed class Subscription : IFolderChangeSubscription
     {
         private readonly FileSystemWatcher _watcher;
         private readonly Action _changed;
         private int _disposed;
+        private int _failed;
+
+        public bool IsWatching =>
+            Volatile.Read(ref _disposed) == 0 && Volatile.Read(ref _failed) == 0
+            && _watcher.EnableRaisingEvents;
 
         public Subscription(string folder, bool recursive, Action changed)
         {
@@ -53,7 +58,13 @@ public sealed class FileSystemFolderChangeSource : IFolderChangeSource
         private void OnEntryRenamed(object sender, RenamedEventArgs args) => NotifyChanged();
 
         // Lost notifications require the same full refresh as an ordinary change.
-        private void OnWatchError(object sender, ErrorEventArgs args) => NotifyChanged();
+        private void OnWatchError(object sender, ErrorEventArgs args)
+        {
+            // Mark the subscription unhealthy before requesting a refresh so
+            // the owner replaces a stopped watcher, including after overflow.
+            Interlocked.Exchange(ref _failed, 1);
+            NotifyChanged();
+        }
 
         private void NotifyChanged()
         {

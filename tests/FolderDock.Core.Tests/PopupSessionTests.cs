@@ -184,6 +184,7 @@ public sealed class PopupSessionTests
         Assert.Throws<ArgumentOutOfRangeException>(() =>
             session.ShouldDismiss((PopupDismissalReason)invalidReason, InactiveVisiblePopup));
     }
+
     [Theory]
     [InlineData(PopupDismissalReason.Deactivated)]
     [InlineData(PopupDismissalReason.ShareCompleted)]
@@ -218,5 +219,4 @@ public sealed class PopupSessionTests
 
         Assert.Equal(expected, session.ShouldDismiss(PopupDismissalReason.DragCompleted, context));
     }
-
 }

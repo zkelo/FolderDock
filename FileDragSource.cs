@@ -3,6 +3,7 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using FolderDock.Core;
 using Microsoft.UI.Input;
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
@@ -32,6 +33,7 @@ internal sealed class FileDragSource : IDisposable
     private bool _dragInProgress;
     private bool _changingCapture;
     private bool _disposed;
+    private int _interactionVersion;
 
     public FileDragSource(ListViewBase view, nint owner, Action<string> dragRequested)
     {
@@ -43,13 +45,13 @@ internal sealed class FileDragSource : IDisposable
         _pressed = OnPointerPressed;
         _moved = OnPointerMoved;
         _ended = OnPointerEnded;
-        _keyDown = OnKeyDown;
+        _keyDown = OnPreviewKeyDown;
         _view.AddHandler(UIElement.PointerPressedEvent, _pressed, true);
         _view.AddHandler(UIElement.PointerMovedEvent, _moved, true);
         _view.AddHandler(UIElement.PointerReleasedEvent, _ended, true);
         _view.AddHandler(UIElement.PointerCanceledEvent, _ended, true);
         _view.AddHandler(UIElement.PointerCaptureLostEvent, _ended, true);
-        _view.AddHandler(UIElement.KeyDownEvent, _keyDown, true);
+        _view.AddHandler(UIElement.PreviewKeyDownEvent, _keyDown, true);
     }
 
     public bool SuppressClick => _gesture.SuppressClick;
@@ -65,6 +67,7 @@ internal sealed class FileDragSource : IDisposable
     private void OnPointerPressed(object sender, PointerRoutedEventArgs e)
     {
         if (_disposed || _dragInProgress) return;
+        _interactionVersion++;
         Reset();
         _gesture.Begin(e.Pointer.PointerId, null, 0, 0, 0, 0);
         // Native OLE dragging accepts mouse input; leave touch and pen gestures
@@ -104,6 +107,7 @@ internal sealed class FileDragSource : IDisposable
         if (path is null) return;
 
         e.Handled = true;
+        var version = _interactionVersion;
         _dragInProgress = true;
         try
         {
@@ -116,7 +120,19 @@ internal sealed class FileDragSource : IDisposable
         {
             Reset();
             _dragInProgress = false;
+            CompleteDragAfterInput(version);
         }
+    }
+
+    private void CompleteDragAfterInput(int version)
+    {
+        // Releasing the item's capture cancels its pending tap. Keep suppression
+        // through this routed event, then restore keyboard and automation actions.
+        _view.DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () =>
+        {
+            if (_disposed || _dragInProgress || version != _interactionVersion) return;
+            _gesture.CompleteDrag();
+        });
     }
 
     private void OnPointerEnded(object sender, PointerRoutedEventArgs e)
@@ -127,9 +143,16 @@ internal sealed class FileDragSource : IDisposable
         Reset();
     }
 
-    private void OnKeyDown(object sender, KeyRoutedEventArgs e)
+    private void OnPreviewKeyDown(object sender, KeyRoutedEventArgs e)
     {
-        if (!_dragInProgress && e.Key == VirtualKey.Escape) Reset();
+        if (_disposed || _dragInProgress) return;
+        if (e.Key == VirtualKey.Escape) Reset();
+        if (e.Key is VirtualKey.Enter or VirtualKey.Space)
+        {
+            _interactionVersion++;
+            Reset();
+            _gesture.BeginKeyboardActivation();
+        }
     }
 
     private UIElement? FindContainer(DependencyObject? source)
@@ -193,7 +216,7 @@ internal sealed class FileDragSource : IDisposable
         _view.RemoveHandler(UIElement.PointerReleasedEvent, _ended);
         _view.RemoveHandler(UIElement.PointerCanceledEvent, _ended);
         _view.RemoveHandler(UIElement.PointerCaptureLostEvent, _ended);
-        _view.RemoveHandler(UIElement.KeyDownEvent, _keyDown);
+        _view.RemoveHandler(UIElement.PreviewKeyDownEvent, _keyDown);
     }
 
     [DllImport("user32.dll", ExactSpelling = true)]

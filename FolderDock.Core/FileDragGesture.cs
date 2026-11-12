@@ -6,7 +6,7 @@ public sealed class FileDragGesture
     private Press? _press;
 
     // Keep suppressing the release-generated click even if the view refreshes
-    // or the native drag is cancelled. Only a new press starts a new click.
+    // or the native drag is cancelled. The adapter completes it after input unwinds.
     public bool SuppressClick { get; private set; }
 
     public void Begin(uint pointerId, string? path, double x, double y,
@@ -19,6 +19,12 @@ public sealed class FileDragGesture
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(horizontalThreshold);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(verticalThreshold);
         _press = new Press(pointerId, path, x, y, horizontalThreshold, verticalThreshold);
+    }
+
+    public void BeginKeyboardActivation()
+    {
+        Reset();
+        SuppressClick = false;
     }
 
     public string? TryStart(uint pointerId, double x, double y, bool isButtonPressed)
@@ -38,6 +44,8 @@ public sealed class FileDragGesture
         SuppressClick = true;
         return press.Path;
     }
+
+    public void CompleteDrag() => SuppressClick = false;
 
     public void Cancel(uint pointerId)
     {

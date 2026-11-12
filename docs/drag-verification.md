@@ -20,6 +20,8 @@ Check both grid and list views, including a nested recursive search result:
 - Wait for a deferred move to finish: the source list should update. Repeat with
   an item found below the current folder by search.
 - After a drag, click another item and switch views: ordinary clicks still work.
+  Also activate an item with Enter/Space and through accessibility automation;
+  neither should require an intervening mouse click.
 - Repeat at 100%, 150% and 200% display scaling and with swapped mouse buttons.
 - Hide/reopen the popup or change folders while a pending gesture is canceled:
   no stale source should start dragging or update the replacement folder.

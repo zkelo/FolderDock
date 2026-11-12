@@ -79,12 +79,16 @@ public sealed class FolderChangeSourceTests : IDisposable
     }
 
     [Fact]
-    public async Task DisposedSubscriptionDoesNotObserveLaterChanges()
+    public async Task SubscriptionReportsActiveStateUntilDisposalAndIgnoresLaterChanges()
     {
         var changed = NewNotification();
         var subscription = _source.Watch(_root, true, () => changed.TrySetResult());
+        Assert.True(subscription.IsWatching);
+
         subscription.Dispose();
         subscription.Dispose();
+
+        Assert.False(subscription.IsWatching);
 
         File.WriteAllText(Path.Combine(_root, "after-disposal.txt"), "new");
 

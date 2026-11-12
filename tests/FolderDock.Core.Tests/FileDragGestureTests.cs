@@ -125,6 +125,43 @@ public sealed class FileDragGestureTests
         Assert.Equal("scaled", gesture.TryStart(1, 12.6, 13.5, true));
     }
 
+    [Fact]
+    public void KeyboardActivationWorksAfterADragWithoutAnotherPointerPress()
+    {
+        var gesture = Begin();
+        gesture.TryStart(7, 200, 200, true);
+
+        gesture.BeginKeyboardActivation();
+
+        Assert.False(gesture.SuppressClick);
+        Assert.Null(gesture.TryStart(7, 300, 300, true));
+    }
+
+    [Fact]
+    public void KeyboardActivationCancelsAPendingMouseGesture()
+    {
+        var gesture = Begin();
+
+        gesture.BeginKeyboardActivation();
+
+        Assert.Null(gesture.TryStart(7, 200, 200, true));
+        Assert.False(gesture.SuppressClick);
+    }
+
+    [Fact]
+    public void CompletingTheInputEventRestoresNonPointerActivation()
+    {
+        var gesture = Begin();
+        gesture.TryStart(7, 200, 200, true);
+        gesture.Reset();
+        Assert.True(gesture.SuppressClick);
+
+        gesture.CompleteDrag();
+
+        Assert.False(gesture.SuppressClick);
+        Assert.Null(gesture.TryStart(7, 300, 300, true));
+    }
+
     private static FileDragGesture Begin()
     {
         var gesture = new FileDragGesture();

@@ -14,7 +14,7 @@ internal sealed class FolderRefreshController : IDisposable
     private readonly Action _refresh;
     private readonly Func<bool> _canRefresh;
     private readonly DispatcherQueueTimer _timer;
-    private IDisposable? _subscription;
+    private IFolderChangeSubscription? _subscription;
     private string? _folder;
     private bool _recursive;
     private int _version;
@@ -36,7 +36,8 @@ internal sealed class FolderRefreshController : IDisposable
     public void Watch(string? folder, bool recursive)
     {
         if (_disposed) return;
-        if (_folder == folder && _recursive == recursive)
+        if (_folder == folder && _recursive == recursive
+            && (_subscription is null || _subscription.IsWatching))
             return;
 
         Stop();
@@ -87,7 +88,9 @@ internal sealed class FolderRefreshController : IDisposable
     {
         // The owner refreshes after its native drag loop exits. Rebuilding the
         // collection inside that loop would invalidate the gesture source.
-        if (!_disposed && _canRefresh()) _refresh();
+        if (_disposed || _folder is null) return;
+        if (_canRefresh()) _refresh();
+        else _timer.Start();
     }
 
     public void Stop()
