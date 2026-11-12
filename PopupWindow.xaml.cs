@@ -430,7 +430,7 @@ public sealed partial class PopupWindow : Window
 
     private async void OnItemClick(object sender, ItemClickEventArgs e)
     {
-        var dragSource = sender == ItemsGrid ? _gridDragSource : _listDragSource;
+        var dragSource = sender is GridView ? _gridDragSource : _listDragSource;
         if (_dragInProgress || dragSource.SuppressClick) return;
         if (e.ClickedItem is FolderEntry entry)
             await OpenEntryAsync(entry);
