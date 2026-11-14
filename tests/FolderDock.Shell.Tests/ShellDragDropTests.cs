@@ -1,7 +1,5 @@
 using System.Runtime.ExceptionServices;
 using System.Runtime.InteropServices;
-using System.Runtime.InteropServices.ComTypes;
-using System.Text;
 using Xunit;
 
 namespace FolderDock.Shell.Tests;
@@ -17,6 +15,16 @@ public sealed class ShellDragDropTests : IDisposable
     [InlineData("Обычный файл с пробелами.txt")]
     [InlineData("фото 🐈.png")]
     [InlineData("archive.zip")]
+    [InlineData("archive.7z")]
+    [InlineData("document.docx")]
+    [InlineData("spreadsheet.xlsx")]
+    [InlineData("presentation.pptx")]
+    [InlineData("photo.jpg")]
+    [InlineData("drawing.svg")]
+    [InlineData("audio.mp3")]
+    [InlineData("video.mp4")]
+    [InlineData("script.ps1")]
+    [InlineData("page.html")]
     [InlineData("application.exe")]
     [InlineData("unknown.custom-extension")]
     [InlineData("résumé 你好 𝄞.pdf")]
@@ -45,6 +53,45 @@ public sealed class ShellDragDropTests : IDisposable
         Assert.Equal(0, new FileInfo(path).Length);
     }
 
+    [Theory]
+    [InlineData(FileAttributes.Hidden)]
+    [InlineData(FileAttributes.ReadOnly)]
+    [InlineData(FileAttributes.Hidden | FileAttributes.ReadOnly)]
+    public void FileAttributesArePreservedWhenOfferingTheSource(FileAttributes attributes)
+    {
+        var path = Path.Combine(_folder, "attributes.dat");
+        File.WriteAllText(path, "unchanged");
+        File.SetAttributes(path, attributes);
+
+        AssertShellFile(path);
+
+        Assert.Equal(attributes, File.GetAttributes(path) & attributes);
+        Assert.Equal("unchanged", File.ReadAllText(path));
+    }
+
+    [Theory]
+    [InlineData(240)]
+    [InlineData(259)]
+    public void PathsWithinTheShellLengthLimitAreNotTruncatedInEitherFormat(int pathLength)
+    {
+        var nameLength = pathLength - _folder.Length - 5;
+        Assert.InRange(nameLength, 1, 251);
+        var path = Path.Combine(_folder, new string('x', nameLength) + ".txt");
+        File.WriteAllText(path, "long name");
+
+        AssertShellFile(path);
+    }
+
+    [Fact]
+    public void EmptyFolderIsTransferredAsTheFolderItself()
+    {
+        var path = Directory.CreateDirectory(Path.Combine(_folder, "empty folder")).FullName;
+
+        AssertShellFile(path);
+
+        Assert.Empty(Directory.EnumerateFileSystemEntries(path));
+    }
+
     [Fact]
     public void FolderIsOfferedAsAFolderWithoutEnumeratingOrTransferringItsChildren()
     {
@@ -68,6 +115,14 @@ public sealed class ShellDragDropTests : IDisposable
     }
 
     [Fact]
+    public void NestedFolderSearchResultIsNotReplacedWithItsParent()
+    {
+        var path = Directory.CreateDirectory(Path.Combine(_folder, "nested", "folder result")).FullName;
+
+        AssertShellFile(path);
+    }
+
+    [Fact]
     public void InternetShortcutIsTransferredAsTheShortcutFile()
     {
         var path = Path.Combine(_folder, "website.url");
@@ -76,13 +131,22 @@ public sealed class ShellDragDropTests : IDisposable
         AssertShellFile(path);
     }
 
-    [Fact]
-    public void WindowsShortcutIsTransferredWithoutReplacingItWithItsTarget()
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public void WindowsShortcutIsTransferredWithoutReplacingItWithItsTarget(
+        bool targetsFolder, bool targetIsMissing)
     {
         InSta(() =>
         {
-            var target = Path.Combine(_folder, "target.txt");
-            File.WriteAllText(target, "target");
+            var target = Path.Combine(_folder, targetsFolder ? "target folder" : "target.txt");
+            if (!targetIsMissing)
+            {
+                if (targetsFolder) Directory.CreateDirectory(target);
+                else File.WriteAllText(target, "target");
+            }
             var linkPath = Path.Combine(_folder, "shortcut.lnk");
             var shellType = Type.GetTypeFromProgID("WScript.Shell", throwOnError: true)!;
             dynamic shell = Activator.CreateInstance(shellType)!;
@@ -99,7 +163,9 @@ public sealed class ShellDragDropTests : IDisposable
             finally { Marshal.ReleaseComObject(shell); }
 
             AssertShellFileOnCurrentThread(linkPath);
-            Assert.Equal("target", File.ReadAllText(target));
+            Assert.True(File.Exists(linkPath));
+            Assert.Equal(!targetIsMissing, targetsFolder ? Directory.Exists(target) : File.Exists(target));
+            if (!targetsFolder && !targetIsMissing) Assert.Equal("target", File.ReadAllText(target));
         });
     }
 
@@ -121,33 +187,10 @@ public sealed class ShellDragDropTests : IDisposable
         var data = ShellDragDrop.CreateDataObject(path);
         try
         {
-            var shellItems = Format(unchecked((short)RegisterClipboardFormatW("Shell IDList Array")));
-            Assert.Equal(0, data.QueryGetData(ref shellItems));
-
-            var fileDrop = Format(15); // CF_HDROP, used by Explorer and desktop applications.
-            Assert.Equal(0, data.QueryGetData(ref fileDrop));
-            data.GetData(ref fileDrop, out var medium);
-            try
-            {
-                Assert.Equal(TYMED.TYMED_HGLOBAL, medium.tymed);
-                Assert.Equal(1u, DragQueryFileW(medium.unionmember, uint.MaxValue, null, 0));
-                var length = DragQueryFileW(medium.unionmember, 0, null, 0);
-                var text = new StringBuilder(checked((int)length + 1));
-                Assert.Equal(length, DragQueryFileW(medium.unionmember, 0, text, (uint)text.Capacity));
-                Assert.Equal(path, text.ToString(), ignoreCase: true);
-            }
-            finally { ReleaseStgMedium(ref medium); }
+            ShellDataObjectAssertions.SingleFile(data, path);
         }
         finally { Marshal.ReleaseComObject(data); }
     }
-
-    private static FORMATETC Format(short id) => new()
-    {
-        cfFormat = id,
-        dwAspect = DVASPECT.DVASPECT_CONTENT,
-        lindex = -1,
-        tymed = TYMED.TYMED_HGLOBAL
-    };
 
     private static void InSta(Action action)
     {
@@ -175,18 +218,9 @@ public sealed class ShellDragDropTests : IDisposable
         Directory.Delete(_folder, recursive: true);
     }
 
-    [DllImport("user32.dll", CharSet = CharSet.Unicode, ExactSpelling = true)]
-    private static extern uint RegisterClipboardFormatW(string name);
-
-    [DllImport("shell32.dll", CharSet = CharSet.Unicode, ExactSpelling = true)]
-    private static extern uint DragQueryFileW(IntPtr drop, uint index, StringBuilder? path, uint length);
-
     [DllImport("ole32.dll", ExactSpelling = true)]
     private static extern int OleInitialize(IntPtr reserved);
 
     [DllImport("ole32.dll", ExactSpelling = true)]
     private static extern void OleUninitialize();
-
-    [DllImport("ole32.dll", ExactSpelling = true)]
-    private static extern void ReleaseStgMedium(ref STGMEDIUM medium);
 }

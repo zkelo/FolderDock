@@ -177,7 +177,8 @@ internal sealed class FileDragSource : IDisposable
 
     private void CaptureIfNeeded(UIElement container, Pointer pointer)
     {
-        if (container.PointerCaptures.Any(captured => captured.PointerId == pointer.PointerId))
+        // WinUI creates this collection lazily, after the first capture.
+        if (container.PointerCaptures?.Any(captured => captured.PointerId == pointer.PointerId) == true)
             return;
         _changingCapture = true;
         try
