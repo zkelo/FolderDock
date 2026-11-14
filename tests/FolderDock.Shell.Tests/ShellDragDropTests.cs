@@ -4,6 +4,8 @@ using Xunit;
 
 namespace FolderDock.Shell.Tests;
 
+// Shell automation can share COM wrappers across apartments in one process.
+[Collection("Windows Shell")]
 public sealed class ShellDragDropTests : IDisposable
 {
     private readonly string _folder = Path.Combine(Path.GetTempPath(),

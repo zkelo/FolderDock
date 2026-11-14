@@ -5,6 +5,8 @@ using Xunit;
 namespace FolderDock.Shell.Tests;
 
 /// <summary>Transfers disposable files through Windows' real filesystem drop target.</summary>
+// Shell automation can share COM wrappers across apartments in one process.
+[Collection("Windows Shell")]
 public sealed class ShellDropTargetTests : IDisposable
 {
     private const uint Shift = 4;
