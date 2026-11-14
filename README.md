@@ -21,7 +21,7 @@ This project is maintained entirely by AI models: **Claude Fable 5** and **GPT 6
 - **Adaptive search field**: the search box shares the folder-title row when the complete title and header controls fit; otherwise it moves to a separate row below.
 - Click a file → opens with the default app, passing **folder context** (`NeighboringFilesQuery`) to supported viewers so they can browse neighboring files. Windows Photos uses its viewer URI when it is the default app. If these launch methods fail, the app falls back to the normal shell launch. Popup closes unless pinned.
 - Click a subfolder → navigate inside right in the popup; a **Back** button returns to the previous folder in navigation history.
-- **Typed drag-and-drop**: the data package carries multiple representations — a single supported image is additionally offered as Bitmap (paste "as picture" into compatible apps), a single supported text file up to 256 KiB as Text, and files or folders as StorageItems. The receiving app picks the format it understands. Dragging requests **Move** by default; hold **Ctrl** to request Copy. The receiving app decides the completed operation. After a move the popup refreshes automatically.
+- **Native file drag-and-drop**: drag an item with the mouse from the grid, list, or search results into Explorer, the desktop, the Recycle Bin, or applications that accept file drops. Files of any extension, folders, and shortcuts are transferred as actual Shell items; `.lnk` and `.url` files remain shortcuts. Windows selects the default operation and handles **Ctrl** (copy), **Shift** (move), **Ctrl+Shift** (shortcut), and **Esc** (cancel), including modifier changes during the drag. The popup stays open throughout the gesture and refreshes after file operations, including deferred moves. Each destination decides which items it accepts. The Share command retains its Bitmap/Text/StorageItems representations.
 - **Explorer context menu** (right-click an item): the real system shell menu — Open with, Send to, Copy/Cut/Delete/Rename, third-party extensions (7-Zip, TortoiseGit, …) — exactly as in Explorer. The same menu is available on rows in the manager window: right-click a pinned folder to **pin its shortcut to the taskbar**, rename or delete it — no Explorer round-trip.
 - "Open in Explorer" button.
 - **Pin the popup** with the button in its header to keep it open and on top when clicking outside, opening files, or choosing "Open in Explorer". Pinning survives navigation and grid/list changes, and resets each time a popup opens, including for another folder.
@@ -42,6 +42,14 @@ This project is maintained entirely by AI models: **Claude Fable 5** and **GPT 6
 Grab `FolderDock-Setup-<version>-<arch>.exe` from [Releases](https://github.com/zkelo/FolderDock/releases) and run it. The installer lets you pick the install folder, optionally creates a Start Menu group, and silently removes a previously installed version before upgrading.
 
 Installers are available for **x64** and **ARM64**. Releases publish only `FolderDock-Setup-<version>-x64.exe` and `FolderDock-Setup-<version>-arm64.exe`; portable application archives are not attached.
+
+### Pull request builds
+
+Each successful PR build provides **x64** and **ARM64** installers and portable application archives for 3 days. Open the PR's **Checks**, select **Tests and build**, and follow the download links in the run summary or choose a file under **Artifacts**. Sign in to GitHub to download. Artifact names include the PR number, architecture, package type, workflow run number, and attempt; the summary records the tested merge commit.
+
+These are unsigned test builds. Extract the downloaded ZIP, then run the setup executable or `FolderDock.exe` from the complete portable folder. The installer replaces an existing FolderDock installation; portable copies share the app's settings and running instance. Test-build downloads are published only for PR events.
+
+Closing or merging a PR triggers deletion of its build artifacts. A second cleanup after each completed build removes files uploaded after the PR closed, including reruns. This cleanup becomes active once the workflow is merged into the default branch (`main`) and applies to the PR-named artifacts described above; older archives keep their existing expiration.
 
 ## Building (on Windows)
 
@@ -74,7 +82,7 @@ dotnet test tests/FolderDock.Core.Tests/FolderDock.Core.Tests.csproj -c Release
 dotnet test tests/FolderDock.Infrastructure.Tests/FolderDock.Infrastructure.Tests.csproj -c Release
 ```
 
-Core tests reference only `FolderDock.Core`; infrastructure tests reference `FolderDock.Infrastructure`. Architecture tests inspect compiled dependencies and guard Core against filesystem, registry, network, process, serialization, and native/COM dependencies. They also reject references from Infrastructure back to the UI. [CI](.github/workflows/tests.yml) runs these tests on Ubuntu and Windows, publishes the WinUI app with ReadyToRun for x64 and ARM64 on Windows, and retains portable builds for 14 days.
+Core tests reference only `FolderDock.Core`; infrastructure tests reference `FolderDock.Infrastructure`. Architecture tests inspect compiled dependencies and guard Core against filesystem, registry, network, process, serialization, and native/COM dependencies. They also reject references from Infrastructure back to the UI. [CI](.github/workflows/tests.yml) runs these tests on Ubuntu and Windows and publishes the WinUI app with ReadyToRun for x64 and ARM64 on Windows. Only PR runs retain installers and portable builds for 3 days.
 
 ## Usage
 
@@ -141,7 +149,9 @@ The dependency direction is **WinUI app → Core**, **WinUI app → Infrastructu
 | `FolderDock.Core/LatestRequestSession.cs` | Shared request lifetime and completion tracking |
 | `FolderDock.Core/FolderNavigation.cs` | Root folder, navigation history and search query state |
 | `ThumbnailLoader.cs` | Async Explorer thumbnails (cancellable) |
-| `TypedDataPackage.cs` | DataPackage: Bitmap/Text/StorageItems; sync fill for drag |
+| `FileDragSource.cs` / `ShellDragDrop.cs` | Mouse gesture adapter and native Windows file transfer |
+| `FolderRefreshController.cs` | Debounced UI refresh after observed folder changes |
+| `TypedDataPackage.cs` | Bitmap/Text/StorageItems representations for Share |
 | `ShellContextMenu.cs` | Explorer shell context menu: IContextMenu/2/3, menu-message subclassing |
 | `ManagerWindow.xaml(.cs)` | Manager presentation: preferences, folder selection, shortcut rows and update dialogs |
 | `PinInfo.cs` | Manager list row model |
