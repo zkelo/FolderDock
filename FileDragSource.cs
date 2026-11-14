@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Threading.Tasks;
 using FolderDock.Core;
 using Microsoft.UI.Input;
 using Microsoft.UI.Dispatching;
@@ -12,7 +13,7 @@ using VirtualKey = Windows.System.VirtualKey;
 
 namespace FolderDock;
 
-/// <summary>Hands mouse drags directly to the file-transfer adapter, without a competing WinUI drag.</summary>
+/// <summary>Recognizes mouse gestures and keeps activation suppressed through the file transfer.</summary>
 internal sealed class FileDragSource : IDisposable
 {
     private const int HorizontalDragMetric = 68;
@@ -21,7 +22,7 @@ internal sealed class FileDragSource : IDisposable
 
     private readonly ListViewBase _view;
     private readonly nint _owner;
-    private readonly Action<string> _dragRequested;
+    private readonly Func<UIElement, PointerPoint, string, Task> _dragRequested;
     private readonly FileDragGesture _gesture = new();
     private readonly PointerEventHandler _pressed;
     private readonly PointerEventHandler _moved;
@@ -35,7 +36,8 @@ internal sealed class FileDragSource : IDisposable
     private bool _disposed;
     private int _interactionVersion;
 
-    public FileDragSource(ListViewBase view, nint owner, Action<string> dragRequested)
+    public FileDragSource(ListViewBase view, nint owner,
+        Func<UIElement, PointerPoint, string, Task> dragRequested)
     {
         ArgumentNullException.ThrowIfNull(view);
         ArgumentNullException.ThrowIfNull(dragRequested);
@@ -70,7 +72,7 @@ internal sealed class FileDragSource : IDisposable
         _interactionVersion++;
         Reset();
         _gesture.Begin(e.Pointer.PointerId, null, 0, 0, 0, 0);
-        // Native OLE dragging accepts mouse input; leave touch and pen gestures
+        // Initiate file dragging only for mouse gestures; leave touch and pen
         // to WinUI so ordinary taps and scrolling keep their existing behavior.
         if (e.Pointer.PointerDeviceType != PointerDeviceType.Mouse) return;
 
@@ -91,7 +93,7 @@ internal sealed class FileDragSource : IDisposable
         CaptureIfNeeded(container, e.Pointer);
     }
 
-    private void OnPointerMoved(object sender, PointerRoutedEventArgs e)
+    private async void OnPointerMoved(object sender, PointerRoutedEventArgs e)
     {
         if (_disposed || _dragInProgress || _pressedPointer?.PointerId != e.Pointer.PointerId)
             return;
@@ -104,17 +106,17 @@ internal sealed class FileDragSource : IDisposable
             Reset();
             return;
         }
-        if (path is null) return;
+        if (path is null || _pressContainer is not { } source) return;
 
         e.Handled = true;
+        var dragPoint = e.GetCurrentPoint(source);
         var version = _interactionVersion;
         _dragInProgress = true;
         try
         {
-            // CaptureLost is synchronous and may reenter this adapter. The
-            // gesture is already consumed and click suppression is retained.
-            ReleaseCaptureForDrag();
-            _dragRequested(path);
+            // WinUI owns the pointer handoff and drag lifetime. A synchronous
+            // OLE loop does not receive the pointer release routed by WinUI.
+            await _dragRequested(source, dragPoint, path);
         }
         finally
         {
@@ -126,8 +128,8 @@ internal sealed class FileDragSource : IDisposable
 
     private void CompleteDragAfterInput(int version)
     {
-        // Releasing the item's capture cancels its pending tap. Keep suppression
-        // through this routed event, then restore keyboard and automation actions.
+        // Keep suppression through drag completion and queued pointer events,
+        // then restore keyboard and automation actions.
         _view.DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () =>
         {
             if (_disposed || _dragInProgress || version != _interactionVersion) return;
@@ -191,14 +193,6 @@ internal sealed class FileDragSource : IDisposable
         }
     }
 
-    private void ReleaseCaptureForDrag()
-    {
-        _ownsCapture = false;
-        if (_pressedPointer is { } pointer)
-            _pressContainer?.ReleasePointerCapture(pointer);
-        ReleaseCapture();
-    }
-
     private void ReleaseOwnedCapture()
     {
         if (!_ownsCapture) return;
@@ -226,7 +220,4 @@ internal sealed class FileDragSource : IDisposable
     [DllImport("user32.dll", ExactSpelling = true)]
     private static extern int GetSystemMetricsForDpi(int index, uint dpi);
 
-    [DllImport("user32.dll", ExactSpelling = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool ReleaseCapture();
 }

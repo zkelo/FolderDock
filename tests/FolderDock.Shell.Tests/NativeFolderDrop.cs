@@ -18,7 +18,7 @@ internal sealed class NativeFolderDrop : IDisposable
     public NativeFolderDrop(string source, string destination)
     {
         _target = BindTarget(destination);
-        try { _data = ShellDragDrop.CreateDataObject(source); }
+        try { _data = ShellTestDataObject.Create(source); }
         catch
         {
             Marshal.ReleaseComObject(_target);

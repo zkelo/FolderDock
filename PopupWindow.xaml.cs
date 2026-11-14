@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using FolderDock.Core;
+using Microsoft.UI.Input;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
@@ -466,22 +467,27 @@ public sealed partial class PopupWindow : Window
         Reload();
     }
 
-    private void DragEntry(string path)
+    private async Task DragEntry(UIElement source, PointerPoint pointer, string path)
     {
         if (_dragInProgress || !_chrome.IsVisible) return;
         var generation = _popupGeneration;
         _dragInProgress = true;
-        // The Shell runs a nested message loop. Pending reads must not replace
-        // the source item while that loop is using its pointer gesture.
+        // Pending reads must not replace the source control while WinUI owns
+        // its pointer gesture and the destination is reading the Shell data.
         _folderLoads.Cancel();
         CancelSearch();
         CancelThumbnails();
         try
         {
-            _fileDragDrop.Start(_chrome.Hwnd, path);
+            await _fileDragDrop.StartAsync(source, pointer, path);
+        }
+        catch (OperationCanceledException)
+        {
+            // Closing the source window may cancel the asynchronous operation.
         }
         catch (Exception ex) when (ex is System.Runtime.InteropServices.COMException
-                                       or IOException or UnauthorizedAccessException)
+                                       or IOException or UnauthorizedAccessException
+                                       or InvalidOperationException)
         {
             Debug.WriteLine($"FolderDock: file drag failed: {ex.Message}");
         }
@@ -491,7 +497,7 @@ public sealed partial class PopupWindow : Window
             if (generation == _popupGeneration && _chrome.IsVisible)
             {
                 // Optimized moves may report no effect; deferred moves are also
-                // observed by the folder monitor. The Shell owns source removal.
+                // observed by the folder monitor. The destination owns removal.
                 Reload();
                 RequestDismiss(PopupDismissalReason.DragCompleted);
             }

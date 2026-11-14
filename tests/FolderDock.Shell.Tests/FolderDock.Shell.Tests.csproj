@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net8.0-windows</TargetFramework>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
@@ -16,7 +16,7 @@
   </ItemGroup>
   <ItemGroup>
     <!-- Exercise the production interop without launching the WinUI application. -->
-    <Compile Include="../../ShellDragDrop.cs" Link="ShellDragDrop.cs" />
-    <Compile Include="../../IFileDragDrop.cs" Link="IFileDragDrop.cs" />
+    <Compile Include="../../ShellFileDataObject.cs" Link="ShellFileDataObject.cs" />
+    <Compile Include="../../ShellDataPackage.cs" Link="ShellDataPackage.cs" />
   </ItemGroup>
 </Project>

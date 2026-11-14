@@ -86,8 +86,8 @@ internal sealed class FolderRefreshController : IDisposable
 
     private void OnTick(DispatcherQueueTimer sender, object args)
     {
-        // The owner refreshes after its native drag loop exits. Rebuilding the
-        // collection inside that loop would invalidate the gesture source.
+        // The owner refreshes after its WinUI drag completes. Rebuilding the
+        // collection during the drag would invalidate the gesture source.
         if (_disposed || _folder is null) return;
         if (_canRefresh()) _refresh();
         else _timer.Start();

@@ -42,15 +42,29 @@ deferred until after the popup has been shown.
 
 `FileDragGesture` is a platform-independent gesture state machine: it owns
 pointer identity, the drag threshold and cancellation. `FileDragSource` translates
-WinUI mouse events and Windows DPI metrics into that policy. Native WinUI dragging
-is disabled for both item hosts, so only one drag mechanism owns the gesture.
+WinUI mouse events and Windows DPI metrics into that policy. Automatic item
+dragging is disabled for both item hosts; the recognized mouse gesture starts
+WinUI's asynchronous drag operation on the pressed item container.
 Ordinary clicks remain single-click actions; the release after a drag cannot
 open the source item.
 
-`IFileDragDrop` is a presentation-side port because it accepts a native window
-handle. `ShellDragDrop` implements it with Shell `IDataObject` and `SHDoDragDrop`.
-Windows owns modifier keys, destination negotiation and filesystem operations.
+`IFileDragDrop` is a presentation-side port because it accepts a WinUI source
+element and pointer. `ShellDragDrop` uses `UIElement.StartDragAsync` so WinUI owns
+pointer release and cancellation. `ShellFileDataObject` creates the actual Shell
+`IDataObject`; `ShellDataPackage` bridges it into the drag's `DataPackage` through
+`IDataObjectProvider`, preserving native file and shortcut identity. Windows owns
+modifier keys, destination negotiation and filesystem operations.
 Neither Core nor the UI deletes sources based on a returned drop effect.
+
+The Windows App SDK dependency is pinned to 1.8.12 because older runtime versions
+can crash when the finalizer releases a completed native drag operation
+([upstream issue](https://github.com/microsoft/microsoft-ui-xaml/issues/10948)).
+Interactive acceptance and remaining target limitations are recorded in
+[drag verification](drag-verification.md).
+
+Windows Shell tests consume the production package through `IDataObjectProvider`
+after releasing the source wrapper and forcing collection. They check native
+file formats and real filesystem drop-target operations without launching WinUI.
 
 `PopupSession` owns dismissal policy, including keeping an unpinned popup alive
 during a drag. The window invalidates stale drag completions when it is reopened

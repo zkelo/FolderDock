@@ -176,7 +176,7 @@ public sealed class ShellDragDropTests : IDisposable
     {
         var missing = Path.Combine(_folder, "deleted.txt");
 
-        InSta(() => Assert.ThrowsAny<Exception>(() => ShellDragDrop.CreateDataObject(missing)));
+        InSta(() => Assert.ThrowsAny<Exception>(() => ShellFileDataObject.Create(missing)));
 
         Assert.False(File.Exists(missing));
     }
@@ -186,7 +186,7 @@ public sealed class ShellDragDropTests : IDisposable
 
     private static void AssertShellFileOnCurrentThread(string path)
     {
-        var data = ShellDragDrop.CreateDataObject(path);
+        var data = ShellTestDataObject.Create(path);
         try
         {
             ShellDataObjectAssertions.SingleFile(data, path);

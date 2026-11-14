@@ -1,7 +1,11 @@
+using System.Threading.Tasks;
+using Microsoft.UI.Input;
+using Microsoft.UI.Xaml;
+
 namespace FolderDock;
 
-/// <summary>A synchronous Windows file drag, isolated from pointer event handling.</summary>
+/// <summary>A Windows file drag whose lifetime follows the originating WinUI pointer.</summary>
 internal interface IFileDragDrop
 {
-    bool Start(nint owner, string path);
+    Task<bool> StartAsync(UIElement source, PointerPoint pointer, string path);
 }
