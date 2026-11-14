@@ -219,5 +219,4 @@ internal sealed class FileDragSource : IDisposable
 
     [DllImport("user32.dll", ExactSpelling = true)]
     private static extern int GetSystemMetricsForDpi(int index, uint dpi);
-
 }
