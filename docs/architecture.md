@@ -38,6 +38,43 @@ Construction of settings and manager services stays on the manager path. Popup
 preparation does not read user folders. Folder loading and thumbnails remain
 deferred until after the popup has been shown.
 
+## File dragging
+
+`FileDragGesture` is a platform-independent gesture state machine: it owns
+pointer identity, the drag threshold and cancellation. `FileDragSource` translates
+WinUI mouse events and Windows DPI metrics into that policy. Automatic item
+dragging is disabled for both item hosts; the recognized mouse gesture starts
+WinUI's asynchronous drag operation on the pressed item container.
+Ordinary clicks remain single-click actions; the release after a drag cannot
+open the source item.
+
+`IFileDragDrop` is a presentation-side port because it accepts a WinUI source
+element and pointer. `ShellDragDrop` uses `UIElement.StartDragAsync` so WinUI owns
+pointer release and cancellation. `ShellFileDataObject` creates the actual Shell
+`IDataObject`; `ShellDataPackage` bridges it into the drag's `DataPackage` through
+`IDataObjectProvider`, preserving native file and shortcut identity. Windows owns
+modifier keys, destination negotiation and filesystem operations.
+Neither Core nor the UI deletes sources based on a returned drop effect.
+
+The Windows App SDK dependency is pinned to 1.8.12 because older runtime versions
+can crash when the finalizer releases a completed native drag operation
+([upstream issue](https://github.com/microsoft/microsoft-ui-xaml/issues/10948)).
+Interactive acceptance and remaining target limitations are recorded in
+[drag verification](drag-verification.md).
+
+Windows Shell tests consume the production package through `IDataObjectProvider`
+after releasing the source wrapper and forcing collection. They check native
+file formats and real filesystem drop-target operations without launching WinUI.
+
+`PopupSession` owns dismissal policy, including keeping an unpinned popup alive
+during a drag. The window invalidates stale drag completions when it is reopened
+or hidden. `IFolderChangeSource` belongs to Core; its filesystem adapter reports
+changes, while `FolderRefreshController` marshals and coalesces notifications on
+the UI queue. Watcher registration runs off the UI thread and stale registrations
+are disposed. Unhealthy subscriptions are replaced on the next refresh; failed
+registration remains a graceful fallback. Recursive observation is enabled for
+search results only.
+
 ## Changes and validation
 
 Add application decisions to Core and introduce an interface only for a real
@@ -53,6 +90,8 @@ and temporary directories; they do not install updates or edit real settings.
 ```powershell
 dotnet test tests/FolderDock.Core.Tests/FolderDock.Core.Tests.csproj -c Release
 dotnet test tests/FolderDock.Infrastructure.Tests/FolderDock.Infrastructure.Tests.csproj -c Release
+# Windows only: query actual Shell formats without moving user files
+dotnet test tests/FolderDock.Shell.Tests/FolderDock.Shell.Tests.csproj -c Release
 dotnet publish FolderDock.csproj -c Release -r win-x64 -p:Platform=x64
 dotnet publish FolderDock.csproj -c Release -r win-arm64 -p:Platform=ARM64
 ```

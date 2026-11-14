@@ -5,5 +5,6 @@ public enum PopupDismissalReason
     Explicit,
     Deactivated,
     ShareCompleted,
-    ExternalLaunch
+    ExternalLaunch,
+    DragCompleted
 }

@@ -81,9 +81,7 @@
                   SelectionMode="None"
                   IsItemClickEnabled="True"
                   ItemClick="OnItemClick"
-                  CanDragItems="True"
-                  DragItemsStarting="OnDragItemsStarting"
-                  DragItemsCompleted="OnDragItemsCompleted"
+                  CanDragItems="False"
                   Visibility="Visible">
             <GridView.ItemTemplate>
                 <DataTemplate x:DataType="local:FolderEntry">
@@ -107,9 +105,7 @@
                   SelectionMode="None"
                   IsItemClickEnabled="True"
                   ItemClick="OnItemClick"
-                  CanDragItems="True"
-                  DragItemsStarting="OnDragItemsStarting"
-                  DragItemsCompleted="OnDragItemsCompleted"
+                  CanDragItems="False"
                   Visibility="Collapsed">
             <ListView.ItemContainerStyle>
                 <Style TargetType="ListViewItem">

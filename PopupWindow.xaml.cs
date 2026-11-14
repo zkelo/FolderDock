@@ -1,16 +1,17 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using FolderDock.Core;
+using Microsoft.UI.Input;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
-using Windows.ApplicationModel.DataTransfer;
 
 namespace FolderDock;
 
@@ -32,11 +33,18 @@ public sealed partial class PopupWindow : Window
     private readonly ThumbnailLoader _thumbnails = new();
     private readonly FolderLoadSession _folderLoads;
     private readonly FolderSearchSession _folderSearch;
+    private readonly IFileDragDrop _fileDragDrop;
+    private readonly FileDragSource _gridDragSource;
+    private readonly FileDragSource _listDragSource;
+    private readonly FolderRefreshController _folderRefresh;
+    private int _popupGeneration;
+    private bool _dragInProgress;
     private IReadOnlyList<FolderEntry> _displayedEntries = Array.Empty<FolderEntry>();
     private readonly FolderNavigation _navigation = new();
     // Null means the current folder snapshot has not reached the UI yet.
     private FolderContents? _contents;
     private int _thumbnailRequestVersion;
+    private bool _refreshThumbnails;
 
     private bool _gridMode = true;
     private bool _isActive;
@@ -45,10 +53,14 @@ public sealed partial class PopupWindow : Window
     private DateTime _lastDismissedAt;
     private DateTime _shownAt;
 
-    public PopupWindow(FolderLoadSession folderLoads, FolderSearchSession folderSearch)
+    internal PopupWindow(FolderLoadSession folderLoads, FolderSearchSession folderSearch,
+        IFileDragDrop fileDragDrop, IFolderChangeSource folderChanges)
     {
         ArgumentNullException.ThrowIfNull(folderLoads);
         ArgumentNullException.ThrowIfNull(folderSearch);
+        ArgumentNullException.ThrowIfNull(fileDragDrop);
+        ArgumentNullException.ThrowIfNull(folderChanges);
+        _fileDragDrop = fileDragDrop;
         _folderLoads = folderLoads;
         _folderSearch = folderSearch;
         InitializeComponent();
@@ -57,6 +69,11 @@ public sealed partial class PopupWindow : Window
         SystemBackdrop = new DesktopAcrylicBackdrop();
         _chrome = new PopupChrome(this);
         _share = new ShareCoordinator(_chrome, shareFinished: OnShareCompleted);
+        _gridDragSource = new FileDragSource(ItemsGrid, _chrome.Hwnd, DragEntry);
+        _listDragSource = new FileDragSource(ItemsList, _chrome.Hwnd, DragEntry);
+        _folderRefresh = new FolderRefreshController(DispatcherQueue, folderChanges,
+            RefreshContents, () => _chrome.IsVisible && !_dragInProgress);
+        Closed += OnClosed;
         InitializeHeaderLabels();
         Activated += OnActivationChanged;
     }
@@ -105,6 +122,8 @@ public sealed partial class PopupWindow : Window
 
     public void ShowForFolder(string folder)
     {
+        _popupGeneration++;
+        ResetDragGestures();
         _session.Begin();
         RenderPinState();
         var rootFolder = Path.GetFullPath(folder);
@@ -118,6 +137,7 @@ public sealed partial class PopupWindow : Window
         ResetSearch();
         PrepareContentsLoad();
         ShowPopup();
+        UpdateFolderMonitor();
         StartContentsLoad();
     }
 
@@ -130,7 +150,8 @@ public sealed partial class PopupWindow : Window
             IsVisible: _chrome.IsVisible,
             IsShareInProgress: _share.IsShareInProgress,
             IsShellMenuOpen: _shellMenuOpen,
-            TimeSinceShown: DateTime.UtcNow - _shownAt);
+            TimeSinceShown: DateTime.UtcNow - _shownAt,
+            IsDragInProgress: _dragInProgress);
 
         if (_session.ShouldDismiss(reason, context))
             HidePopup();
@@ -138,6 +159,9 @@ public sealed partial class PopupWindow : Window
 
     private void HidePopup()
     {
+        _popupGeneration++;
+        ResetDragGestures();
+        _folderRefresh.Stop();
         if (_chrome.IsVisible)
         {
             // Для toggle-дебаунса запоминаем КОРНЕВУЮ папку: повторный клик
@@ -164,8 +188,19 @@ public sealed partial class PopupWindow : Window
     private void Reload()
     {
         if (_navigation.CurrentFolder is null || !_chrome.IsVisible) return;
+        UpdateFolderMonitor();
         PrepareContentsLoad();
         StartContentsLoad();
+    }
+
+    private void RefreshContents()
+    {
+        if (_navigation.CurrentFolder is null || !_chrome.IsVisible) return;
+        UpdateFolderMonitor();
+        // Keep the current folder visible while its replacement snapshot is
+        // read. In particular, the watcher's registration check must not flash
+        // an empty/loading view or temporarily shrink an already populated window.
+        StartContentsLoad(preserveView: true);
     }
 
     private void ResetSearch()
@@ -199,15 +234,15 @@ public sealed partial class PopupWindow : Window
         SearchBox.Focus(FocusState.Programmatic);
     }
 
-    private void StartContentsLoad()
+    private void StartContentsLoad(bool preserveView = false)
     {
         // Activation can dismiss a popup, so recheck visibility before reading.
         if (_navigation.CurrentFolder is null || !_chrome.IsVisible) return;
-        _ = ReadContentsAsync(_navigation.CurrentFolder);
-        if (_navigation.HasSearchQuery) ApplySearch();
+        _ = ReadContentsAsync(_navigation.CurrentFolder, preserveView);
+        if (_navigation.HasSearchQuery) ApplySearch(preserveView);
     }
 
-    private async Task ReadContentsAsync(string folder)
+    private async Task ReadContentsAsync(string folder, bool preserveView)
     {
         var completion = await _folderLoads.LoadAsync(folder);
         if (completion is null || !_folderLoads.IsCurrent(completion) || !_chrome.IsVisible)
@@ -216,7 +251,7 @@ public sealed partial class PopupWindow : Window
         _contents = FolderContents.FromSnapshot(completion.Snapshot);
         // Search owns the visible results until its query is cleared. Keep the
         // new folder snapshot ready without restarting or replacing that search.
-        if (!_navigation.HasSearchQuery) ApplySearch();
+        if (!_navigation.HasSearchQuery) ApplySearch(preserveView);
         ResizeToFit();
         _chrome.MoveToTaskbarArea();
     }
@@ -233,6 +268,7 @@ public sealed partial class PopupWindow : Window
         if (_navigation.CurrentFolder is null) return;
         var wasSearching = _navigation.HasSearchQuery;
         if (!_navigation.SetSearchQuery(SearchBox.Text)) return;
+        UpdateFolderMonitor();
         ApplySearch();
         if (wasSearching != _navigation.HasSearchQuery)
         {
@@ -241,35 +277,41 @@ public sealed partial class PopupWindow : Window
         }
     }
 
-    private void ApplySearch()
+    private void ApplySearch(bool preserveView = false)
     {
         CancelSearch();
-        SearchStatus.Visibility = Visibility.Collapsed;
+        if (!preserveView) SearchStatus.Visibility = Visibility.Collapsed;
         if (_navigation.HasSearchQuery && _navigation.CurrentFolder is not null)
         {
-            ReplaceEntries(Array.Empty<FolderEntry>());
-            EmptyText.Text = Loc.Get("Search_InProgress");
-            EmptyText.Visibility = Visibility.Visible;
-            _ = SearchRecursivelyAsync(_navigation.CurrentFolder, _navigation.SearchQuery);
+            if (!preserveView)
+            {
+                ReplaceEntries(Array.Empty<FolderEntry>());
+                EmptyText.Text = Loc.Get("Search_InProgress");
+                EmptyText.Visibility = Visibility.Visible;
+            }
+            _ = SearchRecursivelyAsync(_navigation.CurrentFolder, _navigation.SearchQuery, preserveView);
             return;
         }
 
         if (_contents is null)
         {
-            ReplaceEntries(Array.Empty<FolderEntry>());
-            ShowLoadingStatus();
+            if (!preserveView)
+            {
+                ReplaceEntries(Array.Empty<FolderEntry>());
+                ShowLoadingStatus();
+            }
             return;
         }
 
         var matches = _contents.Entries;
-        ShowEntries(matches);
+        ShowEntries(matches, refreshThumbnails: preserveView);
         EmptyText.Text = Loc.Get(_contents.Failed ? "Folder_AccessDenied" : "Folder_Empty");
         EmptyText.Visibility = matches.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private void CancelSearch() => _folderSearch.Cancel();
 
-    private async Task SearchRecursivelyAsync(string folder, string query)
+    private async Task SearchRecursivelyAsync(string folder, string query, bool preserveView)
     {
         var completion = await _folderSearch.SearchAsync(folder, query);
         if (completion is null || !_folderSearch.IsCurrent(completion)
@@ -277,10 +319,10 @@ public sealed partial class PopupWindow : Window
             || _navigation.SearchQuery != query || !_chrome.IsVisible)
             return;
 
-        ShowSearchResults(folder, completion.Result);
+        ShowSearchResults(folder, completion.Result, preserveView);
     }
 
-    private void ShowSearchResults(string folder, RecursiveSearchResult result)
+    private void ShowSearchResults(string folder, RecursiveSearchResult result, bool preserveView)
     {
         var matches = result.Entries.Select(entry => new FolderEntry
         {
@@ -289,7 +331,7 @@ public sealed partial class PopupWindow : Window
             IsDirectory = entry.IsDirectory,
             RelativePath = Path.GetRelativePath(folder, entry.FullPath)
         }).ToArray();
-        ShowEntries(matches);
+        ShowEntries(matches, refreshThumbnails: preserveView);
         EmptyText.Text = Loc.Get(result.Failed ? "Folder_AccessDenied" : "Search_NoResults");
         EmptyText.Visibility = matches.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
 
@@ -301,15 +343,42 @@ public sealed partial class PopupWindow : Window
         SearchStatus.Visibility = status.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
     }
 
-    private void ShowEntries(IReadOnlyList<FolderEntry> matches)
+    private void ShowEntries(IReadOnlyList<FolderEntry> matches, bool refreshThumbnails)
     {
-        ReplaceEntries(matches);
+        var entries = ReuseDisplayedEntries(matches);
+        if (!ReferenceEquals(entries, _displayedEntries)) ReplaceEntries(entries);
+        else CancelThumbnails();
+        _refreshThumbnails = refreshThumbnails;
         if (matches.Count > 0)
             CompositionTarget.Rendering += OnContentsRendering;
     }
 
+    private IReadOnlyList<FolderEntry> ReuseDisplayedEntries(IReadOnlyList<FolderEntry> matches)
+    {
+        if (_displayedEntries.Count == 0 || matches.Count == 0) return matches;
+
+        var previousByPath = _displayedEntries.ToDictionary(entry => entry.FullPath, StringComparer.Ordinal);
+        var entries = new FolderEntry[matches.Count];
+        var unchanged = matches.Count == _displayedEntries.Count;
+        for (var index = 0; index < matches.Count; index++)
+        {
+            var entry = matches[index];
+            if (previousByPath.TryGetValue(entry.FullPath, out var previous) &&
+                previous.Name == entry.Name && previous.IsDirectory == entry.IsDirectory &&
+                previous.RelativePath == entry.RelativePath)
+                entry = previous;
+            entries[index] = entry;
+            unchanged &= index < _displayedEntries.Count && ReferenceEquals(entry, _displayedEntries[index]);
+        }
+
+        // The listing has no content timestamps. Retain the bindings and current
+        // icons, but a refresh still requests fresh thumbnails asynchronously.
+        return unchanged ? _displayedEntries : entries;
+    }
+
     private void ReplaceEntries(IReadOnlyList<FolderEntry> entries)
     {
+        ResetDragGestures();
         CancelThumbnails();
         _displayedEntries = entries;
         // One replacement per host instead of notifying both hosts for each item.
@@ -320,6 +389,7 @@ public sealed partial class PopupWindow : Window
     private void CancelThumbnails()
     {
         _thumbnailRequestVersion++;
+        _refreshThumbnails = false;
         CompositionTarget.Rendering -= OnContentsRendering;
         _thumbnails.CancelPending();
     }
@@ -328,12 +398,13 @@ public sealed partial class PopupWindow : Window
     {
         CompositionTarget.Rendering -= OnContentsRendering;
         var version = _thumbnailRequestVersion;
+        var refreshThumbnails = _refreshThumbnails;
         // Let this frame render the names before initializing Windows thumbnail
         // services. A dismissed/replaced folder must not start queued work.
         DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () =>
         {
             if (version != _thumbnailRequestVersion || !_chrome.IsVisible) return;
-            _ = _thumbnails.LoadAsync(
+            _ = _thumbnails.LoadAsync(refreshThumbnails ? _displayedEntries :
                 _displayedEntries.Where(entry => entry.Thumbnail is null).ToArray());
         });
     }
@@ -405,6 +476,8 @@ public sealed partial class PopupWindow : Window
 
     private async void OnItemClick(object sender, ItemClickEventArgs e)
     {
+        var dragSource = sender is GridView ? _gridDragSource : _listDragSource;
+        if (_dragInProgress || dragSource.SuppressClick) return;
         if (e.ClickedItem is FolderEntry entry)
             await OpenEntryAsync(entry);
     }
@@ -439,29 +512,64 @@ public sealed partial class PopupWindow : Window
         Reload();
     }
 
-    private void OnDragItemsStarting(object sender, DragItemsStartingEventArgs e)
+    private async Task DragEntry(UIElement source, PointerPoint pointer, string path)
     {
-        // Событие синхронное: e.Data нужно заполнить не выходя в асинхронность,
-        // иначе драг стартует с пустым пакетом (см. TypedDataPackage.FillForDrag)
-        var entries = e.Items.OfType<FolderEntry>().ToList();
-        if (entries.Count == 0)
+        if (_dragInProgress || !_chrome.IsVisible) return;
+        var generation = _popupGeneration;
+        _dragInProgress = true;
+        // Pending reads must not replace the source control while WinUI owns
+        // its pointer gesture and the destination is reading the Shell data.
+        _folderLoads.Cancel();
+        CancelSearch();
+        CancelThumbnails();
+        try
         {
-            e.Cancel = true;
-            return;
+            await _fileDragDrop.StartAsync(source, pointer, path);
         }
-
-        // Move по умолчанию (как в Проводнике), Copy при зажатом Ctrl.
-        // Приёмник вправе скорректировать операцию своими модификаторами при дропе.
-        var ctrlHeld = (Native.GetKeyState(Native.VK_CONTROL) & 0x8000) != 0;
-        TypedDataPackage.FillForDrag(e.Data, entries,
-            ctrlHeld ? DataPackageOperation.Copy : DataPackageOperation.Move);
+        catch (OperationCanceledException)
+        {
+            // Closing the source window may cancel the asynchronous operation.
+        }
+        catch (Exception ex) when (ex is System.Runtime.InteropServices.COMException
+                                       or IOException or UnauthorizedAccessException
+                                       or InvalidOperationException)
+        {
+            Debug.WriteLine($"FolderDock: file drag failed: {ex.Message}");
+        }
+        finally
+        {
+            _dragInProgress = false;
+            if (generation == _popupGeneration && _chrome.IsVisible)
+            {
+                // Optimized moves may report no effect; deferred moves are also
+                // observed by the folder monitor. The destination owns removal.
+                RefreshContents();
+                RequestDismiss(PopupDismissalReason.DragCompleted);
+            }
+        }
     }
 
-    private void OnDragItemsCompleted(ListViewBase sender, DragItemsCompletedEventArgs args)
+    private void ResetDragGestures()
     {
-        // После перемещения исходные элементы исчезли из папки — обновляем список
-        if (args.DropResult == DataPackageOperation.Move)
-            Reload();
+        _gridDragSource.Reset();
+        _listDragSource.Reset();
+    }
+
+    private void UpdateFolderMonitor()
+    {
+        if (_chrome.IsVisible)
+            _folderRefresh.Watch(_navigation.CurrentFolder, _navigation.HasSearchQuery);
+    }
+
+    private void OnClosed(object sender, WindowEventArgs args)
+    {
+        _popupGeneration++;
+        _folderRefresh.Dispose();
+        _gridDragSource.Dispose();
+        _listDragSource.Dispose();
+        _folderLoads.Cancel();
+        CancelSearch();
+        CancelThumbnails();
     }
 
     private static FolderEntry? EntryFrom(object sender) =>
@@ -490,11 +598,12 @@ public sealed partial class PopupWindow : Window
 
         // Команда могла изменить папку (удаление, переименование, вставка);
         // InvokeCommand асинхронен на стороне шелла, но обновиться дёшево
-        Reload();
+        RefreshContents();
     }
 
     private void OnToggleView(object sender, RoutedEventArgs e)
     {
+        ResetDragGestures();
         _gridMode = !_gridMode;
         ItemsGrid.Visibility = _gridMode ? Visibility.Visible : Visibility.Collapsed;
         ItemsList.Visibility = _gridMode ? Visibility.Collapsed : Visibility.Visible;
@@ -514,6 +623,7 @@ public sealed partial class PopupWindow : Window
     private void OnDismissAccelerator(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
     {
         args.Handled = true;
+        if (_dragInProgress) return;
         if (SearchBox.Text.Length > 0)
         {
             SearchBox.Text = string.Empty;

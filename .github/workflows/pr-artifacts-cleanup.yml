@@ -1,0 +1,61 @@
+name: Clean up PR builds
+
+on:
+  pull_request_target:
+    types: [closed]
+  workflow_run:
+    workflows: [Tests and build]
+    types: [completed]
+
+permissions:
+  actions: write
+  pull-requests: read
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      # Never check out or execute PR code in this privileged workflow.
+      - name: Delete builds belonging to closed PRs
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const repository = context.repo;
+            const run = context.payload.workflow_run;
+            if (run && run.event !== 'pull_request') return;
+
+            const closedPullRequest = context.payload.pull_request;
+            const artifacts = run
+              ? await github.paginate(github.rest.actions.listWorkflowRunArtifacts, {
+                  ...repository, run_id: run.id, per_page: 100
+                })
+              : await github.paginate(github.rest.actions.listArtifactsForRepo, {
+                  ...repository, per_page: 100
+                });
+
+            const states = new Map();
+            for (const artifact of artifacts) {
+              const match = /^FolderDock-PR-(\d+)-win-(?:x64|arm64)-(?:portable|installer)-\d+-\d+$/.exec(artifact.name);
+              if (!match) continue;
+              const number = Number(match[1]);
+              if (closedPullRequest && number !== closedPullRequest.number) continue;
+
+              if (!states.has(number)) {
+                const { data: pullRequest } = await github.rest.pulls.get({
+                  ...repository, pull_number: number
+                });
+                states.set(number, pullRequest.state);
+              }
+              // Recheck live state: a PR may have reopened while cleanup queued.
+              if (states.get(number) !== 'closed') continue;
+
+              try {
+                await github.rest.actions.deleteArtifact({
+                  ...repository, artifact_id: artifact.id
+                });
+                core.info(`Deleted ${artifact.name}`);
+              } catch (error) {
+                // The close event and a finishing build can clean up concurrently.
+                if (error.status !== 404) throw error;
+              }
+            }
