@@ -47,33 +47,36 @@ public sealed class PopupChrome
 
     public bool IsVisible => AppWindow.IsVisible;
 
-    public void Resize(int width, int height)
+    public void Resize(int width, int height) => ApplyBounds(width, height);
+
+    public void MoveToTaskbarArea()
+    {
+        var size = AppWindow.Size;
+        ApplyBounds(size.Width, size.Height);
+    }
+
+    private void ApplyBounds(int width, int height)
     {
         var anchor = _anchor ?? CursorPoint();
         var workArea = DisplayArea.GetFromPoint(anchor, DisplayAreaFallback.Nearest).WorkArea;
         // Размеры уже в физических пикселях. Высокий попап должен прокручивать
         // содержимое, сохраняя заголовок и статус над панелью задач.
         var maxHeight = Math.Max(1, workArea.Height - ScreenEdgeMargin - TaskbarGap);
-        AppWindow.Resize(new Windows.Graphics.SizeInt32(width, Math.Clamp(height, 1, maxHeight)));
-    }
-
-    public void MoveToTaskbarArea()
-    {
-        // Якорь — точка клика по значку панели задач, зафиксированная в момент
-        // показа попапа. Навигация по папкам вызывает Reload → MoveToTaskbarArea,
-        // когда курсор уже ВНУТРИ попапа: без якоря окно «уезжало» за курсором
-        // (и клампом прижималось к левому краю экрана).
-        var anchor = _anchor ?? CursorPoint();
-        var workArea = DisplayArea.GetFromPoint(anchor, DisplayAreaFallback.Nearest).WorkArea;
-        var size = AppWindow.Size;
-
+        height = Math.Clamp(height, 1, maxHeight);
         var minX = workArea.X + ScreenEdgeMargin;
-        var maxX = Math.Max(minX, workArea.X + workArea.Width - size.Width - ScreenEdgeMargin);
-        var x = Math.Clamp(anchor.X - (size.Width / 2), minX, maxX);
+        var maxX = Math.Max(minX, workArea.X + workArea.Width - width - ScreenEdgeMargin);
+        var x = Math.Clamp(anchor.X - (width / 2), minX, maxX);
         var y = Math.Max(workArea.Y + ScreenEdgeMargin,
-                         workArea.Y + workArea.Height - size.Height - TaskbarGap);
+                         workArea.Y + workArea.Height - height - TaskbarGap);
 
-        AppWindow.Move(new Windows.Graphics.PointInt32(x, y));
+        var position = AppWindow.Position;
+        var size = AppWindow.Size;
+        if (position.X == x && position.Y == y && size.Width == width && size.Height == height)
+            return;
+
+        // Keep the taskbar edge anchored through a size change. Separate resize
+        // and move calls can present an intermediate frame at the old position.
+        AppWindow.MoveAndResize(new Windows.Graphics.RectInt32(x, y, width, height));
     }
 
     /// Зафиксировать точку привязки попапа по текущей позиции курсора.
