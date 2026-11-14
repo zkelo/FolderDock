@@ -59,10 +59,47 @@ jobs:
           iscc installer\FolderDock.iss /DVersion=0.0.0
           /DArch=${{ matrix.platform == 'ARM64' && 'arm64' || 'x64' }}
           /DSourceDir="${{ runner.temp }}/FolderDock-${{ matrix.runtime }}"
-      - name: Upload portable test build
+      - name: Upload portable PR build
+        if: github.event_name == 'pull_request'
+        id: portable
         uses: actions/upload-artifact@v4
         with:
-          name: FolderDock-${{ matrix.runtime }}
+          name: FolderDock-PR-${{ github.event.number }}-${{ matrix.runtime }}-portable-${{ github.run_number }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/FolderDock-${{ matrix.runtime }}/
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 3
+      - name: Upload PR installer
+        if: github.event_name == 'pull_request'
+        id: installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: FolderDock-PR-${{ github.event.number }}-${{ matrix.runtime }}-installer-${{ github.run_number }}-${{ github.run_attempt }}
+          path: FolderDock-Setup-0.0.0-${{ matrix.platform == 'ARM64' && 'arm64' || 'x64' }}.exe
+          if-no-files-found: error
+          retention-days: 3
+          compression-level: 0
+      - name: Show PR build downloads
+        if: github.event_name == 'pull_request'
+        shell: pwsh
+        env:
+          PR_NUMBER: ${{ github.event.number }}
+          BUILD_PLATFORM: ${{ matrix.platform }}
+          BUILD_SHA: ${{ github.sha }}
+          PORTABLE_URL: ${{ steps.portable.outputs.artifact-url }}
+          INSTALLER_URL: ${{ steps.installer.outputs.artifact-url }}
+        run: |
+          @"
+          ## PR #$env:PR_NUMBER - Windows $env:BUILD_PLATFORM
+
+          | Download | Contents |
+          | --- | --- |
+          | [Installer]($env:INSTALLER_URL) | ZIP containing the setup executable |
+          | [Portable build]($env:PORTABLE_URL) | ZIP containing the complete application folder |
+
+          Built from PR merge commit: $env:BUILD_SHA
+
+          These unsigned test builds are retained for up to 3 days and deleted when the PR closes or merges.
+          Sign in to GitHub to download them.
+          Extract the ZIP before use. Keep all files together for a portable build.
+          The installer replaces an existing FolderDock installation.
+          "@ | Add-Content -Path $env:GITHUB_STEP_SUMMARY

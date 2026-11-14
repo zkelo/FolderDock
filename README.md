@@ -43,6 +43,14 @@ Grab `FolderDock-Setup-<version>-<arch>.exe` from [Releases](https://github.com/
 
 Installers are available for **x64** and **ARM64**. Releases publish only `FolderDock-Setup-<version>-x64.exe` and `FolderDock-Setup-<version>-arm64.exe`; portable application archives are not attached.
 
+### Pull request builds
+
+Each successful PR build provides **x64** and **ARM64** installers and portable application archives for 3 days. Open the PR's **Checks**, select **Tests and build**, and follow the download links in the run summary or choose a file under **Artifacts**. Sign in to GitHub to download. Artifact names include the PR number, architecture, package type, workflow run number, and attempt; the summary records the tested merge commit.
+
+These are unsigned test builds. Extract the downloaded ZIP, then run the setup executable or `FolderDock.exe` from the complete portable folder. The installer replaces an existing FolderDock installation; portable copies share the app's settings and running instance. Test-build downloads are published only for PR events.
+
+Closing or merging a PR triggers deletion of its build artifacts. A second cleanup after each completed build removes files uploaded after the PR closed, including reruns. This cleanup becomes active once the workflow is merged into the default branch (`main`) and applies to the PR-named artifacts described above; older archives keep their existing expiration.
+
 ## Building (on Windows)
 
 Requirements:
@@ -74,7 +82,7 @@ dotnet test tests/FolderDock.Core.Tests/FolderDock.Core.Tests.csproj -c Release
 dotnet test tests/FolderDock.Infrastructure.Tests/FolderDock.Infrastructure.Tests.csproj -c Release
 ```
 
-Core tests reference only `FolderDock.Core`; infrastructure tests reference `FolderDock.Infrastructure`. Architecture tests inspect compiled dependencies and guard Core against filesystem, registry, network, process, serialization, and native/COM dependencies. They also reject references from Infrastructure back to the UI. [CI](.github/workflows/tests.yml) runs these tests on Ubuntu and Windows, publishes the WinUI app with ReadyToRun for x64 and ARM64 on Windows, and retains portable builds for 14 days.
+Core tests reference only `FolderDock.Core`; infrastructure tests reference `FolderDock.Infrastructure`. Architecture tests inspect compiled dependencies and guard Core against filesystem, registry, network, process, serialization, and native/COM dependencies. They also reject references from Infrastructure back to the UI. [CI](.github/workflows/tests.yml) runs these tests on Ubuntu and Windows and publishes the WinUI app with ReadyToRun for x64 and ARM64 on Windows. Only PR runs retain installers and portable builds for 3 days.
 
 ## Usage
 
