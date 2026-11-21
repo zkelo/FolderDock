@@ -69,39 +69,30 @@ public sealed class PopupChrome
 
     private Anchor CurrentAnchor() => _anchor = ReadAnchor(_anchor?.Click ?? CursorPoint(), _anchor);
 
-    public int AvailableLayoutWidth(int desiredWidth)
+    public SizeF FitToTaskbar(int layoutWidth, Func<int, int> measureHeight)
     {
         var anchor = CurrentAnchor();
-        var scale = PixelsPerLayoutUnit(anchor);
-        var bounds = Measure(anchor, desiredWidth, 1, scale);
-        return Math.Max(1, (int)Math.Floor(bounds.Width / scale));
+        var dpi = Native.GetDpiForWindow(Hwnd);
+        var viewport = Arrange(anchor, dpi, layoutWidth, measureHeight);
+        // Moving a window to another display can change both the DPI and the
+        // bounds suggested by Windows. Remeasure the header at the new width.
+        var targetDpi = Native.GetDpiForWindow(Hwnd);
+        return dpi == targetDpi ? viewport : Arrange(anchor, targetDpi, layoutWidth, measureHeight);
     }
 
-    public SizeF FitToTaskbar(int layoutWidth, int layoutHeight)
+    private SizeF Arrange(Anchor anchor, uint dpi, int width, Func<int, int> measureHeight)
     {
-        var anchor = CurrentAnchor();
-        var scale = PixelsPerLayoutUnit(anchor);
-        var bounds = Measure(anchor, layoutWidth, layoutHeight, scale);
-        MoveAndResize(bounds);
-        // A move between monitors can change the window DPI. This matters when
-        // the shell could not supply a taskbar thickness for the target screen.
-        var targetScale = PixelsPerLayoutUnit(anchor);
-        if (targetScale != scale)
-        {
-            scale = targetScale;
-            bounds = Measure(anchor, layoutWidth, layoutHeight, scale);
-            MoveAndResize(bounds);
-        }
-        return new SizeF((float)(bounds.Width / scale), (float)(bounds.Height / scale));
-    }
-
-    private double PixelsPerLayoutUnit(Anchor anchor) =>
-        PopupScale.PixelsPerLayoutUnit(anchor.Taskbar.Thickness, Native.GetDpiForWindow(Hwnd) / 96.0);
-
-    private static Rectangle Measure(Anchor anchor, int width, int height, double scale)
-    {
+        var taskbar = anchor.Taskbar;
+        var available = PopupPlacement.MaximumSize(taskbar.WorkArea, taskbar.Edge);
+        var (minWidth, minHeight) = PopupLayout.Measure(1, gridMode: true, separateSearchRow: true);
+        var desiredScale = PopupScale.PixelsPerLayoutUnit(taskbar.Thickness, dpi / 96.0);
+        var scale = PopupScale.FitToViewport(desiredScale, available, new Size(minWidth, minHeight));
+        var availableWidth = Math.Min(width, Math.Max(1, (int)Math.Floor(available.Width / scale)));
+        var height = measureHeight(availableWidth);
         var requested = new Size((int)Math.Round(width * scale), (int)Math.Round(height * scale));
-        return PopupPlacement.Calculate(anchor.Taskbar.WorkArea, anchor.Taskbar.Edge, anchor.Click, requested);
+        var bounds = PopupPlacement.Calculate(taskbar.WorkArea, taskbar.Edge, anchor.Click, requested);
+        MoveAndResize(bounds);
+        return new SizeF((float)(bounds.Width / scale), (float)(bounds.Height / scale));
     }
 
     private void MoveAndResize(Rectangle bounds)

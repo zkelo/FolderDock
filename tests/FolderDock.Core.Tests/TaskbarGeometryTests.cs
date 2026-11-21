@@ -50,7 +50,22 @@ public sealed class TaskbarGeometryTests
 
         Assert.Equal(expected, TaskbarGeometry.Measure(monitor, monitor, edge, bounds, true));
         Assert.Equal(expected, TaskbarGeometry.Measure(monitor, available, edge, bounds, true));
-        Assert.Equal(expected, TaskbarGeometry.Measure(monitor, available, null, Rectangle.Empty, false));
+        Assert.Equal(expected, TaskbarGeometry.Measure(monitor, available, edge, Rectangle.Empty, false));
+    }
+
+    [Theory]
+    [InlineData(-1800, -100, 1300, 900, TaskbarEdge.Right)]
+    [InlineData(-1800,   80, 1600, 720, TaskbarEdge.Top)]
+    [InlineData(-1800, -100, 1600, 900, TaskbarEdge.Bottom)]
+    public void MonitorWithoutTaskbarRetainsWorkAreaAndUsesNoTaskbarThickness(
+        int x, int y, int width, int height, TaskbarEdge expectedEdge)
+    {
+        var monitor = new Rectangle(-1800, -100, 1600, 900);
+        var workArea = new Rectangle(x, y, width, height);
+
+        var layout = TaskbarGeometry.Measure(monitor, workArea, null, Rectangle.Empty, false);
+
+        Assert.Equal(new TaskbarLayout(expectedEdge, workArea, null), layout);
     }
 
     [Theory]

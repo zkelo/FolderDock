@@ -10,7 +10,10 @@ public static class TaskbarGeometry
     public static TaskbarLayout Measure(Rectangle monitor, Rectangle workArea,
         TaskbarEdge? edge, Rectangle bounds, bool visible)
     {
-        var resolvedEdge = edge ?? FromWorkArea(monitor, workArea);
+        // Another docked application can reserve space even on a monitor without a taskbar.
+        if (edge is not TaskbarEdge resolvedEdge)
+            return new TaskbarLayout(FromWorkArea(monitor, workArea), workArea, null);
+
         int thickness = resolvedEdge is TaskbarEdge.Left or TaskbarEdge.Right ? bounds.Width : bounds.Height;
         if (thickness < MinimumTaskbarThickness)
             thickness = ReservedThickness(monitor, workArea, resolvedEdge);

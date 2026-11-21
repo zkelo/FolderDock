@@ -1,3 +1,4 @@
+using System.Drawing;
 using Xunit;
 
 namespace FolderDock.Core.Tests;
@@ -25,5 +26,17 @@ public sealed class PopupScaleTests
     public void UnavailableThicknessUsesDisplayScale(int? thickness, double displayScale, double expected)
     {
         Assert.Equal(expected, PopupScale.PixelsPerLayoutUnit(thickness, displayScale));
+    }
+
+    [Theory]
+    [InlineData(6.25, 850, 800, 2.5)]
+    [InlineData(6.25, 1280, 450, 2.25)]
+    [InlineData(1.5, 1280, 800, 1.5)]
+    [InlineData(2.0 / 3, 1280, 800, 2.0 / 3)]
+    public void LimitsScaleOnlyWhenMinimumContentWouldOverflow(double scale, int width, int height, double expected)
+    {
+        var fitted = PopupScale.FitToViewport(scale, new Size(width, height), new Size(340, 200));
+
+        Assert.Equal(expected, fitted);
     }
 }

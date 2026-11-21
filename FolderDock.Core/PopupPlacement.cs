@@ -7,12 +7,20 @@ public static class PopupPlacement
     private const int ScreenEdgeMargin = 8;
     private const int TaskbarGap = 12;
 
+    public static Size MaximumSize(Rectangle workArea, TaskbarEdge edge)
+    {
+        bool verticalTaskbar = edge is TaskbarEdge.Left or TaskbarEdge.Right;
+        int width = workArea.Width - ScreenEdgeMargin - (verticalTaskbar ? TaskbarGap : ScreenEdgeMargin);
+        int height = workArea.Height - ScreenEdgeMargin - (verticalTaskbar ? ScreenEdgeMargin : TaskbarGap);
+        return new Size(Math.Max(1, width), Math.Max(1, height));
+    }
+
     // All coordinates are physical pixels in the virtual desktop.
     public static Rectangle Calculate(Rectangle workArea, TaskbarEdge edge, Point anchor, Size requestedSize)
     {
-        bool verticalTaskbar = edge is TaskbarEdge.Left or TaskbarEdge.Right;
-        int width = FitSize(requestedSize.Width, workArea.Width, verticalTaskbar);
-        int height = FitSize(requestedSize.Height, workArea.Height, !verticalTaskbar);
+        var maximum = MaximumSize(workArea, edge);
+        int width = Math.Clamp(requestedSize.Width, 1, maximum.Width);
+        int height = Math.Clamp(requestedSize.Height, 1, maximum.Height);
         int x = edge switch
         {
             TaskbarEdge.Left => workArea.Left + TaskbarGap,
@@ -30,12 +38,6 @@ public static class PopupPlacement
             FitPosition(x, workArea.Left, workArea.Width, width),
             FitPosition(y, workArea.Top, workArea.Height, height),
             width, height);
-    }
-
-    private static int FitSize(int requested, int available, bool besideTaskbar)
-    {
-        int padding = ScreenEdgeMargin + (besideTaskbar ? TaskbarGap : ScreenEdgeMargin);
-        return Math.Clamp(requested, 1, Math.Max(1, available - padding));
     }
 
     private static int FitPosition(int position, int start, int available, int size)

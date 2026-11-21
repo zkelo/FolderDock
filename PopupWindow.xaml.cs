@@ -409,12 +409,14 @@ public sealed partial class PopupWindow : Window
         // Все непустые запросы используют одинаковую высоту для результатов.
         var count = Math.Min(_contents?.Entries.Count ?? 0, FolderSearch.MaxResults);
         var (width, _) = PopupLayout.Measure(count, _gridMode);
-        var inlineSearch = PlaceSearchInHeader(_chrome.AvailableLayoutWidth(width));
         var searchMode = _navigation.HasSearchQuery;
-        var (_, height) = PopupLayout.Measure(searchMode ? FolderSearch.MaxResults : count,
-            _gridMode, separateSearchRow: !inlineSearch);
-        if (searchMode) height += 40; // сообщения о неполном поиске и лимите
-        var viewport = _chrome.FitToTaskbar(width, height);
+        var viewport = _chrome.FitToTaskbar(width, availableWidth =>
+        {
+            var inlineSearch = PlaceSearchInHeader(availableWidth);
+            var (_, height) = PopupLayout.Measure(searchMode ? FolderSearch.MaxResults : count,
+                _gridMode, separateSearchRow: !inlineSearch);
+            return searchMode ? height + 40 : height; // сообщения о неполном поиске и лимите
+        });
         // Give the item views a finite viewport so they can scroll inside the Viewbox.
         Root.Width = viewport.Width;
         Root.Height = viewport.Height;

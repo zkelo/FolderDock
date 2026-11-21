@@ -45,10 +45,11 @@ public sealed class PopupPlacementTests
     public void OversizedPopupFitsWithTaskbarAndScreenMargins(
         TaskbarEdge edge, int x, int y, int width, int height)
     {
-        var bounds = PopupPlacement.Calculate(new Rectangle(0, 0, 100, 80),
-            edge, Point.Empty, new Size(2000, 3000));
+        var work = new Rectangle(0, 0, 100, 80);
+        var bounds = PopupPlacement.Calculate(work, edge, Point.Empty, new Size(2000, 3000));
 
         Assert.Equal(new Rectangle(x, y, width, height), bounds);
+        Assert.Equal(new Size(width, height), PopupPlacement.MaximumSize(work, edge));
     }
 
     [Theory]
