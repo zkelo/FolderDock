@@ -9,10 +9,10 @@ public sealed class PopupPlacementTests
     private static readonly Point Anchor = new(-1000, -300);
 
     [Theory]
-    [InlineData(TaskbarEdge.Left,   -1488, -350, -1488, -400)]
-    [InlineData(TaskbarEdge.Top,    -1100, -688, -1150, -688)]
-    [InlineData(TaskbarEdge.Right,   -512, -350,  -612, -400)]
-    [InlineData(TaskbarEdge.Bottom, -1100,  -12, -1150, -112)]
+    [InlineData(TaskbarEdge.Left, -1488, -350, -1488, -400)]
+    [InlineData(TaskbarEdge.Top, -1100, -688, -1150, -688)]
+    [InlineData(TaskbarEdge.Right, -512, -350, -612, -400)]
+    [InlineData(TaskbarEdge.Bottom, -1100, -12, -1150, -112)]
     public void ResizeKeepsTheSameTaskbarEdgeAndClickAnchor(
         TaskbarEdge edge, int x, int y, int resizedX, int resizedY)
     {
@@ -38,10 +38,10 @@ public sealed class PopupPlacementTests
     }
 
     [Theory]
-    [InlineData(TaskbarEdge.Left,   12,  8, 80, 64)]
-    [InlineData(TaskbarEdge.Top,     8, 12, 84, 60)]
-    [InlineData(TaskbarEdge.Right,   8,  8, 80, 64)]
-    [InlineData(TaskbarEdge.Bottom,  8,  8, 84, 60)]
+    [InlineData(TaskbarEdge.Left, 12, 8, 80, 64)]
+    [InlineData(TaskbarEdge.Top, 8, 12, 84, 60)]
+    [InlineData(TaskbarEdge.Right, 8, 8, 80, 64)]
+    [InlineData(TaskbarEdge.Bottom, 8, 8, 84, 60)]
     public void OversizedPopupFitsWithTaskbarAndScreenMargins(
         TaskbarEdge edge, int x, int y, int width, int height)
     {

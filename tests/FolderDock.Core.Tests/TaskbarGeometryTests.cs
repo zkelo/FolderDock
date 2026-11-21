@@ -6,14 +6,14 @@ namespace FolderDock.Core.Tests;
 public sealed class TaskbarGeometryTests
 {
     [Theory]
-    [InlineData(-1800, -100,   48, 900, TaskbarEdge.Left)]
-    [InlineData(-1800, -100, 1600,  48, TaskbarEdge.Top)]
-    [InlineData( -248, -100,   48, 900, TaskbarEdge.Right)]
-    [InlineData(-1800,  752, 1600,  48, TaskbarEdge.Bottom)]
-    [InlineData(-1846, -100,   48, 900, TaskbarEdge.Left)]
-    [InlineData(-1800, -146, 1600,  48, TaskbarEdge.Top)]
-    [InlineData( -202, -100,   48, 900, TaskbarEdge.Right)]
-    [InlineData(-1800,  798, 1600,  48, TaskbarEdge.Bottom)]
+    [InlineData(-1800, -100, 48, 900, TaskbarEdge.Left)]
+    [InlineData(-1800, -100, 1600, 48, TaskbarEdge.Top)]
+    [InlineData(-248, -100, 48, 900, TaskbarEdge.Right)]
+    [InlineData(-1800, 752, 1600, 48, TaskbarEdge.Bottom)]
+    [InlineData(-1846, -100, 48, 900, TaskbarEdge.Left)]
+    [InlineData(-1800, -146, 1600, 48, TaskbarEdge.Top)]
+    [InlineData(-202, -100, 48, 900, TaskbarEdge.Right)]
+    [InlineData(-1800, 798, 1600, 48, TaskbarEdge.Bottom)]
     public void RecognizesVisibleAndAutoHiddenTaskbarOnSecondaryMonitor(
         int x, int y, int width, int height, TaskbarEdge expected)
     {
@@ -23,7 +23,7 @@ public sealed class TaskbarGeometryTests
 
     [Theory]
     [InlineData(-1752, -100, 1552, 900, TaskbarEdge.Left)]
-    [InlineData(-1800,  -52, 1600, 852, TaskbarEdge.Top)]
+    [InlineData(-1800, -52, 1600, 852, TaskbarEdge.Top)]
     [InlineData(-1800, -100, 1552, 900, TaskbarEdge.Right)]
     [InlineData(-1800, -100, 1600, 852, TaskbarEdge.Bottom)]
     [InlineData(-1800, -100, 1600, 900, TaskbarEdge.Bottom)]
@@ -35,10 +35,10 @@ public sealed class TaskbarGeometryTests
     }
 
     [Theory]
-    [InlineData(TaskbarEdge.Left,   -1800, -100,   64, 900, -1736, -100, 1536, 900)]
-    [InlineData(TaskbarEdge.Top,    -1800, -100, 1600,  32, -1800,  -68, 1600, 868)]
-    [InlineData(TaskbarEdge.Right,   -280, -100,   80, 900, -1800, -100, 1520, 900)]
-    [InlineData(TaskbarEdge.Bottom, -1800,  752, 1600,  48, -1800, -100, 1600, 852)]
+    [InlineData(TaskbarEdge.Left, -1800, -100, 64, 900, -1736, -100, 1536, 900)]
+    [InlineData(TaskbarEdge.Top, -1800, -100, 1600, 32, -1800, -68, 1600, 868)]
+    [InlineData(TaskbarEdge.Right, -280, -100, 80, 900, -1800, -100, 1520, 900)]
+    [InlineData(TaskbarEdge.Bottom, -1800, 752, 1600, 48, -1800, -100, 1600, 852)]
     public void MeasuresVisibleTaskbarOnceEvenIfWorkAreaAlreadyExcludesIt(
         TaskbarEdge edge, int barX, int barY, int barWidth, int barHeight,
         int workX, int workY, int workWidth, int workHeight)
@@ -55,7 +55,7 @@ public sealed class TaskbarGeometryTests
 
     [Theory]
     [InlineData(-1800, -100, 1300, 900, TaskbarEdge.Right)]
-    [InlineData(-1800,   80, 1600, 720, TaskbarEdge.Top)]
+    [InlineData(-1800, 80, 1600, 720, TaskbarEdge.Top)]
     [InlineData(-1800, -100, 1600, 900, TaskbarEdge.Bottom)]
     public void MonitorWithoutTaskbarRetainsWorkAreaAndUsesNoTaskbarThickness(
         int x, int y, int width, int height, TaskbarEdge expectedEdge)
