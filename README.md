@@ -9,14 +9,14 @@
 
 **English** | [Русский](README.ru.md)
 
-Folders on the Windows 11 taskbar — like the macOS Dock. Click a pinned folder icon → a popup with its contents (grid or list) right above the taskbar, no File Explorer needed.
+Folders on the Windows 11 taskbar — like the macOS Dock. Click a pinned folder icon to open its contents in a grid or list beside the taskbar on that monitor.
 
 This project is maintained entirely by AI models: **Claude Fable 5** and **GPT 6.1 Sol**.
 
 ## Features
 
 - **Pin any folder** to the taskbar via a shortcut with its own AppUserModelID — every folder gets a separate button, they never group with each other.
-- **Popup above the taskbar**: a grid with thumbnails (images get previews) or a compact list. Toggle with a button in the header.
+- **Popup at any taskbar edge.** Folders open toward the desktop from the top, bottom, left or right taskbar. A thicker taskbar gives you a larger window, text and icons. Use the header button to switch between thumbnails and a compact list.
 - **Recursive search** in grid and list views: a nonempty query searches file and folder names in the current folder and its subfolders by a case-insensitive substring, in the background after a short typing delay. Relative paths appear in the list and in grid/list item tooltips; results are limited to the first 500 matches. Hidden items and inaccessible subfolders are skipped; directory links and junctions can match but are not followed. The popup reports incomplete searches and the result limit. Clearing the query restores the current folder's contents. **Ctrl+F** focuses the search box; the query clears when navigating to another folder or reopening the popup. Changing the query, navigating, or hiding the popup cancels the previous search.
 - **Adaptive search field**: the search box shares the folder-title row when the complete title and header controls fit; otherwise it moves to a separate row below.
 - Click a file → opens with the default app, passing **folder context** (`NeighboringFilesQuery`) to supported viewers so they can browse neighboring files. Windows Photos uses its viewer URI when it is the default app. If these launch methods fail, the app falls back to the normal shell launch. Popup closes unless pinned.
@@ -111,7 +111,7 @@ Key conventions: keys with a dot (`AddFolderLabel.Text`) bind to XAML elements v
 - One background process: `AppInstance.FindOrRegisterForKey` + `RedirectActivationToAsync`. Incoming activations are buffered while the UI starts. Login startup uses `--background` and the current-user `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` entry; a repeated background launch neither opens the manager nor toggles an existing popup.
 - The prepared process handles shortcut clicks without initializing WinUI again. Windows may delay login startup, so a click before preparation finishes can still require a cold start. Release publication uses ReadyToRun to reduce JIT work; exact opening times depend on the computer and need measurement on Windows.
 - Open the app normally once after installation or upgrade to configure startup. A saved disable choice and Windows Startup Apps restrictions are preserved. Moving a portable copy updates an existing registration to its new path. Uninstalling an installed copy removes its startup entry for the account running the uninstaller. Disable the setting in the original user’s manager before deleting a portable copy or uninstalling under a different administrator account.
-- The popup is a WinUI 3 `Window` with `OverlappedPresenter.CreateForContextMenu()` (frameless), `IsAlwaysOnTop`, `WS_EX_TOOLWINDOW` (not in Alt-Tab), `DWMWA_WINDOW_CORNER_PREFERENCE=ROUND`. Its horizontal position is anchored to the cursor when opened and clamped to the selected monitor's work area; its bottom edge sits above the bottom of that work area, leaving a taskbar gap. The anchor stays fixed during navigation.
+- The popup is a WinUI 3 `Window` with `OverlappedPresenter.CreateForContextMenu()` (frameless), `IsAlwaysOnTop`, `WS_EX_TOOLWINDOW` (not in Alt-Tab), `DWMWA_WINDOW_CORNER_PREFERENCE=ROUND`. It stays aligned with the opening click along the selected monitor's taskbar and fits inside the work area during navigation and search. A taskbar 48 logical pixels thick gives the original popup size. When its thickness is unavailable, the popup uses the display's normal scale.
 - Both windows use `Window.SystemBackdrop` with `DesktopAcrylicBackdrop`; Windows manages blur, activation, and material fallbacks. WinUI `ThemeResource` brushes provide the current system accent and theme colors without a separate app color setting.
 - Thumbnails — `StorageFile.GetThumbnailAsync` (the same previews as Explorer), loaded asynchronously after the window is shown.
 
