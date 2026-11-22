@@ -116,7 +116,7 @@ internal sealed class MarqueeSelection : IDisposable
     private void OnScrollTick(object? sender, object e)
     {
         if (_scroller is null) return;
-        var offset = Math.Clamp(_scroller.VerticalOffset + ScrollDirection * ScrollStep,
+        var offset = Math.Clamp(_scroller.VerticalOffset + (ScrollDirection * ScrollStep),
             0, _scroller.ScrollableHeight);
         if (offset == _scroller.VerticalOffset) _scrollTimer.Stop();
         else _scroller.ChangeView(null, offset, null, disableAnimation: true);

@@ -57,7 +57,7 @@ internal static class ShellDataObjectAssertions
         // Resolve each relative child PIDL against the parent in the CIDA header.
         Assert.True(size >= 12, "The Shell IDList Array must contain a parent and at least one child.");
         var count = Marshal.ReadInt32(memory);
-        Assert.InRange(count, 1, size / sizeof(int) - 2);
+        Assert.InRange(count, 1, (size / sizeof(int)) - 2);
         var headerSize = (count + 2) * sizeof(int);
         var parentOffset = Marshal.ReadInt32(memory, 4);
         Assert.InRange(parentOffset, headerSize, size - 2);
