@@ -25,13 +25,13 @@ public static class PopupPlacement
         {
             TaskbarEdge.Left => workArea.Left + TaskbarGap,
             TaskbarEdge.Right => workArea.Right - TaskbarGap - width,
-            _ => anchor.X - width / 2
+            _ => anchor.X - (width / 2)
         };
         int y = edge switch
         {
             TaskbarEdge.Top => workArea.Top + TaskbarGap,
             TaskbarEdge.Bottom => workArea.Bottom - TaskbarGap - height,
-            _ => anchor.Y - height / 2
+            _ => anchor.Y - (height / 2)
         };
 
         return new Rectangle(
