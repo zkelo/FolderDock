@@ -11,7 +11,7 @@
 
 Folders on the Windows 11 taskbar — like the macOS Dock. Click a pinned folder icon to open its contents in a grid or list beside the taskbar on that monitor.
 
-This project is maintained entirely by AI models: **Claude Fable 5** and **GPT 6.1 Sol**.
+This project is maintained entirely by AI models.
 
 ## Features
 
