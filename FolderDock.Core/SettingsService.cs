@@ -27,20 +27,12 @@ public sealed class SettingsService
         }
     }
 
-    public FolderSortOrder GetFolderSort(string folder) => Current.GetFolderSort(folder);
-
-    public SettingsResult SetFolderSort(string folder, FolderSortOrder order) =>
-        Save(Current.WithFolderSort(folder, order));
-
-    public SettingsResult SetAutoCheckUpdates(bool enabled) =>
-        Save(Current with { AutoCheckUpdates = enabled });
-
-    private SettingsResult Save(AppSettings settings)
+    public SettingsResult SetAutoCheckUpdates(bool enabled)
     {
-        if (settings == Current)
+        if (Current.AutoCheckUpdates == enabled)
             return new(Current);
 
-        Current = settings;
+        Current = Current with { AutoCheckUpdates = enabled };
         try
         {
             _store.Write(Current);

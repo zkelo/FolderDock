@@ -1,4 +1,3 @@
-using System.Security;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using FolderDock.Core;
@@ -7,69 +6,60 @@ namespace FolderDock.Infrastructure;
 
 public sealed class JsonSettingsStore : ISettingsStore
 {
-    private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
     private readonly string _filePath;
+    private readonly LegacyFolderSortMigration _migration;
 
-    public JsonSettingsStore(string filePath)
+    public JsonSettingsStore(string filePath, JsonFolderPreferencesStore folderPreferences)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
+        ArgumentNullException.ThrowIfNull(folderPreferences);
         _filePath = Path.GetFullPath(filePath);
+        _migration = new LegacyFolderSortMigration(folderPreferences);
     }
 
     public AppSettings Read()
     {
-        try
+        var document = ReadDocument(recoverInvalid: false);
+        if (document.FolderSorts is { } legacy)
         {
-            var document = JsonSerializer.Deserialize<SettingsDocument>(File.ReadAllText(_filePath));
-            return document?.ToSettings() ?? new AppSettings();
+            _migration.Run(legacy, pending =>
+            {
+                document.FolderSorts = pending;
+                AtomicJsonFile.Write(_filePath, document);
+            });
         }
-        catch (Exception exception) when (exception is FileNotFoundException or DirectoryNotFoundException)
-        {
-            return new AppSettings();
-        }
-        catch (Exception exception) when (exception is JsonException || IsStorageFailure(exception))
-        {
-            throw new SettingsStoreException(exception.Message, exception);
-        }
+        return new AppSettings(document.AutoCheckUpdates);
     }
 
     public void Write(AppSettings settings)
     {
         ArgumentNullException.ThrowIfNull(settings);
-        var directory = Path.GetDirectoryName(_filePath)!;
-        var temporaryPath = Path.Combine(directory, $".settings-{Guid.NewGuid():N}.tmp");
-        try
-        {
-            Directory.CreateDirectory(directory);
-            var document = SettingsDocument.From(settings);
-            File.WriteAllText(temporaryPath, JsonSerializer.Serialize(document, JsonOptions));
-            File.Move(temporaryPath, _filePath, overwrite: true);
-        }
-        catch (Exception exception) when (IsStorageFailure(exception))
-        {
-            throw new SettingsStoreException(exception.Message, exception);
-        }
-        finally
-        {
-            RemoveTemporaryFile(temporaryPath);
-        }
+        // A failed migration can leave entries to retry at the next startup.
+        var document = ReadDocument(recoverInvalid: true);
+        document.AutoCheckUpdates = settings.AutoCheckUpdates;
+        AtomicJsonFile.Write(_filePath, document);
     }
 
-    private static void RemoveTemporaryFile(string path)
+    private SettingsDocument ReadDocument(bool recoverInvalid)
     {
         try
         {
-            File.Delete(path);
+            return AtomicJsonFile.Read<SettingsDocument>(_filePath) ?? new SettingsDocument();
         }
-        catch (Exception exception) when (IsStorageFailure(exception))
+        catch (Exception exception) when (exception is FileNotFoundException or DirectoryNotFoundException)
         {
-            // Cleanup cannot replace the outcome of writing the preference.
-            System.Diagnostics.Trace.WriteLine($"FolderDock: settings cleanup failed: {exception}");
+            return new SettingsDocument();
+        }
+        catch (JsonException) when (recoverInvalid)
+        {
+            // An explicit global settings change repairs an unreadable JSON document.
+            return new SettingsDocument();
+        }
+        catch (Exception exception) when (exception is JsonException || AtomicJsonFile.IsStorageFailure(exception))
+        {
+            throw new SettingsStoreException(exception.Message, exception);
         }
     }
-
-    private static bool IsStorageFailure(Exception exception) =>
-        exception is IOException or UnauthorizedAccessException or SecurityException;
 
     private sealed class SettingsDocument
     {
@@ -80,26 +70,9 @@ public sealed class JsonSettingsStore : ISettingsStore
 
         [JsonPropertyName("folderSorts")]
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-        public Dictionary<string, string>? FolderSorts { get; set; }
+        public Dictionary<string, JsonElement>? FolderSorts { get; set; }
 
-        public AppSettings ToSettings()
-        {
-            var settings = new AppSettings(AutoCheckUpdates);
-            if (FolderSorts is null) return settings;
-
-            foreach (var (folder, value) in FolderSorts)
-            {
-                if (Enum.TryParse<FolderSortOrder>(value, out var order) && Enum.IsDefined(order))
-                    settings = settings.WithFolderSort(folder, order);
-            }
-            return settings;
-        }
-
-        public static SettingsDocument From(AppSettings settings) => new()
-        {
-            AutoCheckUpdates = settings.AutoCheckUpdates,
-            FolderSorts = settings.FolderSorts.IsEmpty ? null :
-                settings.FolderSorts.ToDictionary(pair => pair.Key, pair => pair.Value.ToString())
-        };
+        [JsonExtensionData]
+        public Dictionary<string, JsonElement>? OtherPreferences { get; set; }
     }
 }

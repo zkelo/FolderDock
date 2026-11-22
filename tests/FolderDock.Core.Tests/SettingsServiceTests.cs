@@ -89,47 +89,6 @@ public sealed class SettingsServiceTests
         Assert.Equal(2, store.Writes);
     }
 
-    [Fact]
-    public void FolderChoicesAreIndependentAndUseWindowsPathComparison()
-    {
-        var store = new FakeSettingsStore();
-        var settings = new SettingsService(store);
-        var downloads = Path.Combine(Path.GetTempPath(), "Downloads");
-        var archive = Path.Combine(downloads, "Archive");
-
-        settings.SetFolderSort(downloads + Path.DirectorySeparatorChar, FolderSortOrder.DateAdded);
-        settings.SetFolderSort(downloads.ToUpperInvariant(), FolderSortOrder.DateAdded);
-        Assert.Equal(FolderSortOrder.Name, settings.GetFolderSort(archive));
-        settings.SetFolderSort(archive, FolderSortOrder.DateModified);
-        settings.SetAutoCheckUpdates(false);
-
-        var reopened = new SettingsService(store);
-        reopened.Load();
-        Assert.Equal(FolderSortOrder.DateAdded, reopened.GetFolderSort(downloads));
-        Assert.Equal(FolderSortOrder.DateModified, reopened.GetFolderSort(archive));
-        Assert.False(reopened.Current.AutoCheckUpdates);
-        Assert.Equal(3, store.Writes);
-
-        reopened.SetFolderSort(downloads, FolderSortOrder.Name);
-        Assert.Equal(FolderSortOrder.Name, store.Stored.GetFolderSort(downloads));
-        Assert.Equal(FolderSortOrder.DateModified, store.Stored.GetFolderSort(archive));
-        Assert.Single(store.Stored.FolderSorts);
-    }
-
-    [Fact]
-    public void FailedSaveKeepsTheSelectedFolderOrderForThisSession()
-    {
-        var store = new FakeSettingsStore { WriteFailure = new("write denied") };
-        var settings = new SettingsService(store);
-        var folder = Path.GetTempPath();
-
-        var result = settings.SetFolderSort(folder, FolderSortOrder.DateModified);
-
-        Assert.Equal("write denied", result.Error);
-        Assert.Equal(FolderSortOrder.DateModified, settings.GetFolderSort(folder));
-        Assert.Equal(FolderSortOrder.Name, store.Stored.GetFolderSort(folder));
-    }
-
     private sealed class FakeSettingsStore : ISettingsStore
     {
         public AppSettings Stored { get; set; } = new();

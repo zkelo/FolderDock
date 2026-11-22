@@ -193,7 +193,7 @@ public sealed partial class ManagerWindow : Window
     private void OnAutoUpdateToggled(object sender, RoutedEventArgs e)
     {
         if (_isClosed) return;
-        App.ReportSettingsError(_settings.SetAutoCheckUpdates(AutoUpdateCheck.IsChecked == true));
+        App.ReportSettingsError(_settings.SetAutoCheckUpdates(AutoUpdateCheck.IsChecked == true).Error);
     }
 
     private async void OnCheckUpdates(object sender, RoutedEventArgs e) =>
