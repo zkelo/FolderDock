@@ -76,8 +76,7 @@ internal sealed class FileDragSource : IDisposable
         // to WinUI so ordinary taps and scrolling keep their existing behavior.
         if (e.Pointer.PointerDeviceType != PointerDeviceType.Mouse) return;
 
-        // Window coordinates keep the Windows drag threshold independent of the popup zoom.
-        var point = e.GetCurrentPoint(null);
+        var point = e.GetCurrentPoint(_view);
         if (!point.Properties.IsLeftButtonPressed || point.Properties.IsRightButtonPressed)
             return;
         if (FindContainer(e.OriginalSource as DependencyObject) is not { } container ||
@@ -99,7 +98,7 @@ internal sealed class FileDragSource : IDisposable
         if (_disposed || _dragInProgress || _pressedPointer?.PointerId != e.Pointer.PointerId)
             return;
 
-        var point = e.GetCurrentPoint(null);
+        var point = e.GetCurrentPoint(_view);
         var path = _gesture.TryStart(e.Pointer.PointerId, point.Position.X, point.Position.Y,
             point.Properties.IsLeftButtonPressed);
         if (!point.Properties.IsLeftButtonPressed)

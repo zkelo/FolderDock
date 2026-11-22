@@ -4,22 +4,15 @@ namespace FolderDock.Core;
 
 public static class TaskbarGeometry
 {
-    // Explorer can report only the narrow activation strip of an auto-hidden taskbar.
-    private const int MinimumTaskbarThickness = 8;
-
     public static TaskbarLayout Measure(Rectangle monitor, Rectangle workArea,
         TaskbarEdge? edge, Rectangle bounds, bool visible)
     {
         // Another docked application can reserve space even on a monitor without a taskbar.
         if (edge is not TaskbarEdge resolvedEdge)
-            return new TaskbarLayout(FromWorkArea(monitor, workArea), workArea, null);
-
-        int thickness = resolvedEdge is TaskbarEdge.Left or TaskbarEdge.Right ? bounds.Width : bounds.Height;
-        if (thickness < MinimumTaskbarThickness)
-            thickness = ReservedThickness(monitor, workArea, resolvedEdge);
+            return new TaskbarLayout(FromWorkArea(monitor, workArea), workArea);
 
         var available = visible ? ExcludeTaskbar(workArea, bounds, resolvedEdge) : workArea;
-        return new TaskbarLayout(resolvedEdge, available, thickness >= MinimumTaskbarThickness ? thickness : null);
+        return new TaskbarLayout(resolvedEdge, available);
     }
 
     public static TaskbarEdge FromTaskbarBounds(Rectangle monitor, Rectangle taskbar)
@@ -34,24 +27,16 @@ public static class TaskbarGeometry
 
     public static TaskbarEdge FromWorkArea(Rectangle monitor, Rectangle workArea)
     {
-        int left = ReservedThickness(monitor, workArea, TaskbarEdge.Left);
-        int top = ReservedThickness(monitor, workArea, TaskbarEdge.Top);
-        int right = ReservedThickness(monitor, workArea, TaskbarEdge.Right);
-        int bottom = ReservedThickness(monitor, workArea, TaskbarEdge.Bottom);
+        int left = workArea.Left - monitor.Left;
+        int top = workArea.Top - monitor.Top;
+        int right = monitor.Right - workArea.Right;
+        int bottom = monitor.Bottom - workArea.Bottom;
         int largest = Math.Max(Math.Max(left, right), Math.Max(top, bottom));
 
         if (largest <= 0 || largest == bottom) return TaskbarEdge.Bottom;
         if (largest == left) return TaskbarEdge.Left;
         return largest == top ? TaskbarEdge.Top : TaskbarEdge.Right;
     }
-
-    private static int ReservedThickness(Rectangle monitor, Rectangle workArea, TaskbarEdge edge) => edge switch
-    {
-        TaskbarEdge.Left => workArea.Left - monitor.Left,
-        TaskbarEdge.Top => workArea.Top - monitor.Top,
-        TaskbarEdge.Right => monitor.Right - workArea.Right,
-        _ => monitor.Bottom - workArea.Bottom
-    };
 
     private static Rectangle ExcludeTaskbar(Rectangle work, Rectangle taskbar, TaskbarEdge edge)
     {

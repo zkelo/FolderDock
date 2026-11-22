@@ -46,7 +46,7 @@ public sealed class TaskbarGeometryTests
         var monitor = new Rectangle(-1800, -100, 1600, 900);
         var bounds = new Rectangle(barX, barY, barWidth, barHeight);
         var available = new Rectangle(workX, workY, workWidth, workHeight);
-        var expected = new TaskbarLayout(edge, available, Math.Min(barWidth, barHeight));
+        var expected = new TaskbarLayout(edge, available);
 
         Assert.Equal(expected, TaskbarGeometry.Measure(monitor, monitor, edge, bounds, true));
         Assert.Equal(expected, TaskbarGeometry.Measure(monitor, available, edge, bounds, true));
@@ -57,7 +57,7 @@ public sealed class TaskbarGeometryTests
     [InlineData(-1800, -100, 1300, 900, TaskbarEdge.Right)]
     [InlineData(-1800, 80, 1600, 720, TaskbarEdge.Top)]
     [InlineData(-1800, -100, 1600, 900, TaskbarEdge.Bottom)]
-    public void MonitorWithoutTaskbarRetainsWorkAreaAndUsesNoTaskbarThickness(
+    public void MonitorWithoutTaskbarRetainsWorkArea(
         int x, int y, int width, int height, TaskbarEdge expectedEdge)
     {
         var monitor = new Rectangle(-1800, -100, 1600, 900);
@@ -65,14 +65,13 @@ public sealed class TaskbarGeometryTests
 
         var layout = TaskbarGeometry.Measure(monitor, workArea, null, Rectangle.Empty, false);
 
-        Assert.Equal(new TaskbarLayout(expectedEdge, workArea, null), layout);
+        Assert.Equal(new TaskbarLayout(expectedEdge, workArea), layout);
     }
 
     [Theory]
-    [InlineData(2, null)]
-    [InlineData(48, 48)]
-    public void AutoHideStripSuppliesAnEdgeButNoThicknessUnlessSpaceIsReserved(
-        int reservedWidth, int? expectedThickness)
+    [InlineData(2)]
+    [InlineData(48)]
+    public void AutoHideStripPreservesAlreadyReservedWorkArea(int reservedWidth)
     {
         var monitor = new Rectangle(1920, -300, 1440, 900);
         var work = new Rectangle(1920 + reservedWidth, -300, 1440 - reservedWidth, 900);
@@ -80,13 +79,13 @@ public sealed class TaskbarGeometryTests
 
         var layout = TaskbarGeometry.Measure(monitor, work, TaskbarEdge.Left, strip, true);
 
-        Assert.Equal(new TaskbarLayout(TaskbarEdge.Left, work, expectedThickness), layout);
+        Assert.Equal(new TaskbarLayout(TaskbarEdge.Left, work), layout);
     }
 
     [Theory]
     [InlineData(true, 2)]
     [InlineData(false, 0)]
-    public void HiddenTaskbarRetainsFullThicknessAndExcludesOnlyItsVisibleOverlap(bool visible, int inset)
+    public void AutoHiddenTaskbarExcludesOnlyItsVisibleOverlap(bool visible, int inset)
     {
         var monitor = new Rectangle(-1600, 100, 1600, 900);
         var topBar = new Rectangle(-1600, 54, 1600, 48);
@@ -94,6 +93,24 @@ public sealed class TaskbarGeometryTests
 
         var layout = TaskbarGeometry.Measure(monitor, monitor, TaskbarEdge.Top, topBar, visible);
 
-        Assert.Equal(new TaskbarLayout(TaskbarEdge.Top, available, 48), layout);
+        Assert.Equal(new TaskbarLayout(TaskbarEdge.Top, available), layout);
+    }
+
+    [Theory]
+    [InlineData(TaskbarEdge.Left, 0, 0, 32, 800, 44, 300)]
+    [InlineData(TaskbarEdge.Left, 0, 0, 128, 800, 140, 300)]
+    [InlineData(TaskbarEdge.Top, 0, 0, 1200, 48, 450, 60)]
+    [InlineData(TaskbarEdge.Right, 960, 0, 240, 800, 648, 300)]
+    [InlineData(TaskbarEdge.Bottom, 0, 500, 1200, 300, 450, 288)]
+    public void TaskbarThicknessChangesPositionAndPreservesRequestedPopupSize(
+        TaskbarEdge edge, int x, int y, int width, int height, int popupX, int popupY)
+    {
+        var monitor = new Rectangle(0, 0, 1200, 800);
+        var layout = TaskbarGeometry.Measure(monitor, monitor, edge, new Rectangle(x, y, width, height), true);
+        var requestedSize = new Size(300, 200);
+
+        var popup = PopupPlacement.Calculate(layout.WorkArea, layout.Edge, new Point(600, 400), requestedSize);
+
+        Assert.Equal(new Rectangle(new Point(popupX, popupY), requestedSize), popup);
     }
 }

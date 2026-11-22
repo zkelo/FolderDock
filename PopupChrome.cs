@@ -69,30 +69,28 @@ public sealed class PopupChrome
 
     private Anchor CurrentAnchor() => _anchor = ReadAnchor(_anchor?.Click ?? CursorPoint(), _anchor);
 
-    public SizeF FitToTaskbar(int layoutWidth, Func<int, int> measureHeight)
+    public void FitToTaskbar(int layoutWidth, Func<int, int> measureHeight)
     {
         var anchor = CurrentAnchor();
         var dpi = Native.GetDpiForWindow(Hwnd);
-        var viewport = Arrange(anchor, dpi, layoutWidth, measureHeight);
+        Arrange(anchor, dpi, layoutWidth, measureHeight);
         // Moving a window to another display can change both the DPI and the
         // bounds suggested by Windows. Remeasure the header at the new width.
         var targetDpi = Native.GetDpiForWindow(Hwnd);
-        return dpi == targetDpi ? viewport : Arrange(anchor, targetDpi, layoutWidth, measureHeight);
+        if (targetDpi != dpi)
+            Arrange(anchor, targetDpi, layoutWidth, measureHeight);
     }
 
-    private SizeF Arrange(Anchor anchor, uint dpi, int width, Func<int, int> measureHeight)
+    private void Arrange(Anchor anchor, uint dpi, int width, Func<int, int> measureHeight)
     {
         var taskbar = anchor.Taskbar;
         var available = PopupPlacement.MaximumSize(taskbar.WorkArea, taskbar.Edge);
-        var (minWidth, minHeight) = PopupLayout.Measure(1, gridMode: true, separateSearchRow: true);
-        var desiredScale = PopupScale.PixelsPerLayoutUnit(taskbar.Thickness, dpi / 96.0);
-        var scale = PopupScale.FitToViewport(desiredScale, available, new Size(minWidth, minHeight));
+        var scale = dpi == 0 ? 1.0 : dpi / 96.0;
         var availableWidth = Math.Min(width, Math.Max(1, (int)Math.Floor(available.Width / scale)));
         var height = measureHeight(availableWidth);
-        var requested = new Size((int)Math.Round(width * scale), (int)Math.Round(height * scale));
+        var requested = new Size((int)(width * scale), (int)(height * scale));
         var bounds = PopupPlacement.Calculate(taskbar.WorkArea, taskbar.Edge, anchor.Click, requested);
         MoveAndResize(bounds);
-        return new SizeF((float)(bounds.Width / scale), (float)(bounds.Height / scale));
     }
 
     private void MoveAndResize(Rectangle bounds)
