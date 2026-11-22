@@ -41,31 +41,41 @@ public sealed class FolderSnapshotReaderTests : IDisposable
     }
 
     [Fact]
-    public async Task DateAddedUsesWindowsCreationTimeIndependentOfModificationTime()
+    public async Task DateAddedOrdersFoldersThenFilesByCreationTimeWithinEachGroup()
     {
         if (!OperatingSystem.IsWindows()) return;
-        var oldDirectory = CreateDirectory("a folder");
-        var newFile = CreateFile("z.txt");
-        var oldDate = new DateTime(2020, 1, 1, 12, 0, 0, DateTimeKind.Utc);
-        var newDate = oldDate.AddDays(1);
-        Directory.SetCreationTimeUtc(oldDirectory, oldDate);
-        Directory.SetLastWriteTimeUtc(oldDirectory, newDate);
-        File.SetCreationTimeUtc(newFile, newDate);
-        File.SetLastWriteTimeUtc(newFile, oldDate);
+        var olderFolder = CreateDirectory("a folder");
+        var newerFolder = CreateDirectory("z folder");
+        var olderFile = CreateFile("a.txt");
+        var newerFile = CreateFile("z.txt");
+        var day = new DateTime(2020, 1, 1, 12, 0, 0, DateTimeKind.Utc);
+        Directory.SetCreationTimeUtc(olderFolder, day);
+        Directory.SetCreationTimeUtc(newerFolder, day.AddDays(1));
+        File.SetCreationTimeUtc(olderFile, day.AddDays(2));
+        File.SetCreationTimeUtc(newerFile, day.AddDays(3));
+        Directory.SetLastWriteTimeUtc(olderFolder, day.AddDays(1));
+        Directory.SetLastWriteTimeUtc(newerFolder, day);
+        File.SetLastWriteTimeUtc(olderFile, day.AddDays(1));
+        File.SetLastWriteTimeUtc(newerFile, day);
 
         var result = await new FileSystemFolderSnapshotReader().ReadAsync(_root, FolderSortOrder.DateAdded);
 
-        Assert.Equal(new[] { newFile, oldDirectory }, result.Entries.Select(entry => entry.FullPath));
+        Assert.Equal(new[] { newerFolder, olderFolder, newerFile, olderFile },
+            result.Entries.Select(entry => entry.FullPath));
     }
 
     [Fact]
-    public async Task DateModifiedSortsAllEntriesNewestFirstAndBreaksTiesByName()
+    public async Task DateModifiedOrdersFoldersThenFilesBeforeTheDisplayLimitAndBreaksTiesByName()
     {
         var oldDate = new DateTime(2020, 1, 1, 12, 0, 0, DateTimeKind.Utc);
-        var tiedDirectory = CreateDirectory("b folder");
-        var tiedFile = CreateFile("a.txt");
-        Directory.SetLastWriteTimeUtc(tiedDirectory, oldDate);
-        File.SetLastWriteTimeUtc(tiedFile, oldDate);
+        var olderFolder = CreateDirectory("a folder");
+        var newerFolder = CreateDirectory("z folder");
+        Directory.SetLastWriteTimeUtc(olderFolder, oldDate.AddDays(-2));
+        Directory.SetLastWriteTimeUtc(newerFolder, oldDate);
+        var tiedFileB = CreateFile("b.txt");
+        var tiedFileA = CreateFile("a.txt");
+        File.SetLastWriteTimeUtc(tiedFileB, oldDate);
+        File.SetLastWriteTimeUtc(tiedFileA, oldDate);
         for (var index = 0; index < FolderSearch.MaxResults; index++)
             File.SetLastWriteTimeUtc(CreateFile($"item {index:D4}.txt"), oldDate.AddDays(-1));
         var newest = CreateFile("z last by name.txt");
@@ -73,8 +83,9 @@ public sealed class FolderSnapshotReaderTests : IDisposable
 
         var result = await new FileSystemFolderSnapshotReader().ReadAsync(_root, FolderSortOrder.DateModified);
 
-        Assert.Equal(new[] { newest, tiedFile, tiedDirectory }, result.Entries.Take(3).Select(entry => entry.FullPath));
-        Assert.Equal(FolderSearch.MaxResults + 3, result.Entries.Count);
+        var expected = new[] { newerFolder, olderFolder, newest, tiedFileA, tiedFileB };
+        Assert.Equal(expected, result.Entries.Take(expected.Length).Select(entry => entry.FullPath));
+        Assert.Equal(FolderSearch.MaxResults + expected.Length, result.Entries.Count);
     }
 
     [Fact]

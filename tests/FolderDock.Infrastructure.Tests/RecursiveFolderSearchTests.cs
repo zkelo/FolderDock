@@ -78,20 +78,22 @@ public sealed class RecursiveFolderSearchTests : IDisposable
     }
 
     [Fact]
-    public async Task DateModifiedSortsMatchesAcrossSubfoldersNewestFirst()
+    public async Task DateModifiedOrdersMatchingFoldersThenMatchingFilesAcrossSubfolders()
     {
         var root = CreateDirectory("root");
         var older = CreateFile("root", "a target.txt");
-        var folder = CreateDirectory("root", "target folder");
-        var newer = CreateFile("root", "target folder", "z target.txt");
+        var olderFolder = CreateDirectory("root", "a target folder");
+        var newerFolder = CreateDirectory("root", "other", "z target folder");
+        var newer = CreateFile("root", "a target folder", "z target.txt");
         var date = new DateTime(2025, 1, 1, 12, 0, 0, DateTimeKind.Utc);
         File.SetLastWriteTimeUtc(older, date);
-        Directory.SetLastWriteTimeUtc(folder, date.AddDays(1));
+        Directory.SetLastWriteTimeUtc(olderFolder, date.AddDays(-1));
+        Directory.SetLastWriteTimeUtc(newerFolder, date.AddDays(1));
         File.SetLastWriteTimeUtc(newer, date.AddDays(2));
 
         var result = await _search.SearchAsync(root, "target", FolderSortOrder.DateModified);
 
-        Assert.Equal(new[] { newer, folder, older }, result.Entries.Select(entry => entry.FullPath));
+        Assert.Equal(new[] { newerFolder, olderFolder, newer, older }, result.Entries.Select(entry => entry.FullPath));
     }
 
     [Theory]

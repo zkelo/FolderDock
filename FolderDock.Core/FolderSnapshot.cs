@@ -5,13 +5,14 @@ public sealed record FolderSnapshotEntry(
 {
     public static int Compare(FolderSnapshotEntry left, FolderSnapshotEntry right, FolderSortOrder order)
     {
-        var comparison = order switch
-        {
-            FolderSortOrder.DateAdded or FolderSortOrder.DateModified =>
-                Nullable.Compare(right.SortTimestampUtc, left.SortTimestampUtc),
-            _ => right.IsDirectory.CompareTo(left.IsDirectory)
-        };
+        var comparison = right.IsDirectory.CompareTo(left.IsDirectory);
         if (comparison != 0) return comparison;
+
+        if (order is FolderSortOrder.DateAdded or FolderSortOrder.DateModified)
+        {
+            comparison = Nullable.Compare(right.SortTimestampUtc, left.SortTimestampUtc);
+            if (comparison != 0) return comparison;
+        }
 
         comparison = StringComparer.CurrentCultureIgnoreCase.Compare(left.Name, right.Name);
         return comparison != 0 ? comparison : StringComparer.Ordinal.Compare(left.FullPath, right.FullPath);
