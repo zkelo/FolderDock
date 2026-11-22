@@ -77,6 +77,25 @@ public sealed class RecursiveFolderSearchTests : IDisposable
         Assert.Equal(new[] { directory, first, second, last }, result.Entries.Select(entry => entry.FullPath));
     }
 
+    [Fact]
+    public async Task DateModifiedOrdersMatchingFoldersThenMatchingFilesAcrossSubfolders()
+    {
+        var root = CreateDirectory("root");
+        var older = CreateFile("root", "a target.txt");
+        var olderFolder = CreateDirectory("root", "a target folder");
+        var newerFolder = CreateDirectory("root", "other", "z target folder");
+        var newer = CreateFile("root", "a target folder", "z target.txt");
+        var date = new DateTime(2025, 1, 1, 12, 0, 0, DateTimeKind.Utc);
+        File.SetLastWriteTimeUtc(older, date);
+        Directory.SetLastWriteTimeUtc(olderFolder, date.AddDays(-1));
+        Directory.SetLastWriteTimeUtc(newerFolder, date.AddDays(1));
+        File.SetLastWriteTimeUtc(newer, date.AddDays(2));
+
+        var result = await _search.SearchAsync(root, "target", FolderSortOrder.DateModified);
+
+        Assert.Equal(new[] { newerFolder, olderFolder, newer, older }, result.Entries.Select(entry => entry.FullPath));
+    }
+
     [Theory]
     [InlineData(null)]
     [InlineData("")]
@@ -150,7 +169,7 @@ public sealed class RecursiveFolderSearchTests : IDisposable
         cancellation.Cancel();
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => _search.SearchAsync(
-            _temporaryDirectory, "target", cancellation.Token));
+            _temporaryDirectory, "target", cancellationToken: cancellation.Token));
     }
 
     [Fact]

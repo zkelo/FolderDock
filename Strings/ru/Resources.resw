@@ -31,6 +31,10 @@
   <data name="Tooltip_UnpinPopup" xml:space="preserve"><value>Открепить окно</value></data>
   <data name="Tooltip_ClosePopup" xml:space="preserve"><value>Закрыть окно (Esc)</value></data>
   <data name="Tooltip_ViewToggle" xml:space="preserve"><value>Сетка / список</value></data>
+  <data name="Tooltip_SortBy" xml:space="preserve"><value>Сортировка</value></data>
+  <data name="SortByName.Text" xml:space="preserve"><value>По имени</value></data>
+  <data name="SortByDateAdded.Text" xml:space="preserve"><value>По дате добавления</value></data>
+  <data name="SortByDateModified.Text" xml:space="preserve"><value>По дате изменения</value></data>
   <data name="Tooltip_OpenInExplorer" xml:space="preserve"><value>Открыть в Проводнике</value></data>
   <data name="Search_Placeholder" xml:space="preserve"><value>Поиск в этой папке и подпапках (Ctrl+F)</value></data>
   <data name="Search_CompactPlaceholder" xml:space="preserve"><value>Поиск</value></data>

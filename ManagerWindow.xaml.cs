@@ -47,7 +47,6 @@ public sealed partial class ManagerWindow : Window
         _pinnedFolders = pinnedFolders;
         _updates = updates;
         _lifetimeToken = _lifetimeCancellation.Token;
-        ReportSettingsError(_settings.Load());
         InitializeComponent();
         Closed += OnClosed;
         // Настоящий desktop acrylic: Windows управляет размытием, темой,
@@ -194,13 +193,7 @@ public sealed partial class ManagerWindow : Window
     private void OnAutoUpdateToggled(object sender, RoutedEventArgs e)
     {
         if (_isClosed) return;
-        ReportSettingsError(_settings.SetAutoCheckUpdates(AutoUpdateCheck.IsChecked == true));
-    }
-
-    private static void ReportSettingsError(SettingsResult result)
-    {
-        if (result.Error is not null)
-            Trace.WriteLine($"FolderDock: settings persistence failed: {result.Error}");
+        App.ReportSettingsError(_settings.SetAutoCheckUpdates(AutoUpdateCheck.IsChecked == true).Error);
     }
 
     private async void OnCheckUpdates(object sender, RoutedEventArgs e) =>

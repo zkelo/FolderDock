@@ -31,6 +31,10 @@
   <data name="Tooltip_UnpinPopup" xml:space="preserve"><value>Відкріпити вікно</value></data>
   <data name="Tooltip_ClosePopup" xml:space="preserve"><value>Закрити вікно (Esc)</value></data>
   <data name="Tooltip_ViewToggle" xml:space="preserve"><value>Сітка / список</value></data>
+  <data name="Tooltip_SortBy" xml:space="preserve"><value>Сортування</value></data>
+  <data name="SortByName.Text" xml:space="preserve"><value>За іменем</value></data>
+  <data name="SortByDateAdded.Text" xml:space="preserve"><value>За датою додавання</value></data>
+  <data name="SortByDateModified.Text" xml:space="preserve"><value>За датою зміни</value></data>
   <data name="Tooltip_OpenInExplorer" xml:space="preserve"><value>Відкрити у Провіднику</value></data>
   <data name="Search_Placeholder" xml:space="preserve"><value>Пошук у цій папці та підпапках (Ctrl+F)</value></data>
   <data name="Search_CompactPlaceholder" xml:space="preserve"><value>Пошук</value></data>

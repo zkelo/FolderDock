@@ -1,4 +1,3 @@
-using System.Security;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using FolderDock.Core;
@@ -7,7 +6,6 @@ namespace FolderDock.Infrastructure;
 
 public sealed class JsonSettingsStore : ISettingsStore
 {
-    private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
     private readonly string _filePath;
 
     public JsonSettingsStore(string filePath)
@@ -18,58 +16,38 @@ public sealed class JsonSettingsStore : ISettingsStore
 
     public AppSettings Read()
     {
-        try
-        {
-            var document = JsonSerializer.Deserialize<SettingsDocument>(File.ReadAllText(_filePath));
-            return new AppSettings(document?.AutoCheckUpdates ?? true);
-        }
-        catch (Exception exception) when (exception is FileNotFoundException or DirectoryNotFoundException)
-        {
-            return new AppSettings();
-        }
-        catch (Exception exception) when (exception is JsonException || IsStorageFailure(exception))
-        {
-            throw new SettingsStoreException(exception.Message, exception);
-        }
+        var document = ReadDocument(recoverInvalid: false);
+        return new AppSettings(document.AutoCheckUpdates);
     }
 
     public void Write(AppSettings settings)
     {
         ArgumentNullException.ThrowIfNull(settings);
-        var directory = Path.GetDirectoryName(_filePath)!;
-        var temporaryPath = Path.Combine(directory, $".settings-{Guid.NewGuid():N}.tmp");
-        try
-        {
-            Directory.CreateDirectory(directory);
-            var document = new SettingsDocument { AutoCheckUpdates = settings.AutoCheckUpdates };
-            File.WriteAllText(temporaryPath, JsonSerializer.Serialize(document, JsonOptions));
-            File.Move(temporaryPath, _filePath, overwrite: true);
-        }
-        catch (Exception exception) when (IsStorageFailure(exception))
-        {
-            throw new SettingsStoreException(exception.Message, exception);
-        }
-        finally
-        {
-            RemoveTemporaryFile(temporaryPath);
-        }
+        var document = ReadDocument(recoverInvalid: true);
+        document.AutoCheckUpdates = settings.AutoCheckUpdates;
+        AtomicJsonFile.Write(_filePath, document);
     }
 
-    private static void RemoveTemporaryFile(string path)
+    private SettingsDocument ReadDocument(bool recoverInvalid)
     {
         try
         {
-            File.Delete(path);
+            return AtomicJsonFile.Read<SettingsDocument>(_filePath) ?? new SettingsDocument();
         }
-        catch (Exception exception) when (IsStorageFailure(exception))
+        catch (Exception exception) when (exception is FileNotFoundException or DirectoryNotFoundException)
         {
-            // Cleanup cannot replace the outcome of writing the preference.
-            System.Diagnostics.Trace.WriteLine($"FolderDock: settings cleanup failed: {exception}");
+            return new SettingsDocument();
+        }
+        catch (JsonException) when (recoverInvalid)
+        {
+            // An explicit global settings change repairs an unreadable JSON document.
+            return new SettingsDocument();
+        }
+        catch (Exception exception) when (exception is JsonException || AtomicJsonFile.IsStorageFailure(exception))
+        {
+            throw new SettingsStoreException(exception.Message, exception);
         }
     }
-
-    private static bool IsStorageFailure(Exception exception) =>
-        exception is IOException or UnauthorizedAccessException or SecurityException;
 
     private sealed class SettingsDocument
     {
@@ -77,5 +55,8 @@ public sealed class JsonSettingsStore : ISettingsStore
 
         [JsonPropertyName("autoCheckUpdates")]
         public bool AutoCheckUpdates { get; set; } = true;
+
+        [JsonExtensionData]
+        public Dictionary<string, JsonElement>? OtherPreferences { get; set; }
     }
 }

@@ -31,6 +31,10 @@ After pinning, clicking the icon opens the folder as a popup.</value></data>
   <data name="Tooltip_UnpinPopup" xml:space="preserve"><value>Unpin popup</value></data>
   <data name="Tooltip_ClosePopup" xml:space="preserve"><value>Close popup (Esc)</value></data>
   <data name="Tooltip_ViewToggle" xml:space="preserve"><value>Grid / list</value></data>
+  <data name="Tooltip_SortBy" xml:space="preserve"><value>Sort by</value></data>
+  <data name="SortByName.Text" xml:space="preserve"><value>Name</value></data>
+  <data name="SortByDateAdded.Text" xml:space="preserve"><value>Date added</value></data>
+  <data name="SortByDateModified.Text" xml:space="preserve"><value>Date modified</value></data>
   <data name="Tooltip_OpenInExplorer" xml:space="preserve"><value>Open in Explorer</value></data>
   <data name="Search_Placeholder" xml:space="preserve"><value>Search this folder and subfolders (Ctrl+F)</value></data>
   <data name="Search_CompactPlaceholder" xml:space="preserve"><value>Search</value></data>

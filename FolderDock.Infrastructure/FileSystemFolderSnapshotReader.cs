@@ -1,4 +1,3 @@
-using System.Security;
 using FolderDock.Core;
 
 namespace FolderDock.Infrastructure;
@@ -13,10 +12,11 @@ public sealed class FileSystemFolderSnapshotReader : IFolderSnapshotReader
         ReturnSpecialDirectories = false
     };
 
-    public Task<FolderSnapshot> ReadAsync(string folder, CancellationToken cancellationToken = default) =>
-        Task.Run(() => Read(folder, cancellationToken), cancellationToken);
+    public Task<FolderSnapshot> ReadAsync(string folder, FolderSortOrder sortOrder = FolderSortOrder.Name,
+        CancellationToken cancellationToken = default) =>
+        Task.Run(() => Read(folder, sortOrder, cancellationToken), cancellationToken);
 
-    private static FolderSnapshot Read(string folder, CancellationToken cancellationToken)
+    private static FolderSnapshot Read(string folder, FolderSortOrder sortOrder, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         try
@@ -32,7 +32,7 @@ public sealed class FileSystemFolderSnapshotReader : IFolderSnapshotReader
                 {
                     attributes = entry.Attributes;
                 }
-                catch (Exception exception) when (IsFileSystemError(exception))
+                catch (Exception exception) when (FileSystemFolderEntry.IsFileSystemError(exception))
                 {
                     // Keep a disappearing/unreadable item visible, as before.
                     attributes = entry is DirectoryInfo ? FileAttributes.Directory : 0;
@@ -41,28 +41,19 @@ public sealed class FileSystemFolderSnapshotReader : IFolderSnapshotReader
                 if ((attributes & FileAttributes.Hidden) != 0)
                     continue;
 
-                entries.Add(new FolderSnapshotEntry(entry.Name, entry.FullName,
-                    (attributes & FileAttributes.Directory) != 0));
+                entries.Add(FileSystemFolderEntry.Read(entry,
+                    (attributes & FileAttributes.Directory) != 0, sortOrder));
             }
 
             cancellationToken.ThrowIfCancellationRequested();
-            entries.Sort((left, right) =>
-            {
-                var comparison = right.IsDirectory.CompareTo(left.IsDirectory);
-                return comparison != 0 ? comparison
-                    : StringComparer.CurrentCultureIgnoreCase.Compare(left.Name, right.Name);
-            });
+            entries.Sort((left, right) => FolderSnapshotEntry.Compare(left, right, sortOrder));
             cancellationToken.ThrowIfCancellationRequested();
             return new FolderSnapshot(entries.ToArray(), Failed: false);
         }
-        catch (Exception exception) when (IsFileSystemError(exception))
+        catch (Exception exception) when (FileSystemFolderEntry.IsFileSystemError(exception))
         {
             cancellationToken.ThrowIfCancellationRequested();
             return FolderSnapshot.Unavailable;
         }
     }
-
-    private static bool IsFileSystemError(Exception exception) =>
-        exception is IOException or UnauthorizedAccessException or ArgumentException
-            or NotSupportedException or SecurityException;
 }

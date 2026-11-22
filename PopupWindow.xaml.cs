@@ -33,6 +33,7 @@ public sealed partial class PopupWindow : Window
     private readonly ThumbnailLoader _thumbnails = new();
     private readonly FolderLoadSession _folderLoads;
     private readonly FolderSearchSession _folderSearch;
+    private readonly FolderPreferencesService _preferences;
     private readonly IFileDragDrop _fileDragDrop;
     private readonly FileDragSource _gridDragSource;
     private readonly FileDragSource _listDragSource;
@@ -48,7 +49,7 @@ public sealed partial class PopupWindow : Window
     private int _thumbnailRequestVersion;
     private bool _refreshThumbnails;
 
-    private bool _gridMode = true;
+    private bool IsGridView => _preferences.Current.View == FolderViewMode.Grid;
     private bool _isActive;
     private bool _shellMenuOpen;
     private string? _lastDismissedFolder;
@@ -56,12 +57,14 @@ public sealed partial class PopupWindow : Window
     private DateTime _shownAt;
 
     internal PopupWindow(FolderLoadSession folderLoads, FolderSearchSession folderSearch,
-        IFileDragDrop fileDragDrop, IFolderChangeSource folderChanges)
+        IFileDragDrop fileDragDrop, IFolderChangeSource folderChanges, FolderPreferencesService preferences)
     {
         ArgumentNullException.ThrowIfNull(folderLoads);
         ArgumentNullException.ThrowIfNull(folderSearch);
         ArgumentNullException.ThrowIfNull(fileDragDrop);
         ArgumentNullException.ThrowIfNull(folderChanges);
+        ArgumentNullException.ThrowIfNull(preferences);
+        _preferences = preferences;
         _fileDragDrop = fileDragDrop;
         _folderLoads = folderLoads;
         _folderSearch = folderSearch;
@@ -73,7 +76,7 @@ public sealed partial class PopupWindow : Window
         _share = new ShareCoordinator(_chrome, shareFinished: OnShareCompleted);
         _gridDragSource = new FileDragSource(ItemsGrid, _chrome.Hwnd, DragEntry);
         _listDragSource = new FileDragSource(ItemsList, _chrome.Hwnd, DragEntry);
-        _marquee = new MarqueeSelection(ItemsHost, () => _gridMode ? ItemsGrid : ItemsList,
+        _marquee = new MarqueeSelection(ItemsHost, () => IsGridView ? ItemsGrid : ItemsList,
             SelectionRectangle, _selection, _chrome.Hwnd);
         _folderRefresh = new FolderRefreshController(DispatcherQueue, folderChanges,
             RefreshContents, () => _chrome.IsVisible && !_dragInProgress && !_marquee.IsTracking);
@@ -87,7 +90,7 @@ public sealed partial class PopupWindow : Window
     public void PrepareForFirstShow()
     {
         if (_chrome.IsVisible) return;
-        var (width, height) = PopupLayout.Measure(0, _gridMode, separateSearchRow: true);
+        var (width, height) = PopupLayout.Measure(0, IsGridView, separateSearchRow: true);
         var size = new Windows.Foundation.Size(width, height);
         Root.Measure(size);
         Root.Arrange(new Windows.Foundation.Rect(0, 0, width, height));
@@ -99,6 +102,9 @@ public sealed partial class PopupWindow : Window
         // Тултипы из ресурсов: x:Uid не умеет attached-свойства с обычным Text
         ToolTipService.SetToolTip(BackButton, Loc.Get("Tooltip_Back"));
         ToolTipService.SetToolTip(ViewToggle, Loc.Get("Tooltip_ViewToggle"));
+        var sortLabel = Loc.Get("Tooltip_SortBy");
+        ToolTipService.SetToolTip(SortButton, sortLabel);
+        AutomationProperties.SetName(SortButton, sortLabel);
         ToolTipService.SetToolTip(OpenExplorerButton, Loc.Get("Tooltip_OpenInExplorer"));
         var closeLabel = Loc.Get("Tooltip_ClosePopup");
         ToolTipService.SetToolTip(CloseButton, closeLabel);
@@ -139,7 +145,7 @@ public sealed partial class PopupWindow : Window
         _chrome.AnchorToCursor();
         SetTitle(rootFolder);
         ResetSearch();
-        PrepareContentsLoad();
+        PrepareContentsLoad(rootFolder);
         ShowPopup();
         UpdateFolderMonitor();
         StartContentsLoad();
@@ -191,9 +197,9 @@ public sealed partial class PopupWindow : Window
 
     private void Reload()
     {
-        if (_navigation.CurrentFolder is null || !_chrome.IsVisible) return;
+        if (_navigation.CurrentFolder is not { } folder || !_chrome.IsVisible) return;
+        PrepareContentsLoad(folder);
         UpdateFolderMonitor();
-        PrepareContentsLoad();
         StartContentsLoad();
     }
 
@@ -214,8 +220,11 @@ public sealed partial class PopupWindow : Window
         SearchBox.Text = string.Empty;
     }
 
-    private void PrepareContentsLoad()
+    private void PrepareContentsLoad(string folder)
     {
+        App.ReportSettingsError(_preferences.Open(folder));
+        SelectSortMenuItem(_preferences.Current.Sort);
+        RenderFolderView();
         _folderLoads.Cancel();
         CancelSearch();
         _contents = null;
@@ -247,7 +256,7 @@ public sealed partial class PopupWindow : Window
 
     private async Task ReadContentsAsync(string folder, bool preserveView)
     {
-        var completion = await _folderLoads.LoadAsync(folder);
+        var completion = await _folderLoads.LoadAsync(folder, _preferences.Current.Sort);
         if (completion is null || !_folderLoads.IsCurrent(completion) || !_chrome.IsVisible)
             return;
 
@@ -312,7 +321,7 @@ public sealed partial class PopupWindow : Window
 
     private async Task SearchRecursivelyAsync(string folder, string query, bool preserveView)
     {
-        var completion = await _folderSearch.SearchAsync(folder, query);
+        var completion = await _folderSearch.SearchAsync(folder, query, _preferences.Current.Sort);
         if (completion is null || !_folderSearch.IsCurrent(completion)
             || !PathsEqual(_navigation.CurrentFolder, folder)
             || _navigation.SearchQuery != query || !_chrome.IsVisible)
@@ -413,13 +422,13 @@ public sealed partial class PopupWindow : Window
     {
         // Все непустые запросы используют одинаковую высоту для результатов.
         var count = Math.Min(_contents?.Entries.Count ?? 0, FolderSearch.MaxResults);
-        var (width, _) = PopupLayout.Measure(count, _gridMode);
+        var (width, _) = PopupLayout.Measure(count, IsGridView);
         var searchMode = _navigation.HasSearchQuery;
         _chrome.FitToTaskbar(width, availableWidth =>
         {
             var inlineSearch = PlaceSearchInHeader(availableWidth);
             var (_, height) = PopupLayout.Measure(searchMode ? FolderSearch.MaxResults : count,
-                _gridMode, separateSearchRow: !inlineSearch);
+                IsGridView, separateSearchRow: !inlineSearch);
             return searchMode ? height + 40 : height; // сообщения о неполном поиске и лимите
         });
     }
@@ -563,8 +572,8 @@ public sealed partial class PopupWindow : Window
 
     private void UpdateFolderMonitor()
     {
-        if (_chrome.IsVisible)
-            _folderRefresh.Watch(_navigation.CurrentFolder, _navigation.HasSearchQuery);
+        if (_chrome.IsVisible && _navigation.CurrentFolder is { } folder)
+            _folderRefresh.Watch(folder, _navigation.HasSearchQuery, _preferences.Current.Sort);
     }
 
     private void OnClosed(object sender, WindowEventArgs args)
@@ -608,14 +617,40 @@ public sealed partial class PopupWindow : Window
         RefreshContents();
     }
 
+    private void SelectSortMenuItem(FolderSortOrder order)
+    {
+        SortByName.IsChecked = order == FolderSortOrder.Name;
+        SortByDateAdded.IsChecked = order == FolderSortOrder.DateAdded;
+        SortByDateModified.IsChecked = order == FolderSortOrder.DateModified;
+    }
+
+    private void OnSortByName(object sender, RoutedEventArgs e) => SetSortOrder(FolderSortOrder.Name);
+
+    private void OnSortByDateAdded(object sender, RoutedEventArgs e) => SetSortOrder(FolderSortOrder.DateAdded);
+
+    private void OnSortByDateModified(object sender, RoutedEventArgs e) => SetSortOrder(FolderSortOrder.DateModified);
+
+    private void SetSortOrder(FolderSortOrder order)
+    {
+        if (_navigation.CurrentFolder is null || _preferences.Current.Sort == order) return;
+        App.ReportSettingsError(_preferences.SetSort(order));
+        RefreshContents();
+    }
+
     private void OnToggleView(object sender, RoutedEventArgs e)
     {
+        if (_navigation.CurrentFolder is null) return;
         ResetDragGestures();
-        _gridMode = !_gridMode;
-        ItemsGrid.Visibility = _gridMode ? Visibility.Visible : Visibility.Collapsed;
-        ItemsList.Visibility = _gridMode ? Visibility.Collapsed : Visibility.Visible;
-        ViewToggleIcon.Glyph = _gridMode ? GridModeGlyph : ListModeGlyph;
+        App.ReportSettingsError(_preferences.SetView(IsGridView ? FolderViewMode.List : FolderViewMode.Grid));
+        RenderFolderView();
         ResizeToFit();
+    }
+
+    private void RenderFolderView()
+    {
+        ItemsGrid.Visibility = IsGridView ? Visibility.Visible : Visibility.Collapsed;
+        ItemsList.Visibility = IsGridView ? Visibility.Collapsed : Visibility.Visible;
+        ViewToggleIcon.Glyph = IsGridView ? GridModeGlyph : ListModeGlyph;
     }
 
     private void OnTogglePin(object sender, RoutedEventArgs e)
@@ -629,6 +664,11 @@ public sealed partial class PopupWindow : Window
     private void OnDismissAccelerator(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
     {
         args.Handled = true;
+        if (SortButton.Flyout.IsOpen)
+        {
+            SortButton.Flyout.Hide();
+            return;
+        }
         if (_dragInProgress || _marquee.Cancel()) return;
         if (SearchBox.Text.Length > 0)
         {

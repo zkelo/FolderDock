@@ -21,6 +21,9 @@ icons and localization remain presentation concerns.
 - `SettingsService` owns the active preference and the fallback to defaults.
   `JsonSettingsStore` owns the compatible `autoCheckUpdates` JSON field and atomic
   replacement of the settings file. A failed save retains the active session value.
+- `FolderPreferencesService` loads the current folder's sort order and view on
+  navigation. `JsonFolderPreferencesStore` resolves that folder's individual file
+  by hashing its normalized path. Refreshing the listing reuses the active values.
 - `PinnedFolderService` selects shortcuts whose destination folders still exist.
   The Windows adapter reads and writes `.lnk` files and owns COM resources.
 - `UpdateService` compares versions and selects the installer for the injected
@@ -34,9 +37,9 @@ icons and localization remain presentation concerns.
   `IsCurrent` after awaiting and confirm the window is still showing that folder.
   Cancelling also invalidates results that already completed but have not rendered.
 
-Construction of settings and manager services stays on the manager path. Popup
-preparation does not read user folders. Folder loading and thumbnails remain
-deferred until after the popup has been shown.
+The application loads global settings at startup. Warming the popup does not
+read per-folder preferences. Listing and thumbnail requests start after the
+popup is shown.
 
 ## File dragging
 

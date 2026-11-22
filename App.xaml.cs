@@ -15,6 +15,10 @@ public partial class App : Application
     private readonly ActivationQueue _activations;
     private readonly DispatcherQueue _uiQueue;
     private readonly LoginStartupService _loginStartup;
+    private readonly string _dataDirectory = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "FolderDock");
+    private readonly SettingsService _settings;
+    private readonly FolderPreferencesService _folderPreferences;
     // One client for the application's lifetime keeps pooled connections reusable.
     private HttpClient? _updateHttp;
     private PopupWindow? _popup;
@@ -26,6 +30,11 @@ public partial class App : Application
         _activations = activations;
         _loginStartup = new LoginStartupService(
             new WindowsLoginStartupStore(Environment.ProcessPath ?? string.Empty));
+        var folderStore = new JsonFolderPreferencesStore(Path.Combine(_dataDirectory, "FolderPreferences"));
+        _folderPreferences = new FolderPreferencesService(folderStore);
+        var settingsPath = Path.Combine(_dataDirectory, "settings.json");
+        _settings = new SettingsService(new JsonSettingsStore(settingsPath));
+        ReportSettingsError(_settings.Load().Error);
         InitializeComponent();
         _uiQueue = DispatcherQueue.GetForCurrentThread();
     }
@@ -95,10 +104,10 @@ public partial class App : Application
         _popup.PrepareForFirstShow();
     }
 
-    private static PopupWindow CreatePopup() => new(
+    private PopupWindow CreatePopup() => new(
         new FolderLoadSession(new FileSystemFolderSnapshotReader()),
         new FolderSearchSession(new FileSystemFolderSearch()),
-        new ShellDragDrop(), new FileSystemFolderChangeSource());
+        new ShellDragDrop(), new FileSystemFolderChangeSource(), _folderPreferences);
 
     private void TogglePopup(string folder)
     {
@@ -129,18 +138,20 @@ public partial class App : Application
     private ManagerWindow CreateManager()
     {
         _updateHttp ??= new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
-        var dataDirectory = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "FolderDock");
-        var settings = new SettingsService(
-            new JsonSettingsStore(Path.Combine(dataDirectory, "settings.json")));
         var pinnedFolders = new PinnedFolderService(
-            new WindowsFolderShortcutStore(Path.Combine(dataDirectory, "Shortcuts")));
+            new WindowsFolderShortcutStore(Path.Combine(_dataDirectory, "Shortcuts")));
         var updates = new UpdateService(
             new GitHubReleaseSource(_updateHttp, AppInfo.Version),
             new DownloadedUpdateInstaller(_updateHttp, new ProcessUpdateInstallerLauncher(),
                 Path.GetTempPath()),
             AppInfo.Version,
             RuntimeInformation.ProcessArchitecture == Architecture.Arm64 ? "arm64" : "x64");
-        return new ManagerWindow(_loginStartup, settings, pinnedFolders, updates);
+        return new ManagerWindow(_loginStartup, _settings, pinnedFolders, updates);
+    }
+
+    internal static void ReportSettingsError(string? error)
+    {
+        if (error is not null)
+            Trace.WriteLine($"FolderDock: settings persistence failed: {error}");
     }
 }

@@ -65,6 +65,20 @@
                         Click="OnToggleView">
                     <FontIcon x:Name="ViewToggleIcon" Glyph="&#xE8FD;" FontSize="14"/>
                 </Button>
+                <Button x:Name="SortButton" Margin="2,0,0,0"
+                        Padding="6" Background="Transparent" BorderThickness="0" CornerRadius="8">
+                    <FontIcon Glyph="&#xE8CB;" FontSize="14"/>
+                    <Button.Flyout>
+                        <MenuFlyout>
+                            <RadioMenuFlyoutItem x:Name="SortByName" x:Uid="SortByName"
+                                                 GroupName="FolderSort" Click="OnSortByName"/>
+                            <RadioMenuFlyoutItem x:Name="SortByDateAdded" x:Uid="SortByDateAdded"
+                                                 GroupName="FolderSort" Click="OnSortByDateAdded"/>
+                            <RadioMenuFlyoutItem x:Name="SortByDateModified" x:Uid="SortByDateModified"
+                                                 GroupName="FolderSort" Click="OnSortByDateModified"/>
+                        </MenuFlyout>
+                    </Button.Flyout>
+                </Button>
                 <Button x:Name="OpenExplorerButton" Margin="2,0,0,0"
                         Padding="6" Background="Transparent" BorderThickness="0" CornerRadius="8"
                         Click="OnOpenInExplorer">

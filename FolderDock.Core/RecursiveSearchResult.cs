@@ -1,7 +1,7 @@
 namespace FolderDock.Core;
 
 public sealed record RecursiveSearchResult(
-    IReadOnlyList<RecursiveSearchEntry> Entries,
+    IReadOnlyList<FolderSnapshotEntry> Entries,
     bool Failed,
     bool Incomplete,
     bool LimitReached);

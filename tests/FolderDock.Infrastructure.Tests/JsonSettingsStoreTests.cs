@@ -67,6 +67,18 @@ public sealed class JsonSettingsStoreTests : IDisposable
         Assert.Equal(json, File.ReadAllText(path));
     }
 
+    [Fact]
+    public void ExplicitGlobalSettingChangeRepairsInvalidJson()
+    {
+        var path = WriteSettings("{");
+        var store = new JsonSettingsStore(path);
+
+        Assert.Throws<SettingsStoreException>(() => store.Read());
+        store.Write(new AppSettings(false));
+
+        Assert.False(store.Read().AutoCheckUpdates);
+    }
+
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
@@ -82,6 +94,17 @@ public sealed class JsonSettingsStoreTests : IDisposable
         Assert.Single(json.RootElement.EnumerateObject());
         Assert.Equal(new AppSettings(enabled), store.Read());
         Assert.Equal(new[] { path }, Directory.EnumerateFileSystemEntries(_root));
+    }
+
+    [Fact]
+    public void ChangingUpdateChecksPreservesUnrelatedSettings()
+    {
+        var path = WriteSettings("""{"autoCheckUpdates":true,"future":{"key":42}}""");
+        new JsonSettingsStore(path).Write(new AppSettings(false));
+
+        using var document = JsonDocument.Parse(File.ReadAllText(path));
+        Assert.Equal(42, document.RootElement.GetProperty("future").GetProperty("key").GetInt32());
+        Assert.False(document.RootElement.GetProperty("autoCheckUpdates").GetBoolean());
     }
 
     [Fact]

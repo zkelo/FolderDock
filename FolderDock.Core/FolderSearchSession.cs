@@ -23,14 +23,15 @@ public sealed class FolderSearchSession
 
     public bool IsSearching => _requests.IsPending;
 
-    public async Task<FolderSearchCompletion?> SearchAsync(string folder, string query)
+    public async Task<FolderSearchCompletion?> SearchAsync(
+        string folder, string query, FolderSortOrder sortOrder = FolderSortOrder.Name)
     {
         ArgumentNullException.ThrowIfNull(folder);
         ArgumentNullException.ThrowIfNull(query);
         var completion = await _requests.RunAsync(async token =>
         {
             await Task.Delay(_debounceInterval, _timeProvider, token).ConfigureAwait(false);
-            return await _search.SearchAsync(folder, query, token).ConfigureAwait(false);
+            return await _search.SearchAsync(folder, query, sortOrder, token).ConfigureAwait(false);
         }).ConfigureAwait(false);
 
         return completion is null ? null
