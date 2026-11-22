@@ -1,4 +1,6 @@
 using System;
+using System.Drawing;
+using FolderDock.Core;
 using Microsoft.UI;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
@@ -9,17 +11,11 @@ namespace FolderDock;
 
 public sealed class PopupChrome
 {
-    /// Отступ окна от краёв рабочей области.
-    private const int ScreenEdgeMargin = 8;
-
-    /// Зазор между нижним краем попапа и панелью задач.
-    private const int TaskbarGap = 12;
-
     public IntPtr Hwnd { get; }
     public AppWindow AppWindow { get; }
 
-    /// Точка привязки попапа (клик по значку панели задач); null до первого показа.
-    private Windows.Graphics.PointInt32? _anchor;
+    private sealed record Anchor(Point Click, Rectangle Monitor, Rectangle WorkArea, TaskbarLayout Taskbar);
+    private Anchor? _anchor;
 
     public PopupChrome(Window window)
     {
@@ -35,8 +31,6 @@ public sealed class PopupChrome
         RoundCorners();
     }
 
-    public double Scale => Native.GetDpiForWindow(Hwnd) / 96.0;
-
     public void Show()
     {
         AppWindow.Show();
@@ -47,46 +41,67 @@ public sealed class PopupChrome
 
     public bool IsVisible => AppWindow.IsVisible;
 
-    public void Resize(int width, int height) => ApplyBounds(width, height);
+    // Capture the click and taskbar together, before sizing the loading view.
+    public void AnchorToCursor() => _anchor = ReadAnchor(CursorPoint());
 
-    public void MoveToTaskbarArea()
-    {
-        var size = AppWindow.Size;
-        ApplyBounds(size.Width, size.Height);
-    }
-
-    private void ApplyBounds(int width, int height)
-    {
-        var anchor = _anchor ?? CursorPoint();
-        var workArea = DisplayArea.GetFromPoint(anchor, DisplayAreaFallback.Nearest).WorkArea;
-        // Размеры уже в физических пикселях. Высокий попап должен прокручивать
-        // содержимое, сохраняя заголовок и статус над панелью задач.
-        var maxHeight = Math.Max(1, workArea.Height - ScreenEdgeMargin - TaskbarGap);
-        height = Math.Clamp(height, 1, maxHeight);
-        var minX = workArea.X + ScreenEdgeMargin;
-        var maxX = Math.Max(minX, workArea.X + workArea.Width - width - ScreenEdgeMargin);
-        var x = Math.Clamp(anchor.X - (width / 2), minX, maxX);
-        var y = Math.Max(workArea.Y + ScreenEdgeMargin,
-                         workArea.Y + workArea.Height - height - TaskbarGap);
-
-        var position = AppWindow.Position;
-        var size = AppWindow.Size;
-        if (position.X == x && position.Y == y && size.Width == width && size.Height == height)
-            return;
-
-        // Keep the taskbar edge anchored through a size change. Separate resize
-        // and move calls can present an intermediate frame at the old position.
-        AppWindow.MoveAndResize(new Windows.Graphics.RectInt32(x, y, width, height));
-    }
-
-    /// Зафиксировать точку привязки попапа по текущей позиции курсора.
-    /// Вызывать при показе (клик по значку панели задач), до Reload.
-    public void AnchorToCursor() => _anchor = CursorPoint();
-
-    private static Windows.Graphics.PointInt32 CursorPoint()
+    private static Point CursorPoint()
     {
         Native.GetCursorPos(out var cursor);
-        return new Windows.Graphics.PointInt32(cursor.X, cursor.Y);
+        return new Point(cursor.X, cursor.Y);
+    }
+
+    private static Anchor ReadAnchor(Point click, Anchor? previous = null)
+    {
+        var display = DisplayArea.GetFromPoint(new Windows.Graphics.PointInt32(click.X, click.Y),
+            DisplayAreaFallback.Nearest);
+        var outer = display.OuterBounds;
+        var work = display.WorkArea;
+        var monitor = new Rectangle(outer.X, outer.Y, outer.Width, outer.Height);
+        // WorkArea is relative to this monitor. AppWindow uses desktop coordinates.
+        var workArea = new Rectangle(outer.X + work.X, outer.Y + work.Y, work.Width, work.Height);
+        // Keep the captured taskbar still while auto-hide animates. Refresh the
+        // snapshot if a display is disconnected, resized or its work area changes.
+        if (previous is not null && previous.Monitor == monitor && previous.WorkArea == workArea)
+            return previous;
+
+        return new Anchor(click, monitor, workArea, WindowsTaskbar.Locate(monitor, workArea));
+    }
+
+    private Anchor CurrentAnchor() => _anchor = ReadAnchor(_anchor?.Click ?? CursorPoint(), _anchor);
+
+    public void FitToTaskbar(int layoutWidth, Func<int, int> measureHeight)
+    {
+        var anchor = CurrentAnchor();
+        var dpi = Native.GetDpiForWindow(Hwnd);
+        Arrange(anchor, dpi, layoutWidth, measureHeight);
+        // Moving a window to another display can change both the DPI and the
+        // bounds suggested by Windows. Remeasure the header at the new width.
+        var targetDpi = Native.GetDpiForWindow(Hwnd);
+        if (targetDpi != dpi)
+            Arrange(anchor, targetDpi, layoutWidth, measureHeight);
+    }
+
+    private void Arrange(Anchor anchor, uint dpi, int width, Func<int, int> measureHeight)
+    {
+        var taskbar = anchor.Taskbar;
+        var available = PopupPlacement.MaximumSize(taskbar.WorkArea, taskbar.Edge);
+        var scale = dpi == 0 ? 1.0 : dpi / 96.0;
+        var availableWidth = Math.Min(width, Math.Max(1, (int)Math.Floor(available.Width / scale)));
+        var height = measureHeight(availableWidth);
+        var requested = new Size((int)(width * scale), (int)(height * scale));
+        var bounds = PopupPlacement.Calculate(taskbar.WorkArea, taskbar.Edge, anchor.Click, requested);
+        MoveAndResize(bounds);
+    }
+
+    private void MoveAndResize(Rectangle bounds)
+    {
+        var position = AppWindow.Position;
+        var size = AppWindow.Size;
+        if (position.X == bounds.X && position.Y == bounds.Y &&
+            size.Width == bounds.Width && size.Height == bounds.Height)
+            return;
+
+        AppWindow.MoveAndResize(new Windows.Graphics.RectInt32(bounds.X, bounds.Y, bounds.Width, bounds.Height));
     }
 
     public DataTransferManager GetShareManager()

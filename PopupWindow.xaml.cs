@@ -222,7 +222,6 @@ public sealed partial class PopupWindow : Window
             ? Visibility.Visible
             : Visibility.Collapsed;
         ResizeToFit();
-        _chrome.MoveToTaskbarArea();
     }
 
     private void ShowPopup()
@@ -253,7 +252,6 @@ public sealed partial class PopupWindow : Window
         // new folder snapshot ready without restarting or replacing that search.
         if (!_navigation.HasSearchQuery) ApplySearch(preserveView);
         ResizeToFit();
-        _chrome.MoveToTaskbarArea();
     }
 
     private void ShowLoadingStatus()
@@ -271,10 +269,7 @@ public sealed partial class PopupWindow : Window
         UpdateFolderMonitor();
         ApplySearch();
         if (wasSearching != _navigation.HasSearchQuery)
-        {
             ResizeToFit();
-            _chrome.MoveToTaskbarArea();
-        }
     }
 
     private void ApplySearch(bool preserveView = false)
@@ -414,13 +409,14 @@ public sealed partial class PopupWindow : Window
         // Все непустые запросы используют одинаковую высоту для результатов.
         var count = Math.Min(_contents?.Entries.Count ?? 0, FolderSearch.MaxResults);
         var (width, _) = PopupLayout.Measure(count, _gridMode);
-        var inlineSearch = PlaceSearchInHeader(width);
         var searchMode = _navigation.HasSearchQuery;
-        var (_, height) = PopupLayout.Measure(searchMode ? FolderSearch.MaxResults : count,
-            _gridMode, separateSearchRow: !inlineSearch);
-        if (searchMode) height += 40; // сообщения о неполном поиске и лимите
-        var scale = _chrome.Scale;
-        _chrome.Resize((int)(width * scale), (int)(height * scale));
+        _chrome.FitToTaskbar(width, availableWidth =>
+        {
+            var inlineSearch = PlaceSearchInHeader(availableWidth);
+            var (_, height) = PopupLayout.Measure(searchMode ? FolderSearch.MaxResults : count,
+                _gridMode, separateSearchRow: !inlineSearch);
+            return searchMode ? height + 40 : height; // сообщения о неполном поиске и лимите
+        });
     }
 
     private bool PlaceSearchInHeader(int width)
@@ -609,7 +605,6 @@ public sealed partial class PopupWindow : Window
         ItemsList.Visibility = _gridMode ? Visibility.Collapsed : Visibility.Visible;
         ViewToggleIcon.Glyph = _gridMode ? GridModeGlyph : ListModeGlyph;
         ResizeToFit();
-        _chrome.MoveToTaskbarArea();
     }
 
     private void OnTogglePin(object sender, RoutedEventArgs e)
