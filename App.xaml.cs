@@ -33,7 +33,7 @@ public partial class App : Application
         var folderStore = new JsonFolderPreferencesStore(Path.Combine(_dataDirectory, "FolderPreferences"));
         _folderPreferences = new FolderPreferencesService(folderStore);
         var settingsPath = Path.Combine(_dataDirectory, "settings.json");
-        _settings = new SettingsService(new JsonSettingsStore(settingsPath, folderStore));
+        _settings = new SettingsService(new JsonSettingsStore(settingsPath));
         ReportSettingsError(_settings.Load().Error);
         InitializeComponent();
         _uiQueue = DispatcherQueue.GetForCurrentThread();

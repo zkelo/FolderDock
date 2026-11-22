@@ -9,7 +9,6 @@ namespace FolderDock.Infrastructure;
 public sealed class JsonFolderPreferencesStore : IFolderPreferencesStore
 {
     private readonly string _directory;
-    private HashSet<string> _legacyFiles = [];
 
     public JsonFolderPreferencesStore(string directory)
     {
@@ -17,18 +16,16 @@ public sealed class JsonFolderPreferencesStore : IFolderPreferencesStore
         _directory = Path.GetFullPath(directory);
     }
 
-    public FolderPreferences Read(string folder) =>
-        ReadDocument(FilePath(folder))?.ToPreferences() ?? new FolderPreferences();
-
-    private static Document? ReadDocument(string path)
+    public FolderPreferences Read(string folder)
     {
         try
         {
-            return AtomicJsonFile.Read<Document>(path);
+            var document = AtomicJsonFile.Read<Document>(FilePath(folder));
+            return document?.ToPreferences() ?? new FolderPreferences();
         }
         catch (Exception exception) when (exception is FileNotFoundException or DirectoryNotFoundException)
         {
-            return null;
+            return new FolderPreferences();
         }
         catch (Exception exception) when (exception is JsonException || AtomicJsonFile.IsStorageFailure(exception))
         {
@@ -40,27 +37,10 @@ public sealed class JsonFolderPreferencesStore : IFolderPreferencesStore
     {
         ArgumentNullException.ThrowIfNull(preferences);
         var path = FilePath(folder);
-        if (preferences == new FolderPreferences() && !_legacyFiles.Contains(path))
+        if (preferences == new FolderPreferences())
             AtomicJsonFile.Delete(path);
         else
             AtomicJsonFile.Write(path, Document.From(preferences));
-    }
-
-    internal bool ImportSort(string folder, FolderSortOrder sort) =>
-        sort != FolderSortOrder.Name &&
-        AtomicJsonFile.Write(FilePath(folder), Document.From(new FolderPreferences(sort)), overwrite: false);
-
-    // If migration could not retire the old settings, an explicit default prevents
-    // a later retry from restoring a customization that the user has since reset.
-    internal void ProtectLegacyDefaults(IEnumerable<string> folders) =>
-        _legacyFiles = folders.Select(FilePath).ToHashSet(StringComparer.Ordinal);
-
-    internal void RemoveLegacyDefaultMarker(string folder)
-    {
-        var path = FilePath(folder);
-        if (ReadDocument(path) is
-            { Sort: "name" or "default", View: "grid" or "default", ExtraFields: null or { Count: 0 } })
-            AtomicJsonFile.Delete(path);
     }
 
     private string FilePath(string folder)
@@ -74,15 +54,18 @@ public sealed class JsonFolderPreferencesStore : IFolderPreferencesStore
         [property: JsonPropertyName("sort")] string? Sort,
         [property: JsonPropertyName("view")] string? View)
     {
-        [JsonExtensionData]
-        public Dictionary<string, JsonElement>? ExtraFields { get; set; }
-
         public FolderPreferences ToPreferences() => new(Sort switch
         {
+            "name" => FolderSortOrder.Name,
             "dateAdded" => FolderSortOrder.DateAdded,
             "dateModified" => FolderSortOrder.DateModified,
-            _ => FolderSortOrder.Name
-        }, View == "list" ? FolderViewMode.List : FolderViewMode.Grid);
+            _ => throw new JsonException($"Unknown folder sort order '{Sort}'.")
+        }, View switch
+        {
+            "grid" => FolderViewMode.Grid,
+            "list" => FolderViewMode.List,
+            _ => throw new JsonException($"Unknown folder view '{View}'.")
+        });
 
         public static Document From(FolderPreferences preferences) => new(preferences.Sort switch
         {

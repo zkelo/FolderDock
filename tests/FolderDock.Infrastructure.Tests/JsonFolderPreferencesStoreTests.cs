@@ -51,29 +51,6 @@ public sealed class JsonFolderPreferencesStoreTests : IDisposable
         Assert.Equal(preferences, new JsonFolderPreferencesStore(_directory).Read(_folder));
     }
 
-    [Theory]
-    [InlineData("default", "list", FolderSortOrder.Name, FolderViewMode.List, "list")]
-    [InlineData("dateAdded", "default", FolderSortOrder.DateAdded, FolderViewMode.Grid, "grid")]
-    [InlineData("default", "default", FolderSortOrder.Name, FolderViewMode.Grid, "grid")]
-    public void OpeningLegacyPreferencesPreservesTheFileAndEditingWritesConcreteValues(
-        string oldSort, string oldView, FolderSortOrder sort, FolderViewMode view, string savedView)
-    {
-        _store.Write(_folder, new FolderPreferences(FolderSortOrder.DateAdded));
-        var path = Assert.Single(Directory.EnumerateFiles(_directory));
-        var original = JsonSerializer.Serialize(new { sort = oldSort, view = oldView });
-        File.WriteAllText(path, original);
-        var service = new FolderPreferencesService(_store);
-
-        Assert.Null(service.Open(_folder));
-        Assert.Equal(new FolderPreferences(sort, view), service.Current);
-        Assert.Equal(original, File.ReadAllText(path));
-        Assert.Null(service.SetSort(FolderSortOrder.DateModified));
-
-        using var json = JsonDocument.Parse(File.ReadAllText(path));
-        Assert.Equal("dateModified", json.RootElement.GetProperty("sort").GetString());
-        Assert.Equal(savedView, json.RootElement.GetProperty("view").GetString());
-    }
-
     [Fact]
     public void SwitchingBackToGridWithNameOrderRemovesTheFile()
     {
@@ -156,15 +133,18 @@ public sealed class JsonFolderPreferencesStoreTests : IDisposable
         Assert.Single(Directory.EnumerateFileSystemEntries(_directory));
     }
 
-    [Fact]
-    public void CorruptDocumentDoesNotAffectOtherFolders()
+    [Theory]
+    [InlineData("{")]
+    [InlineData("""{"sort":"unknown","view":"list"}""")]
+    [InlineData("""{"sort":"dateAdded","view":"unknown"}""")]
+    public void InvalidDocumentDoesNotAffectOtherFolders(string json)
     {
         _store.Write(_folder, new FolderPreferences(FolderSortOrder.DateModified));
         var path = Assert.Single(Directory.EnumerateFiles(_directory));
-        File.WriteAllText(path, "{");
+        File.WriteAllText(path, json);
 
         Assert.Throws<SettingsStoreException>(() => _store.Read(_folder));
-        Assert.Equal("{", File.ReadAllText(path));
+        Assert.Equal(json, File.ReadAllText(path));
         Assert.Equal(new FolderPreferences(), _store.Read(Path.Combine(_folder, "Archive")));
     }
 

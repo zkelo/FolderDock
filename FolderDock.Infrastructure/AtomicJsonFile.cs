@@ -19,7 +19,7 @@ internal static class AtomicJsonFile
         }
     }
 
-    public static bool Write<T>(string path, T document, bool overwrite = true)
+    public static void Write<T>(string path, T document)
     {
         var directory = Path.GetDirectoryName(path)!;
         var temporaryPath = Path.Combine(directory, $".settings-{Guid.NewGuid():N}.tmp");
@@ -30,7 +30,7 @@ internal static class AtomicJsonFile
                 JsonSerializer.Serialize(stream, document, Options);
 
             lock (FileAccessGate)
-                return Commit(temporaryPath, path, overwrite);
+                File.Move(temporaryPath, path, overwrite: true);
         }
         catch (Exception exception) when (IsStorageFailure(exception))
         {
@@ -56,19 +56,6 @@ internal static class AtomicJsonFile
         catch (Exception exception) when (IsStorageFailure(exception))
         {
             throw new SettingsStoreException(exception.Message, exception);
-        }
-    }
-
-    private static bool Commit(string temporaryPath, string path, bool overwrite)
-    {
-        try
-        {
-            File.Move(temporaryPath, path, overwrite);
-            return true;
-        }
-        catch (IOException) when (!overwrite && File.Exists(path))
-        {
-            return false;
         }
     }
 
