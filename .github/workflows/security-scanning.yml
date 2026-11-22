@@ -1,0 +1,86 @@
+name: Security scanning
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  schedule:
+    - cron: '23 3 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+concurrency:
+  group: security-scanning-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  semgrep:
+    name: Semgrep / ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: C# application
+            ruleset: csharp
+            target: .
+          - name: GitHub Actions
+            ruleset: github-actions
+            target: .github/workflows
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Scan for vulnerabilities
+        env:
+          RULESET: ${{ matrix.ruleset }}
+          TARGET: ${{ matrix.target }}
+        run: |
+          status=0
+          pipx run --spec semgrep==1.186.0 semgrep scan \
+            --config "p/$RULESET" --metrics off --disable-version-check --strict \
+            --json-output "$RUNNER_TEMP/semgrep.json" \
+            --sarif-output "$RUNNER_TEMP/semgrep.sarif" "$TARGET" || status=$?
+          case "$status" in
+            0) ;;
+            3) echo "::warning::Semgrep could not parse part of the source. See the scan diagnostics below." ;;
+            *) exit "$status" ;;
+          esac
+          jq -e '.paths.scanned | length > 0' "$RUNNER_TEMP/semgrep.json"
+
+      - name: Summarize severity and risk
+        run: |
+          jq -r '
+            def cell: "<td><code>\(. | @html)</code></td>";
+            "Scanned \(.paths.scanned | length) files. Findings: \(.results | length).",
+            (.errors[] | "<p><strong>Scan diagnostic:</strong> <code>\(.message | @html)</code></p>"),
+            if (.results | length) > 0 then
+              "Likelihood and impact are estimates from the matching rule. The full report includes all findings.",
+              "<table><tr><th>Rule</th><th>Location</th><th>Severity</th><th>Likelihood</th><th>Impact</th></tr>",
+              (.results[:100][] |
+                [.check_id, "\(.path):\(.start.line)", .extra.severity,
+                 (.extra.metadata.likelihood // "Unrated"), (.extra.metadata.impact // "Unrated")] |
+                map(cell) | "<tr>" + join("") + "</tr>"),
+              "</table>"
+            else empty end
+          ' "$RUNNER_TEMP/semgrep.json" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Save full report
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: semgrep-${{ matrix.ruleset }}
+          path: ${{ runner.temp }}/semgrep.json
+          if-no-files-found: error
+
+      - name: Publish alerts to GitHub code scanning
+        uses: github/codeql-action/upload-sarif@1bd86f2fdb4b86187fa4059f16f31a3202acc9ea # v4
+        with:
+          sarif_file: ${{ runner.temp }}/semgrep.sarif
+          category: semgrep/${{ matrix.ruleset }}

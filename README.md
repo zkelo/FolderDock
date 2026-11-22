@@ -49,7 +49,7 @@ Each successful PR build provides **x64** and **ARM64** installers and portable 
 
 These are unsigned test builds. Extract the downloaded ZIP, then run the setup executable or `FolderDock.exe` from the complete portable folder. The installer replaces an existing FolderDock installation; portable copies share the app's settings and running instance. Test-build downloads are published only for PR events.
 
-Closing or merging a PR triggers deletion of its build artifacts. A second cleanup after each completed build removes files uploaded after the PR closed, including reruns. This cleanup becomes active once the workflow is merged into the default branch (`main`) and applies to the PR-named artifacts described above; older archives keep their existing expiration.
+Closing a PR from a branch in this repository triggers cleanup of its builds. A push to `main` also cleans up builds for closed PRs, including merged forks. A sweep scheduled every 15 minutes catches fork PRs closed without merging and any builds uploaded after closure. Cleanup checks the current PR state and applies only to the build archives named above.
 
 ## Building (on Windows)
 
