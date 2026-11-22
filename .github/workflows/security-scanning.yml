@@ -43,10 +43,16 @@ jobs:
           RULESET: ${{ matrix.ruleset }}
           TARGET: ${{ matrix.target }}
         run: |
+          status=0
           pipx run --spec semgrep==1.186.0 semgrep scan \
             --config "p/$RULESET" --metrics off --disable-version-check --strict \
             --json-output "$RUNNER_TEMP/semgrep.json" \
-            --sarif-output "$RUNNER_TEMP/semgrep.sarif" "$TARGET"
+            --sarif-output "$RUNNER_TEMP/semgrep.sarif" "$TARGET" || status=$?
+          case "$status" in
+            0) ;;
+            3) echo "::warning::Semgrep could not parse part of the source. See the scan diagnostics below." ;;
+            *) exit "$status" ;;
+          esac
           jq -e '.paths.scanned | length > 0' "$RUNNER_TEMP/semgrep.json"
 
       - name: Summarize severity and risk
@@ -54,6 +60,7 @@ jobs:
           jq -r '
             def cell: "<td><code>\(. | @html)</code></td>";
             "Scanned \(.paths.scanned | length) files. Findings: \(.results | length).",
+            (.errors[] | "<p><strong>Scan diagnostic:</strong> <code>\(.message | @html)</code></p>"),
             if (.results | length) > 0 then
               "Likelihood and impact are estimates from the matching rule. The full report includes all findings.",
               "<table><tr><th>Rule</th><th>Location</th><th>Severity</th><th>Likelihood</th><th>Impact</th></tr>",
