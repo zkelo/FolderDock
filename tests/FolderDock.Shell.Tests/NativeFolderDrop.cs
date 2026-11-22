@@ -15,10 +15,12 @@ internal sealed class NativeFolderDrop : IDisposable
     private readonly IDropTarget _target;
     private bool _entered;
 
-    public NativeFolderDrop(string source, string destination)
+    public NativeFolderDrop(string source, string destination) : this([source], destination) { }
+
+    public NativeFolderDrop(string[] sources, string destination)
     {
         _target = BindTarget(destination);
-        try { _data = ShellTestDataObject.Create(source); }
+        try { _data = ShellTestDataObject.Create(sources); }
         catch
         {
             Marshal.ReleaseComObject(_target);

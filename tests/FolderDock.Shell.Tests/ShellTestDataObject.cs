@@ -10,12 +10,12 @@ internal static class ShellTestDataObject
     static ShellTestDataObject() => ComWrappersSupport.InitializeComWrappers();
 
     // The caller owns the returned COM reference.
-    internal static IDataObject Create(string path)
+    internal static IDataObject Create(params string[] paths)
     {
         var package = new DataPackage();
-        ShellDataPackage.SetFile(package, path);
+        ShellDataPackage.SetFiles(package, paths);
 
-        // SetFile has released its local Shell RCW. A delayed drop target must
+        // SetFiles has released its local Shell RCW. A delayed drop target must
         // still be able to read the package and perform the requested operation.
         GC.Collect();
         GC.WaitForPendingFinalizers();

@@ -36,6 +36,8 @@ public sealed partial class PopupWindow : Window
     private readonly IFileDragDrop _fileDragDrop;
     private readonly FileDragSource _gridDragSource;
     private readonly FileDragSource _listDragSource;
+    private readonly FolderItemSelection _selection = new();
+    private readonly MarqueeSelection _marquee;
     private readonly FolderRefreshController _folderRefresh;
     private int _popupGeneration;
     private bool _dragInProgress;
@@ -71,8 +73,10 @@ public sealed partial class PopupWindow : Window
         _share = new ShareCoordinator(_chrome, shareFinished: OnShareCompleted);
         _gridDragSource = new FileDragSource(ItemsGrid, _chrome.Hwnd, DragEntry);
         _listDragSource = new FileDragSource(ItemsList, _chrome.Hwnd, DragEntry);
+        _marquee = new MarqueeSelection(ItemsHost, () => _gridMode ? ItemsGrid : ItemsList,
+            SelectionRectangle, _selection, _chrome.Hwnd);
         _folderRefresh = new FolderRefreshController(DispatcherQueue, folderChanges,
-            RefreshContents, () => _chrome.IsVisible && !_dragInProgress);
+            RefreshContents, () => _chrome.IsVisible && !_dragInProgress && !_marquee.IsTracking);
         Closed += OnClosed;
         InitializeHeaderLabels();
         Activated += OnActivationChanged;
@@ -375,6 +379,7 @@ public sealed partial class PopupWindow : Window
     {
         ResetDragGestures();
         CancelThumbnails();
+        _selection.KeepDisplayed(entries);
         _displayedEntries = entries;
         // One replacement per host instead of notifying both hosts for each item.
         ItemsGrid.ItemsSource = entries;
@@ -454,6 +459,7 @@ public sealed partial class PopupWindow : Window
             return;
         }
 
+        _marquee.Cancel();
         RequestDismiss(PopupDismissalReason.Deactivated);
     }
 
@@ -475,7 +481,10 @@ public sealed partial class PopupWindow : Window
         var dragSource = sender is GridView ? _gridDragSource : _listDragSource;
         if (_dragInProgress || dragSource.SuppressClick) return;
         if (e.ClickedItem is FolderEntry entry)
+        {
+            _selection.Replace(Array.Empty<FolderEntry>());
             await OpenEntryAsync(entry);
+        }
     }
 
     private async Task OpenEntryAsync(FolderEntry entry)
@@ -520,7 +529,7 @@ public sealed partial class PopupWindow : Window
         CancelThumbnails();
         try
         {
-            await _fileDragDrop.StartAsync(source, pointer, path);
+            await _fileDragDrop.StartAsync(source, pointer, _selection.PathsFor(path, _displayedEntries));
         }
         catch (OperationCanceledException)
         {
@@ -547,6 +556,7 @@ public sealed partial class PopupWindow : Window
 
     private void ResetDragGestures()
     {
+        _marquee.Cancel();
         _gridDragSource.Reset();
         _listDragSource.Reset();
     }
@@ -561,6 +571,7 @@ public sealed partial class PopupWindow : Window
     {
         _popupGeneration++;
         _folderRefresh.Dispose();
+        _marquee.Dispose();
         _gridDragSource.Dispose();
         _listDragSource.Dispose();
         _folderLoads.Cancel();
@@ -581,7 +592,7 @@ public sealed partial class PopupWindow : Window
         _shellMenuOpen = true;
         try
         {
-            ShellContextMenu.Show(_chrome.Hwnd, entry.FullPath);
+            ShellContextMenu.Show(_chrome.Hwnd, _selection.PathsFor(entry.FullPath, _displayedEntries));
         }
         catch
         {
@@ -618,7 +629,7 @@ public sealed partial class PopupWindow : Window
     private void OnDismissAccelerator(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
     {
         args.Handled = true;
-        if (_dragInProgress) return;
+        if (_dragInProgress || _marquee.Cancel()) return;
         if (SearchBox.Text.Length > 0)
         {
             SearchBox.Text = string.Empty;

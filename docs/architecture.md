@@ -50,8 +50,8 @@ open the source item.
 
 `IFileDragDrop` is a presentation-side port because it accepts a WinUI source
 element and pointer. `ShellDragDrop` uses `UIElement.StartDragAsync` so WinUI owns
-pointer release and cancellation. `ShellFileDataObject` creates the actual Shell
-`IDataObject`; `ShellDataPackage` bridges it into the drag's `DataPackage` through
+pointer release and cancellation. `ShellSelection` obtains the Shell `IDataObject`
+or context menu for the selected paths. `ShellDataPackage` bridges the data object into the drag's `DataPackage` through
 `IDataObjectProvider`, preserving native file and shortcut identity. Windows owns
 modifier keys, destination negotiation and filesystem operations.
 Neither Core nor the UI deletes sources based on a returned drop effect.

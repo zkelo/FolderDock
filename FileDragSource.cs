@@ -1,6 +1,5 @@
 using System;
 using System.Linq;
-using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using FolderDock.Core;
 using Microsoft.UI.Input;
@@ -16,10 +15,6 @@ namespace FolderDock;
 /// <summary>Recognizes mouse gestures and keeps activation suppressed through the file transfer.</summary>
 internal sealed class FileDragSource : IDisposable
 {
-    private const int HorizontalDragMetric = 68;
-    private const int VerticalDragMetric = 69;
-    private const uint DefaultDpi = 96;
-
     private readonly ListViewBase _view;
     private readonly nint _owner;
     private readonly Func<UIElement, PointerPoint, string, Task> _dragRequested;
@@ -83,7 +78,7 @@ internal sealed class FileDragSource : IDisposable
             _view.ItemFromContainer(container) is not FolderEntry entry)
             return;
 
-        var (horizontal, vertical) = GetDragThresholds();
+        var (horizontal, vertical) = MouseDragThreshold.ForWindow(_owner);
         _gesture.Begin(e.Pointer.PointerId, entry.FullPath,
             point.Position.X, point.Position.Y, horizontal, vertical);
         _pressContainer = container;
@@ -167,16 +162,6 @@ internal sealed class FileDragSource : IDisposable
         return null;
     }
 
-    private (double Horizontal, double Vertical) GetDragThresholds()
-    {
-        var dpi = GetDpiForWindow(_owner);
-        if (dpi == 0) dpi = DefaultDpi;
-        var scale = dpi / (double)DefaultDpi;
-        // Win32 returns physical pixels; XAML pointer positions are logical pixels.
-        return (Math.Max(1, Math.Abs(GetSystemMetricsForDpi(HorizontalDragMetric, dpi))) / scale,
-            Math.Max(1, Math.Abs(GetSystemMetricsForDpi(VerticalDragMetric, dpi))) / scale);
-    }
-
     private void CaptureIfNeeded(UIElement container, Pointer pointer)
     {
         // WinUI creates this collection lazily, after the first capture.
@@ -213,10 +198,4 @@ internal sealed class FileDragSource : IDisposable
         _view.RemoveHandler(UIElement.PointerCaptureLostEvent, _ended);
         _view.RemoveHandler(UIElement.PreviewKeyDownEvent, _keyDown);
     }
-
-    [DllImport("user32.dll", ExactSpelling = true)]
-    private static extern uint GetDpiForWindow(nint window);
-
-    [DllImport("user32.dll", ExactSpelling = true)]
-    private static extern int GetSystemMetricsForDpi(int index, uint dpi);
 }

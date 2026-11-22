@@ -16,7 +16,7 @@
   </ItemGroup>
   <ItemGroup>
     <!-- Exercise the production interop without launching the WinUI application. -->
-    <Compile Include="../../ShellFileDataObject.cs" Link="ShellFileDataObject.cs" />
+    <Compile Include="../../ShellSelection.cs" Link="ShellSelection.cs" />
     <Compile Include="../../ShellDataPackage.cs" Link="ShellDataPackage.cs" />
   </ItemGroup>
 </Project>
