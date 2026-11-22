@@ -22,7 +22,6 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
         <Grid.KeyboardAccelerators>
             <KeyboardAccelerator Key="Escape" Invoked="OnDismissAccelerator"/>
@@ -93,86 +92,90 @@
         </Grid>
 
         <!-- A translucent reading surface leaves the native acrylic exposed around it. -->
-        <Border Grid.Row="1" Grid.RowSpan="2" Margin="6,0,6,6" CornerRadius="10"
-                Background="{ThemeResource LayerFillColorDefaultBrush}"
-                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1"
-                IsHitTestVisible="False"/>
+        <Grid Grid.Row="1" Margin="6,0,6,6" CornerRadius="10"
+              Background="{ThemeResource LayerFillColorDefaultBrush}"
+              BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
 
-        <Grid x:Name="ItemsHost" Grid.Row="1" Background="Transparent">
-            <!-- Сетка -->
-            <GridView x:Name="ItemsGrid" Margin="10,0,0,0"
-                      Padding="0,0,10,10"
-                      SelectionMode="None"
-                      IsItemClickEnabled="True"
-                      ItemClick="OnItemClick"
-                      CanDragItems="False"
-                      Visibility="Visible">
-                <GridView.ItemTemplate>
-                    <DataTemplate x:DataType="local:FolderEntry">
-                        <Grid Width="92" Background="Transparent" RightTapped="OnItemRightTapped"
-                              ToolTipService.ToolTip="{x:Bind DisplayPath}">
-                            <Border Style="{StaticResource SelectedEntryStyle}"
-                                    Visibility="{x:Bind IsSelected, Mode=OneWay}"/>
-                            <StackPanel Padding="4,8" Spacing="4">
-                                <Image Source="{x:Bind Thumbnail, Mode=OneWay}" Width="48" Height="48"
-                                       HorizontalAlignment="Center"/>
-                                <TextBlock Text="{x:Bind Name}" FontSize="12"
-                                           TextAlignment="Center" TextTrimming="CharacterEllipsis"
-                                           TextWrapping="Wrap" MaxLines="2" Height="32"/>
-                            </StackPanel>
-                        </Grid>
-                    </DataTemplate>
-                </GridView.ItemTemplate>
-            </GridView>
+            <Grid x:Name="ItemsHost" Background="Transparent">
+                <!-- Сетка -->
+                <GridView x:Name="ItemsGrid" Margin="3,0,0,0"
+                          Padding="0,0,3,3"
+                          SelectionMode="None"
+                          IsItemClickEnabled="True"
+                          ItemClick="OnItemClick"
+                          CanDragItems="False"
+                          Visibility="Visible">
+                    <GridView.ItemTemplate>
+                        <DataTemplate x:DataType="local:FolderEntry">
+                            <Grid Width="92" Background="Transparent" RightTapped="OnItemRightTapped"
+                                  ToolTipService.ToolTip="{x:Bind DisplayPath}">
+                                <Border Style="{StaticResource SelectedEntryStyle}"
+                                        Visibility="{x:Bind IsSelected, Mode=OneWay}"/>
+                                <StackPanel Padding="4,8" Spacing="4">
+                                    <Image Source="{x:Bind Thumbnail, Mode=OneWay}" Width="48" Height="48"
+                                           HorizontalAlignment="Center"/>
+                                    <TextBlock Text="{x:Bind Name}" FontSize="12"
+                                               TextAlignment="Center" TextTrimming="CharacterEllipsis"
+                                               TextWrapping="Wrap" MaxLines="2" Height="32"/>
+                                </StackPanel>
+                            </Grid>
+                        </DataTemplate>
+                    </GridView.ItemTemplate>
+                </GridView>
 
-            <!-- Список -->
-            <ListView x:Name="ItemsList" Margin="10,0,0,0"
-                      Padding="0,0,6,10"
-                      SelectionMode="None"
-                      IsItemClickEnabled="True"
-                      ItemClick="OnItemClick"
-                      CanDragItems="False"
-                      Visibility="Collapsed">
-                <ListView.ItemContainerStyle>
-                    <Style TargetType="ListViewItem">
-                        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-                    </Style>
-                </ListView.ItemContainerStyle>
-                <ListView.ItemTemplate>
-                    <DataTemplate x:DataType="local:FolderEntry">
-                        <Grid ColumnSpacing="10" Padding="2,4" Background="Transparent"
-                              RightTapped="OnItemRightTapped"
-                              ToolTipService.ToolTip="{x:Bind DisplayPath}">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-                            <Border Grid.ColumnSpan="2" Style="{StaticResource SelectedEntryStyle}"
-                                    Visibility="{x:Bind IsSelected, Mode=OneWay}"/>
-                            <Image Source="{x:Bind Thumbnail, Mode=OneWay}" Width="20" Height="20"
-                                   VerticalAlignment="Center"/>
-                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                <TextBlock Text="{x:Bind Name}" TextTrimming="CharacterEllipsis"/>
-                                <TextBlock Text="{x:Bind RelativePath}" Visibility="{x:Bind PathVisibility}"
-                                           FontSize="11" Opacity="0.6" TextTrimming="CharacterEllipsis"/>
-                            </StackPanel>
-                        </Grid>
-                    </DataTemplate>
-                </ListView.ItemTemplate>
-            </ListView>
-            <Canvas IsHitTestVisible="False">
-                <Rectangle x:Name="SelectionRectangle" Visibility="Collapsed"
-                           Fill="{ThemeResource SystemControlHighlightListAccentLowBrush}"
-                           Stroke="{ThemeResource AccentFillColorDefaultBrush}" StrokeThickness="1"/>
-            </Canvas>
+                <!-- Список -->
+                <ListView x:Name="ItemsList" Margin="3,0,0,0"
+                          Padding="0,0,3,3"
+                          SelectionMode="None"
+                          IsItemClickEnabled="True"
+                          ItemClick="OnItemClick"
+                          CanDragItems="False"
+                          Visibility="Collapsed">
+                    <ListView.ItemContainerStyle>
+                        <Style TargetType="ListViewItem">
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                        </Style>
+                    </ListView.ItemContainerStyle>
+                    <ListView.ItemTemplate>
+                        <DataTemplate x:DataType="local:FolderEntry">
+                            <Grid ColumnSpacing="10" Padding="2,4" Background="Transparent"
+                                  RightTapped="OnItemRightTapped"
+                                  ToolTipService.ToolTip="{x:Bind DisplayPath}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Border Grid.ColumnSpan="2" Style="{StaticResource SelectedEntryStyle}"
+                                        Visibility="{x:Bind IsSelected, Mode=OneWay}"/>
+                                <Image Source="{x:Bind Thumbnail, Mode=OneWay}" Width="20" Height="20"
+                                       VerticalAlignment="Center"/>
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                    <TextBlock Text="{x:Bind Name}" TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock Text="{x:Bind RelativePath}" Visibility="{x:Bind PathVisibility}"
+                                               FontSize="11" Opacity="0.6" TextTrimming="CharacterEllipsis"/>
+                                </StackPanel>
+                            </Grid>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
+                <Canvas IsHitTestVisible="False">
+                    <Rectangle x:Name="SelectionRectangle" Visibility="Collapsed"
+                               Fill="{ThemeResource SystemControlHighlightListAccentLowBrush}"
+                               Stroke="{ThemeResource AccentFillColorDefaultBrush}" StrokeThickness="1"/>
+                </Canvas>
+            </Grid>
+
+            <TextBlock x:Name="EmptyText" Margin="3,0,3,3" IsHitTestVisible="False"
+                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                       TextAlignment="Center" TextWrapping="Wrap"
+                       Opacity="0.6" Visibility="Collapsed"/>
+            <TextBlock x:Name="SearchStatus" Grid.Row="1" Margin="3,0,3,1"
+                       FontSize="11" Opacity="0.6" TextWrapping="Wrap" MaxLines="2"
+                       Visibility="Collapsed"/>
         </Grid>
-
-        <TextBlock x:Name="EmptyText" Grid.Row="1" Margin="10,0,10,10" IsHitTestVisible="False"
-                   HorizontalAlignment="Center" VerticalAlignment="Center"
-                   TextAlignment="Center" TextWrapping="Wrap"
-                   Opacity="0.6" Visibility="Collapsed"/>
-        <TextBlock x:Name="SearchStatus" Grid.Row="2" Margin="10,0,10,8"
-                   FontSize="11" Opacity="0.6" TextWrapping="Wrap" MaxLines="2"
-                   Visibility="Collapsed"/>
     </Grid>
 </Window>
