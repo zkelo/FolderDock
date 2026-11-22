@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.ComTypes;
 using Windows.ApplicationModel.DataTransfer;
@@ -9,10 +10,10 @@ namespace FolderDock;
 /// <summary>Bridges native Shell formats into the Windows Runtime drag package.</summary>
 internal static class ShellDataPackage
 {
-    internal static void SetFile(DataPackage package, string path)
+    internal static void SetFiles(DataPackage package, IReadOnlyList<string> paths)
     {
         ArgumentNullException.ThrowIfNull(package);
-        var data = ShellFileDataObject.Create(path);
+        var data = ShellSelection.CreateDataObject(paths);
         try
         {
             // The DataPackage retains its own COM reference to the native data

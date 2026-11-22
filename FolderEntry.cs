@@ -14,6 +14,18 @@ public sealed class FolderEntry : INotifyPropertyChanged
     public string DisplayPath => RelativePath ?? FullPath;
     public Visibility PathVisibility => RelativePath is null ? Visibility.Collapsed : Visibility.Visible;
 
+    private bool _isSelected;
+    public bool IsSelected
+    {
+        get => _isSelected;
+        internal set
+        {
+            if (_isSelected == value) return;
+            _isSelected = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsSelected)));
+        }
+    }
+
     private BitmapImage? _thumbnail;
     public BitmapImage? Thumbnail
     {

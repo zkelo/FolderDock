@@ -38,6 +38,26 @@ public sealed class ShellDropTargetTests : IDisposable
     }
 
     [Fact]
+    public void ControlDropCopiesEverySelectedItemFromDifferentFolders()
+    {
+        var file = CreateFile("selected.txt");
+        var folder = Directory.CreateDirectory(Path.Combine(_source, "nested", "selected folder")).FullName;
+        File.WriteAllText(Path.Combine(folder, "child.txt"), "nested bytes");
+
+        InSta(() =>
+        {
+            using var drop = new NativeFolderDrop([file, folder], _destination);
+            Assert.Equal(NativeFolderDrop.Copy, drop.Enter(Control));
+            drop.Drop(Control);
+        });
+
+        Assert.Equal("original bytes", File.ReadAllText(Path.Combine(_destination, "selected.txt")));
+        Assert.Equal("nested bytes", File.ReadAllText(Path.Combine(_destination, "selected folder", "child.txt")));
+        Assert.True(File.Exists(file));
+        Assert.True(Directory.Exists(folder));
+    }
+
+    [Fact]
     public void ShiftDropMovesTheFileWithoutSourceSideDeletion()
     {
         var source = CreateFile("move.txt");

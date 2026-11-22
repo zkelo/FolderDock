@@ -164,7 +164,7 @@ public sealed class ShellDragDropTests : IDisposable
             }
             finally { Marshal.ReleaseComObject(shell); }
 
-            AssertShellFileOnCurrentThread(linkPath);
+            AssertShellFilesOnCurrentThread(linkPath);
             Assert.True(File.Exists(linkPath));
             Assert.Equal(!targetIsMissing, targetsFolder ? Directory.Exists(target) : File.Exists(target));
             if (!targetsFolder && !targetIsMissing) Assert.Equal("target", File.ReadAllText(target));
@@ -172,24 +172,39 @@ public sealed class ShellDragDropTests : IDisposable
     }
 
     [Fact]
+    public void GroupOffersEverySelectedPathFromDifferentFolders()
+    {
+        var nested = Directory.CreateDirectory(Path.Combine(_folder, "nested"));
+        var paths = new[] {
+            Path.Combine(_folder, "same.txt"),
+            Path.Combine(nested.FullName, "same.txt"),
+            Directory.CreateDirectory(Path.Combine(_folder, "selected folder")).FullName
+        };
+        File.WriteAllText(paths[0], "first");
+        File.WriteAllText(paths[1], "second");
+
+        InSta(() => AssertShellFilesOnCurrentThread(paths));
+    }
+
+    [Fact]
     public void MissingSourceFailsWithoutCreatingAReplacementFile()
     {
         var missing = Path.Combine(_folder, "deleted.txt");
 
-        InSta(() => Assert.ThrowsAny<Exception>(() => ShellFileDataObject.Create(missing)));
+        InSta(() => Assert.ThrowsAny<Exception>(() => ShellSelection.CreateDataObject([missing])));
 
         Assert.False(File.Exists(missing));
     }
 
     private static void AssertShellFile(string path) =>
-        InSta(() => AssertShellFileOnCurrentThread(path));
+        InSta(() => AssertShellFilesOnCurrentThread(path));
 
-    private static void AssertShellFileOnCurrentThread(string path)
+    private static void AssertShellFilesOnCurrentThread(params string[] paths)
     {
-        var data = ShellTestDataObject.Create(path);
+        var data = ShellTestDataObject.Create(paths);
         try
         {
-            ShellDataObjectAssertions.SingleFile(data, path);
+            ShellDataObjectAssertions.Files(data, paths);
         }
         finally { Marshal.ReleaseComObject(data); }
     }

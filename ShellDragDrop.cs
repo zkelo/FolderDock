@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Runtime.ExceptionServices;
 using System.Threading.Tasks;
 using Microsoft.UI.Input;
@@ -13,7 +14,7 @@ internal sealed class ShellDragDrop : IFileDragDrop
     private const DataPackageOperation AllowedOperations =
         DataPackageOperation.Copy | DataPackageOperation.Move | DataPackageOperation.Link;
 
-    public async Task<bool> StartAsync(UIElement source, PointerPoint pointer, string path)
+    public async Task<bool> StartAsync(UIElement source, PointerPoint pointer, IReadOnlyList<string> paths)
     {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(pointer);
@@ -25,7 +26,7 @@ internal sealed class ShellDragDrop : IFileDragDrop
             {
                 // Keep native file, directory and shortcut identity. Do not
                 // substitute text/bitmap representations or resolve .lnk targets.
-                ShellDataPackage.SetFile(args.Data, path);
+                ShellDataPackage.SetFiles(args.Data, paths);
                 args.AllowedOperations = AllowedOperations;
             }
             catch (Exception exception)
