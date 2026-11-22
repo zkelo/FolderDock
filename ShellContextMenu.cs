@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Runtime.InteropServices;
 
 namespace FolderDock;
@@ -32,41 +33,17 @@ internal static class ShellContextMenu
     private const uint WM_MENUCHAR = 0x0120;
     private const int GWLP_WNDPROC = -4;
 
-    private static readonly Guid IID_IShellFolder =
-        new("000214E6-0000-0000-C000-000000000046");
-    private static readonly Guid IID_IContextMenu =
-        new("000214E4-0000-0000-C000-000000000046");
-
     /// true — пользователь выбрал команду и она передана шеллу.
     /// false — меню закрыто без выбора. Исключения глотать вызывающему:
     /// сломанное shell-расширение не должно ронять попап.
-    public static bool Show(IntPtr ownerHwnd, string path)
-    {
-        var pidl = IntPtr.Zero;
-        var folderPtr = IntPtr.Zero;
-        var contextMenuPtr = IntPtr.Zero;
-        var menu = IntPtr.Zero;
-        object? folderObj = null;
-        object? cmObj = null;
+    public static bool Show(IntPtr ownerHwnd, string path) => Show(ownerHwnd, [path]);
 
+    public static bool Show(IntPtr ownerHwnd, IReadOnlyList<string> paths)
+    {
+        var contextMenu = ShellSelection.CreateContextMenu<IContextMenu>(paths, ownerHwnd);
+        var menu = IntPtr.Zero;
         try
         {
-            Marshal.ThrowExceptionForHR(
-                SHParseDisplayName(path, IntPtr.Zero, out pidl, 0, out _));
-
-            var folderIid = IID_IShellFolder;
-            Marshal.ThrowExceptionForHR(
-                SHBindToParent(pidl, ref folderIid, out folderPtr, out var childPidl));
-            folderObj = Marshal.GetObjectForIUnknown(folderPtr);
-            var folder = (IShellFolder)folderObj;
-
-            // childPidl принадлежит pidl — освобождать отдельно не нужно
-            var cmIid = IID_IContextMenu;
-            folder.GetUIObjectOf(ownerHwnd, 1, new[] { childPidl },
-                ref cmIid, IntPtr.Zero, out contextMenuPtr);
-            cmObj = Marshal.GetObjectForIUnknown(contextMenuPtr);
-            var contextMenu = (IContextMenu)cmObj;
-
             menu = CreatePopupMenu();
             var shiftHeld = (Native.GetKeyState(VK_SHIFT) & 0x8000) != 0;
             var queryHr = contextMenu.QueryContextMenu(menu, 0, CmdFirst, CmdLast,
@@ -78,7 +55,7 @@ internal static class ShellContextMenu
             Native.SetForegroundWindow(ownerHwnd);
 
             int selected;
-            using (new MenuMessageForwarder(ownerHwnd, cmObj))
+            using (new MenuMessageForwarder(ownerHwnd, contextMenu))
             {
                 selected = TrackPopupMenuEx(menu,
                     TPM_RETURNCMD | TPM_RIGHTBUTTON | TPM_LEFTALIGN,
@@ -102,11 +79,7 @@ internal static class ShellContextMenu
         finally
         {
             if (menu != IntPtr.Zero) DestroyMenu(menu);
-            if (cmObj is not null) Marshal.ReleaseComObject(cmObj);
-            if (contextMenuPtr != IntPtr.Zero) Marshal.Release(contextMenuPtr);
-            if (folderObj is not null) Marshal.ReleaseComObject(folderObj);
-            if (folderPtr != IntPtr.Zero) Marshal.Release(folderPtr);
-            if (pidl != IntPtr.Zero) ILFree(pidl);
+            Marshal.ReleaseComObject(contextMenu);
         }
     }
 
@@ -156,29 +129,6 @@ internal static class ShellContextMenu
     private delegate IntPtr WndProcDelegate(IntPtr hwnd, uint msg, IntPtr wParam, IntPtr lParam);
 
     // --- COM-интерфейсы (ComImport требует переобъявления методов базы) ---
-
-    [ComImport, Guid("000214E6-0000-0000-C000-000000000046"),
-     InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-    private interface IShellFolder
-    {
-        void ParseDisplayName(IntPtr hwnd, IntPtr pbc,
-            [MarshalAs(UnmanagedType.LPWStr)] string pszDisplayName,
-            out uint pchEaten, out IntPtr ppidl, ref uint pdwAttributes);
-        void EnumObjects(IntPtr hwnd, uint grfFlags, out IntPtr ppenumIDList);
-        void BindToObject(IntPtr pidl, IntPtr pbc, ref Guid riid, out IntPtr ppv);
-        void BindToStorage(IntPtr pidl, IntPtr pbc, ref Guid riid, out IntPtr ppv);
-        [PreserveSig] int CompareIDs(IntPtr lParam, IntPtr pidl1, IntPtr pidl2);
-        void CreateViewObject(IntPtr hwndOwner, ref Guid riid, out IntPtr ppv);
-        void GetAttributesOf(uint cidl,
-            [MarshalAs(UnmanagedType.LPArray)] IntPtr[] apidl, ref uint rgfInOut);
-        void GetUIObjectOf(IntPtr hwndOwner, uint cidl,
-            [MarshalAs(UnmanagedType.LPArray)] IntPtr[] apidl,
-            ref Guid riid, IntPtr rgfReserved, out IntPtr ppv);
-        void GetDisplayNameOf(IntPtr pidl, uint uFlags, IntPtr pName);
-        void SetNameOf(IntPtr hwnd, IntPtr pidl,
-            [MarshalAs(UnmanagedType.LPWStr)] string pszName, uint uFlags,
-            out IntPtr ppidlOut);
-    }
 
     [ComImport, Guid("000214E4-0000-0000-C000-000000000046"),
      InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
@@ -249,17 +199,6 @@ internal static class ShellContextMenu
     }
 
     // --- P/Invoke ---
-
-    [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
-    private static extern int SHParseDisplayName(string pszName, IntPtr pbc,
-        out IntPtr ppidl, uint sfgaoIn, out uint psfgaoOut);
-
-    [DllImport("shell32.dll")]
-    private static extern int SHBindToParent(IntPtr pidl, ref Guid riid,
-        out IntPtr ppv, out IntPtr ppidlLast);
-
-    [DllImport("shell32.dll")]
-    private static extern void ILFree(IntPtr pidl);
 
     [DllImport("user32.dll")]
     private static extern IntPtr CreatePopupMenu();
