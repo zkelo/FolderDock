@@ -188,6 +188,24 @@ public sealed class JsonSettingsStoreTests : IDisposable
         Assert.Equal(new FolderPreferences(), preferences.Read(successful));
     }
 
+    [Theory]
+    [InlineData("default", "default")]
+    [InlineData("default", "grid")]
+    [InlineData("name", "grid")]
+    public void MigrationHonorsAnExistingResetMarker(string sort, string view)
+    {
+        var folder = Path.Combine(_root, "Downloads");
+        var path = WriteLegacySorts((folder, "DateAdded"));
+        var preferences = OpenFolderStore();
+        preferences.Write(folder, new FolderPreferences(FolderSortOrder.DateAdded));
+        var marker = Assert.Single(Directory.GetFiles(PreferencesDirectory));
+        File.WriteAllText(marker, JsonSerializer.Serialize(new { sort, view }));
+
+        Assert.False(OpenStore(path).Read().AutoCheckUpdates);
+        Assert.Equal(new FolderPreferences(FolderSortOrder.Name, FolderViewMode.Grid), preferences.Read(folder));
+        Assert.False(File.Exists(marker));
+    }
+
     [Fact]
     public void ResetAfterInterruptedCleanupSurvivesTheNextMigration()
     {

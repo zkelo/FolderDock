@@ -99,8 +99,8 @@ Opening a folder with the defaults (name order and grid view) creates no file.
 Changing either option saves one file under
 `%LOCALAPPDATA%\FolderDock\FolderPreferences\<FolderHash>.json`.
 The filename is the SHA-256 hash of the normalized full folder path. For example,
-switching only the view to list saves `{"sort":"default","view":"list"}`.
-Changing only the sort order keeps `"view":"default"`, which currently displays a grid.
+switching only the view to list saves `{"sort":"name","view":"list"}`.
+Sorting by modification date in grid view saves `{"sort":"dateModified","view":"grid"}`.
 Restoring both defaults removes the file. FolderDock imports sort choices from
 older versions of `settings.json` automatically.
 

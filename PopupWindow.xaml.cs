@@ -47,7 +47,7 @@ public sealed partial class PopupWindow : Window
     private int _thumbnailRequestVersion;
     private bool _refreshThumbnails;
 
-    private bool IsGridView => _preferences.Current.View != FolderViewMode.List;
+    private bool IsGridView => _preferences.Current.View == FolderViewMode.Grid;
     private bool _isActive;
     private bool _shellMenuOpen;
     private string? _lastDismissedFolder;
@@ -630,7 +630,7 @@ public sealed partial class PopupWindow : Window
     {
         if (_navigation.CurrentFolder is null) return;
         ResetDragGestures();
-        App.ReportSettingsError(_preferences.SetView(IsGridView ? FolderViewMode.List : FolderViewMode.Default));
+        App.ReportSettingsError(_preferences.SetView(IsGridView ? FolderViewMode.List : FolderViewMode.Grid));
         RenderFolderView();
         ResizeToFit();
     }

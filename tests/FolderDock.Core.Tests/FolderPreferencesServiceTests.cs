@@ -13,7 +13,7 @@ public sealed class FolderPreferencesServiceTests
 
         Assert.Null(service.Open("Downloads"));
         Assert.Null(service.SetSort(FolderSortOrder.Name));
-        Assert.Null(service.SetView(FolderViewMode.Default));
+        Assert.Null(service.SetView(FolderViewMode.Grid));
         Assert.Equal(new FolderPreferences(), service.Current);
         Assert.Equal(1, store.Reads);
         Assert.Equal(0, store.Writes);
@@ -37,7 +37,7 @@ public sealed class FolderPreferencesServiceTests
         reopened.SetSort(FolderSortOrder.Name);
         Assert.Equal(FolderViewMode.List, store.Read("Downloads").View);
         reopened.Open("Documents");
-        Assert.Equal(new FolderPreferences(FolderSortOrder.DateAdded, FolderViewMode.Default), reopened.Current);
+        Assert.Equal(new FolderPreferences(FolderSortOrder.DateAdded, FolderViewMode.Grid), reopened.Current);
     }
 
     [Fact]

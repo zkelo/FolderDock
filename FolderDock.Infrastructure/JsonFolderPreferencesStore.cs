@@ -58,7 +58,8 @@ public sealed class JsonFolderPreferencesStore : IFolderPreferencesStore
     internal void RemoveLegacyDefaultMarker(string folder)
     {
         var path = FilePath(folder);
-        if (ReadDocument(path) is { Sort: "default", View: "default", ExtraFields: null or { Count: 0 } })
+        if (ReadDocument(path) is
+            { Sort: "name" or "default", View: "grid" or "default", ExtraFields: null or { Count: 0 } })
             AtomicJsonFile.Delete(path);
     }
 
@@ -81,22 +82,16 @@ public sealed class JsonFolderPreferencesStore : IFolderPreferencesStore
             "dateAdded" => FolderSortOrder.DateAdded,
             "dateModified" => FolderSortOrder.DateModified,
             _ => FolderSortOrder.Name
-        }, View switch
-        {
-            "grid" => FolderViewMode.Grid,
-            "list" => FolderViewMode.List,
-            _ => FolderViewMode.Default
-        });
+        }, View == "list" ? FolderViewMode.List : FolderViewMode.Grid);
 
         public static Document From(FolderPreferences preferences) => new(preferences.Sort switch
         {
-            FolderSortOrder.Name => "default",
+            FolderSortOrder.Name => "name",
             FolderSortOrder.DateAdded => "dateAdded",
             FolderSortOrder.DateModified => "dateModified",
             _ => throw new ArgumentOutOfRangeException(nameof(preferences), preferences.Sort, null)
         }, preferences.View switch
         {
-            FolderViewMode.Default => "default",
             FolderViewMode.Grid => "grid",
             FolderViewMode.List => "list",
             _ => throw new ArgumentOutOfRangeException(nameof(preferences), preferences.View, null)
