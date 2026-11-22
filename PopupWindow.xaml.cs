@@ -33,6 +33,7 @@ public sealed partial class PopupWindow : Window
     private readonly ThumbnailLoader _thumbnails = new();
     private readonly FolderLoadSession _folderLoads;
     private readonly FolderSearchSession _folderSearch;
+    private readonly SettingsService _settings;
     private readonly IFileDragDrop _fileDragDrop;
     private readonly FileDragSource _gridDragSource;
     private readonly FileDragSource _listDragSource;
@@ -54,12 +55,14 @@ public sealed partial class PopupWindow : Window
     private DateTime _shownAt;
 
     internal PopupWindow(FolderLoadSession folderLoads, FolderSearchSession folderSearch,
-        IFileDragDrop fileDragDrop, IFolderChangeSource folderChanges)
+        IFileDragDrop fileDragDrop, IFolderChangeSource folderChanges, SettingsService settings)
     {
         ArgumentNullException.ThrowIfNull(folderLoads);
         ArgumentNullException.ThrowIfNull(folderSearch);
         ArgumentNullException.ThrowIfNull(fileDragDrop);
         ArgumentNullException.ThrowIfNull(folderChanges);
+        ArgumentNullException.ThrowIfNull(settings);
+        _settings = settings;
         _fileDragDrop = fileDragDrop;
         _folderLoads = folderLoads;
         _folderSearch = folderSearch;
@@ -95,6 +98,9 @@ public sealed partial class PopupWindow : Window
         // Тултипы из ресурсов: x:Uid не умеет attached-свойства с обычным Text
         ToolTipService.SetToolTip(BackButton, Loc.Get("Tooltip_Back"));
         ToolTipService.SetToolTip(ViewToggle, Loc.Get("Tooltip_ViewToggle"));
+        var sortLabel = Loc.Get("Tooltip_SortBy");
+        ToolTipService.SetToolTip(SortButton, sortLabel);
+        AutomationProperties.SetName(SortButton, sortLabel);
         ToolTipService.SetToolTip(OpenExplorerButton, Loc.Get("Tooltip_OpenInExplorer"));
         var closeLabel = Loc.Get("Tooltip_ClosePopup");
         ToolTipService.SetToolTip(CloseButton, closeLabel);
@@ -212,6 +218,8 @@ public sealed partial class PopupWindow : Window
 
     private void PrepareContentsLoad()
     {
+        if (_navigation.CurrentFolder is { } folder)
+            SelectSortMenuItem(_settings.GetFolderSort(folder));
         _folderLoads.Cancel();
         CancelSearch();
         _contents = null;
@@ -243,7 +251,7 @@ public sealed partial class PopupWindow : Window
 
     private async Task ReadContentsAsync(string folder, bool preserveView)
     {
-        var completion = await _folderLoads.LoadAsync(folder);
+        var completion = await _folderLoads.LoadAsync(folder, _settings.GetFolderSort(folder));
         if (completion is null || !_folderLoads.IsCurrent(completion) || !_chrome.IsVisible)
             return;
 
@@ -308,7 +316,7 @@ public sealed partial class PopupWindow : Window
 
     private async Task SearchRecursivelyAsync(string folder, string query, bool preserveView)
     {
-        var completion = await _folderSearch.SearchAsync(folder, query);
+        var completion = await _folderSearch.SearchAsync(folder, query, _settings.GetFolderSort(folder));
         if (completion is null || !_folderSearch.IsCurrent(completion)
             || !PathsEqual(_navigation.CurrentFolder, folder)
             || _navigation.SearchQuery != query || !_chrome.IsVisible)
@@ -553,8 +561,8 @@ public sealed partial class PopupWindow : Window
 
     private void UpdateFolderMonitor()
     {
-        if (_chrome.IsVisible)
-            _folderRefresh.Watch(_navigation.CurrentFolder, _navigation.HasSearchQuery);
+        if (_chrome.IsVisible && _navigation.CurrentFolder is { } folder)
+            _folderRefresh.Watch(folder, _navigation.HasSearchQuery, _settings.GetFolderSort(folder));
     }
 
     private void OnClosed(object sender, WindowEventArgs args)
@@ -597,6 +605,27 @@ public sealed partial class PopupWindow : Window
         RefreshContents();
     }
 
+    private void SelectSortMenuItem(FolderSortOrder order)
+    {
+        SortByName.IsChecked = order == FolderSortOrder.Name;
+        SortByDateAdded.IsChecked = order == FolderSortOrder.DateAdded;
+        SortByDateModified.IsChecked = order == FolderSortOrder.DateModified;
+    }
+
+    private void OnSortByName(object sender, RoutedEventArgs e) => SetSortOrder(FolderSortOrder.Name);
+
+    private void OnSortByDateAdded(object sender, RoutedEventArgs e) => SetSortOrder(FolderSortOrder.DateAdded);
+
+    private void OnSortByDateModified(object sender, RoutedEventArgs e) => SetSortOrder(FolderSortOrder.DateModified);
+
+    private void SetSortOrder(FolderSortOrder order)
+    {
+        if (_navigation.CurrentFolder is not { } folder || _settings.GetFolderSort(folder) == order)
+            return;
+        App.ReportSettingsError(_settings.SetFolderSort(folder, order));
+        RefreshContents();
+    }
+
     private void OnToggleView(object sender, RoutedEventArgs e)
     {
         ResetDragGestures();
@@ -618,6 +647,11 @@ public sealed partial class PopupWindow : Window
     private void OnDismissAccelerator(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
     {
         args.Handled = true;
+        if (SortButton.Flyout.IsOpen)
+        {
+            SortButton.Flyout.Hide();
+            return;
+        }
         if (_dragInProgress) return;
         if (SearchBox.Text.Length > 0)
         {

@@ -79,6 +79,35 @@ public sealed class FolderChangeSourceTests : IDisposable
     }
 
     [Fact]
+    public async Task ObservesTimestampChangesWhenSortingByDateModified()
+    {
+        var file = Path.Combine(_root, "existing.txt");
+        File.WriteAllText(file, "existing");
+        var changed = NewNotification();
+        using var subscription = _source.Watch(_root, false,
+            () => changed.TrySetResult(), FolderSortOrder.DateModified);
+
+        File.AppendAllText(file, " updated");
+
+        await changed.Task.WaitAsync(NotificationTimeout);
+    }
+
+    [Fact]
+    public async Task ObservesWindowsCreationTimeChangesWhenSortingByDateAdded()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        var file = Path.Combine(_root, "existing.txt");
+        File.WriteAllText(file, "existing");
+        var changed = NewNotification();
+        using var subscription = _source.Watch(_root, false,
+            () => changed.TrySetResult(), FolderSortOrder.DateAdded);
+
+        File.SetCreationTimeUtc(file, DateTime.UtcNow.AddDays(-1));
+
+        await changed.Task.WaitAsync(NotificationTimeout);
+    }
+
+    [Fact]
     public async Task SubscriptionReportsActiveStateUntilDisposalAndIgnoresLaterChanges()
     {
         var changed = NewNotification();

@@ -21,7 +21,7 @@ public sealed class JsonSettingsStore : ISettingsStore
         try
         {
             var document = JsonSerializer.Deserialize<SettingsDocument>(File.ReadAllText(_filePath));
-            return new AppSettings(document?.AutoCheckUpdates ?? true);
+            return document?.ToSettings() ?? new AppSettings();
         }
         catch (Exception exception) when (exception is FileNotFoundException or DirectoryNotFoundException)
         {
@@ -41,7 +41,7 @@ public sealed class JsonSettingsStore : ISettingsStore
         try
         {
             Directory.CreateDirectory(directory);
-            var document = new SettingsDocument { AutoCheckUpdates = settings.AutoCheckUpdates };
+            var document = SettingsDocument.From(settings);
             File.WriteAllText(temporaryPath, JsonSerializer.Serialize(document, JsonOptions));
             File.Move(temporaryPath, _filePath, overwrite: true);
         }
@@ -77,5 +77,29 @@ public sealed class JsonSettingsStore : ISettingsStore
 
         [JsonPropertyName("autoCheckUpdates")]
         public bool AutoCheckUpdates { get; set; } = true;
+
+        [JsonPropertyName("folderSorts")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public Dictionary<string, string>? FolderSorts { get; set; }
+
+        public AppSettings ToSettings()
+        {
+            var settings = new AppSettings(AutoCheckUpdates);
+            if (FolderSorts is null) return settings;
+
+            foreach (var (folder, value) in FolderSorts)
+            {
+                if (Enum.TryParse<FolderSortOrder>(value, out var order) && Enum.IsDefined(order))
+                    settings = settings.WithFolderSort(folder, order);
+            }
+            return settings;
+        }
+
+        public static SettingsDocument From(AppSettings settings) => new()
+        {
+            AutoCheckUpdates = settings.AutoCheckUpdates,
+            FolderSorts = settings.FolderSorts.IsEmpty ? null :
+                settings.FolderSorts.ToDictionary(pair => pair.Key, pair => pair.Value.ToString())
+        };
     }
 }

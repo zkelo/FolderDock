@@ -111,7 +111,7 @@ public sealed class FolderSearchSessionTests
         var session = new FolderSearchSession(search, timeProvider: clock);
         var first = session.SearchAsync("photos", "sun");
         clock.Advance(TimeSpan.FromMilliseconds(100));
-        var second = session.SearchAsync("photos", "sunset");
+        var second = session.SearchAsync("photos", "sunset", FolderSortOrder.DateModified);
 
         Assert.Null(await first);
         clock.Advance(TimeSpan.FromMilliseconds(179));
@@ -120,6 +120,7 @@ public sealed class FolderSearchSessionTests
         clock.Advance(TimeSpan.FromMilliseconds(1));
         var request = await search.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
         Assert.Equal("sunset", request.Query);
+        Assert.Equal(FolderSortOrder.DateModified, request.SortOrder);
         request.Complete(Result("sunset.jpg"));
 
         Assert.NotNull(await second);
@@ -142,7 +143,7 @@ public sealed class FolderSearchSessionTests
     }
 
     private static RecursiveSearchResult Result(string name) => new(
-        new[] { new RecursiveSearchEntry(name, name, IsDirectory: false) },
+        new[] { new FolderSnapshotEntry(name, name, IsDirectory: false) },
         Failed: false, Incomplete: false, LimitReached: false);
 
     private sealed class ControlledSearch : IFolderSearch
@@ -152,22 +153,24 @@ public sealed class FolderSearchSessionTests
             new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         public Task<RecursiveSearchResult> SearchAsync(string folder, string? query,
-            CancellationToken cancellationToken = default)
+            FolderSortOrder sortOrder = FolderSortOrder.Name, CancellationToken cancellationToken = default)
         {
-            var request = new PendingSearch(folder, query, cancellationToken);
+            var request = new PendingSearch(folder, query, sortOrder, cancellationToken);
             Requests.Enqueue(request);
             Started.TrySetResult(request);
             return request.Task;
         }
     }
 
-    private sealed class PendingSearch(string folder, string? query, CancellationToken token)
+    private sealed class PendingSearch(string folder, string? query, FolderSortOrder sortOrder,
+        CancellationToken token)
     {
         private readonly TaskCompletionSource<RecursiveSearchResult> _completion =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         public string Folder { get; } = folder;
         public string? Query { get; } = query;
+        public FolderSortOrder SortOrder { get; } = sortOrder;
         public CancellationToken Token { get; } = token;
         public Task<RecursiveSearchResult> Task => _completion.Task;
         public void Complete(RecursiveSearchResult result) => _completion.SetResult(result);

@@ -11,9 +11,11 @@ public sealed class FolderLoadSessionTests
         var reader = new ControlledReader();
         var session = new FolderLoadSession(reader);
         var first = session.LoadAsync("photos");
-        var second = session.LoadAsync("photos");
+        var second = session.LoadAsync("photos", FolderSortOrder.DateAdded);
         var expected = Snapshot("new.jpg");
 
+        Assert.Equal(FolderSortOrder.Name, reader.Requests[0].SortOrder);
+        Assert.Equal(FolderSortOrder.DateAdded, reader.Requests[1].SortOrder);
         reader.Requests[1].Complete(expected);
         var latest = await second;
         reader.Requests[0].Complete(Snapshot("old.jpg"));
@@ -157,20 +159,22 @@ public sealed class FolderLoadSessionTests
     {
         public List<PendingRead> Requests { get; } = new();
 
-        public Task<FolderSnapshot> ReadAsync(string folder, CancellationToken cancellationToken)
+        public Task<FolderSnapshot> ReadAsync(string folder, FolderSortOrder sortOrder,
+            CancellationToken cancellationToken)
         {
-            var request = new PendingRead(folder, cancellationToken);
+            var request = new PendingRead(folder, sortOrder, cancellationToken);
             Requests.Add(request);
             return request.Task;
         }
     }
 
-    private sealed class PendingRead(string folder, CancellationToken token)
+    private sealed class PendingRead(string folder, FolderSortOrder sortOrder, CancellationToken token)
     {
         private readonly TaskCompletionSource<FolderSnapshot> _completion =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         public string Folder { get; } = folder;
+        public FolderSortOrder SortOrder { get; } = sortOrder;
         public CancellationToken Token { get; } = token;
         public Task<FolderSnapshot> Task => _completion.Task;
         public void Complete(FolderSnapshot snapshot) => _completion.SetResult(snapshot);

@@ -5,12 +5,13 @@ namespace FolderDock.Infrastructure;
 
 public sealed class FileSystemFolderChangeSource : IFolderChangeSource
 {
-    public IFolderChangeSubscription Watch(string folder, bool recursive, Action changed)
+    public IFolderChangeSubscription Watch(string folder, bool recursive, Action changed,
+        FolderSortOrder sortOrder = FolderSortOrder.Name)
     {
         ArgumentNullException.ThrowIfNull(changed);
         try
         {
-            return new Subscription(folder, recursive, changed);
+            return new Subscription(folder, recursive, changed, sortOrder);
         }
         catch (Exception exception) when (exception is IOException
             or UnauthorizedAccessException or ArgumentException or SecurityException)
@@ -30,14 +31,20 @@ public sealed class FileSystemFolderChangeSource : IFolderChangeSource
             Volatile.Read(ref _disposed) == 0 && Volatile.Read(ref _failed) == 0
             && _watcher.EnableRaisingEvents;
 
-        public Subscription(string folder, bool recursive, Action changed)
+        public Subscription(string folder, bool recursive, Action changed, FolderSortOrder sortOrder)
         {
             _changed = changed;
             _watcher = new FileSystemWatcher(folder)
             {
                 IncludeSubdirectories = recursive,
-                NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName
+                NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName | (sortOrder switch
+                {
+                    FolderSortOrder.DateAdded => NotifyFilters.CreationTime,
+                    FolderSortOrder.DateModified => NotifyFilters.LastWrite,
+                    _ => 0
+                })
             };
+            _watcher.Changed += OnEntryChanged;
             _watcher.Created += OnEntryChanged;
             _watcher.Deleted += OnEntryChanged;
             _watcher.Renamed += OnEntryRenamed;

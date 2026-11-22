@@ -97,6 +97,39 @@ public sealed class JsonSettingsStoreTests : IDisposable
     }
 
     [Fact]
+    public void AddingFolderChoicesToLegacySettingsPreservesTheUpdatePreferenceAcrossRestarts()
+    {
+        var path = WriteSettings("{\"autoCheckUpdates\":false}");
+        var store = new JsonSettingsStore(path);
+        var downloads = Path.Combine(_root, "Downloads");
+        var desktop = Path.Combine(_root, "Desktop");
+
+        var settings = store.Read();
+        Assert.Equal(FolderSortOrder.Name, settings.GetFolderSort(downloads));
+        store.Write(settings.WithFolderSort(downloads, FolderSortOrder.DateAdded)
+            .WithFolderSort(desktop, FolderSortOrder.DateModified));
+
+        var reopened = new JsonSettingsStore(path).Read();
+        Assert.False(reopened.AutoCheckUpdates);
+        Assert.Equal(FolderSortOrder.DateAdded, reopened.GetFolderSort(downloads));
+        Assert.Equal(FolderSortOrder.DateModified, reopened.GetFolderSort(desktop));
+    }
+
+    [Fact]
+    public void UnknownFolderSortUsesNameAndOtherPreferencesStillLoad()
+    {
+        var path = WriteSettings("""
+            {"autoCheckUpdates":false,"folderSorts":{"first":"FutureOrder","second":"DateAdded"}}
+            """);
+
+        var settings = new JsonSettingsStore(path).Read();
+
+        Assert.False(settings.AutoCheckUpdates);
+        Assert.Equal(FolderSortOrder.Name, settings.GetFolderSort("first"));
+        Assert.Equal(FolderSortOrder.DateAdded, settings.GetFolderSort("second"));
+    }
+
+    [Fact]
     public void SuccessfulWriteReplacesExistingSettingsWithoutLeavingTemporaryFiles()
     {
         var path = WriteSettings("{\"autoCheckUpdates\":true}");

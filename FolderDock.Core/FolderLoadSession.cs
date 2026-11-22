@@ -16,10 +16,10 @@ public sealed class FolderLoadSession
 
     /// Returns null for a cancelled or superseded read. Check IsCurrent after
     /// awaiting, before presenting a completion on the UI thread.
-    public async Task<FolderLoadCompletion?> LoadAsync(string folder)
+    public async Task<FolderLoadCompletion?> LoadAsync(string folder, FolderSortOrder sortOrder = FolderSortOrder.Name)
     {
         ArgumentNullException.ThrowIfNull(folder);
-        var completion = await _requests.RunAsync(token => _reader.ReadAsync(folder, token))
+        var completion = await _requests.RunAsync(token => _reader.ReadAsync(folder, sortOrder, token))
             .ConfigureAwait(false);
         return completion is null ? null
             : new FolderLoadCompletion(completion.RequestId, completion.Result);

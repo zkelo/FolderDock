@@ -17,6 +17,7 @@ internal sealed class FolderRefreshController : IDisposable
     private IFolderChangeSubscription? _subscription;
     private string? _folder;
     private bool _recursive;
+    private FolderSortOrder _sortOrder;
     private int _version;
     private bool _disposed;
 
@@ -33,28 +34,28 @@ internal sealed class FolderRefreshController : IDisposable
         _timer.Tick += OnTick;
     }
 
-    public void Watch(string? folder, bool recursive)
+    public void Watch(string folder, bool recursive, FolderSortOrder sortOrder)
     {
         if (_disposed) return;
-        if (_folder == folder && _recursive == recursive
+        if (_folder == folder && _recursive == recursive && _sortOrder == sortOrder
             && (_subscription is null || _subscription.IsWatching))
             return;
 
         Stop();
-        if (folder is null) return;
         _folder = folder;
         _recursive = recursive;
-        _ = StartWatchingAsync(folder, recursive, _version);
+        _sortOrder = sortOrder;
+        _ = StartWatchingAsync(folder, recursive, sortOrder, _version);
     }
 
-    private async Task StartWatchingAsync(string folder, bool recursive, int version)
+    private async Task StartWatchingAsync(string folder, bool recursive, FolderSortOrder sortOrder, int version)
     {
         try
         {
             // Opening a watcher can access a network path; keep that work off
             // the UI thread and dispose results belonging to an earlier view.
             var subscription = await Task.Run(() =>
-                _changes.Watch(folder, recursive, () => QueueRefresh(version)));
+                _changes.Watch(folder, recursive, () => QueueRefresh(version), sortOrder));
             if (_disposed || version != _version)
             {
                 subscription.Dispose();

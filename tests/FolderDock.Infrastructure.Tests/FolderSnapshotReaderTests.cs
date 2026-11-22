@@ -41,6 +41,43 @@ public sealed class FolderSnapshotReaderTests : IDisposable
     }
 
     [Fact]
+    public async Task DateAddedUsesWindowsCreationTimeIndependentOfModificationTime()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        var oldDirectory = CreateDirectory("a folder");
+        var newFile = CreateFile("z.txt");
+        var oldDate = new DateTime(2020, 1, 1, 12, 0, 0, DateTimeKind.Utc);
+        var newDate = oldDate.AddDays(1);
+        Directory.SetCreationTimeUtc(oldDirectory, oldDate);
+        Directory.SetLastWriteTimeUtc(oldDirectory, newDate);
+        File.SetCreationTimeUtc(newFile, newDate);
+        File.SetLastWriteTimeUtc(newFile, oldDate);
+
+        var result = await new FileSystemFolderSnapshotReader().ReadAsync(_root, FolderSortOrder.DateAdded);
+
+        Assert.Equal(new[] { newFile, oldDirectory }, result.Entries.Select(entry => entry.FullPath));
+    }
+
+    [Fact]
+    public async Task DateModifiedSortsAllEntriesNewestFirstAndBreaksTiesByName()
+    {
+        var oldDate = new DateTime(2020, 1, 1, 12, 0, 0, DateTimeKind.Utc);
+        var tiedDirectory = CreateDirectory("b folder");
+        var tiedFile = CreateFile("a.txt");
+        Directory.SetLastWriteTimeUtc(tiedDirectory, oldDate);
+        File.SetLastWriteTimeUtc(tiedFile, oldDate);
+        for (var index = 0; index < FolderSearch.MaxResults; index++)
+            File.SetLastWriteTimeUtc(CreateFile($"item {index:D4}.txt"), oldDate.AddDays(-1));
+        var newest = CreateFile("z last by name.txt");
+        File.SetLastWriteTimeUtc(newest, oldDate.AddDays(1));
+
+        var result = await new FileSystemFolderSnapshotReader().ReadAsync(_root, FolderSortOrder.DateModified);
+
+        Assert.Equal(new[] { newest, tiedFile, tiedDirectory }, result.Entries.Take(3).Select(entry => entry.FullPath));
+        Assert.Equal(FolderSearch.MaxResults + 3, result.Entries.Count);
+    }
+
+    [Fact]
     public async Task EmptyFolderIsSuccessful()
     {
         var result = await new FileSystemFolderSnapshotReader().ReadAsync(_root);
@@ -85,7 +122,8 @@ public sealed class FolderSnapshotReaderTests : IDisposable
         cancellation.Cancel();
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
-            new FileSystemFolderSnapshotReader().ReadAsync(Path.Combine(_root, "missing"), cancellation.Token));
+            new FileSystemFolderSnapshotReader().ReadAsync(Path.Combine(_root, "missing"),
+                cancellationToken: cancellation.Token));
     }
 
     [Fact]
