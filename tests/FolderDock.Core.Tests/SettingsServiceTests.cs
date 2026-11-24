@@ -96,10 +96,10 @@ public sealed class SettingsServiceTests
     [InlineData(2027, 1, 1, NewYearThemeState.Enabled)]
     [InlineData(2027, 1, 14, NewYearThemeState.Enabled)]
     [InlineData(2027, 1, 15, NewYearThemeState.Hidden)]
-    [InlineData(2027, 12, 1, NewYearThemeState.Available)]
-    public void ThemeAppliesOnlyToTheSelectedSeason(int year, int month, int day, NewYearThemeState state)
+    [InlineData(2027, 12, 1, NewYearThemeState.Enabled)]
+    public void EnabledThemeFollowsTheLocalCalendarEveryYear(int year, int month, int day, NewYearThemeState state)
     {
-        var settings = new AppSettings(NewYearThemeSeason: 2026);
+        var settings = new AppSettings(NewYearThemeEnabled: true);
 
         Assert.Equal(state, settings.GetNewYearThemeState(new DateOnly(year, month, day)));
     }
@@ -113,7 +113,7 @@ public sealed class SettingsServiceTests
         Assert.Equal(NewYearThemeState.Available, settings.Load().Settings.GetNewYearThemeState(date));
 
         settings.ToggleNewYearTheme(date);
-        Assert.Equal(new AppSettings(false, 2026), store.Stored);
+        Assert.Equal(new AppSettings(false, NewYearThemeEnabled: true), store.Stored);
         Assert.Equal(NewYearThemeState.Enabled, settings.Load().Settings.GetNewYearThemeState(date));
 
         settings.ToggleNewYearTheme(date);
@@ -121,16 +121,19 @@ public sealed class SettingsServiceTests
         Assert.Equal(NewYearThemeState.Available, settings.Current.GetNewYearThemeState(date));
     }
 
-    [Fact]
-    public void OutOfSeasonToggleDoesNotWriteSettings()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void OutOfSeasonTogglePreservesThePreference(bool enabled)
     {
-        var store = new FakeSettingsStore();
+        var store = new FakeSettingsStore { Stored = new(NewYearThemeEnabled: enabled) };
         var settings = new SettingsService(store);
+        settings.Load();
 
         settings.ToggleNewYearTheme(new DateOnly(2027, 1, 15));
 
         Assert.Equal(0, store.Writes);
-        Assert.Null(settings.Current.NewYearThemeSeason);
+        Assert.Equal(enabled, settings.Current.NewYearThemeEnabled);
     }
 
     private sealed class FakeSettingsStore : ISettingsStore

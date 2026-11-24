@@ -20,6 +20,7 @@ public sealed class JsonSettingsStoreTests : IDisposable
         var settings = new JsonSettingsStore(path).Read();
 
         Assert.True(settings.AutoCheckUpdates);
+        Assert.False(settings.NewYearThemeEnabled);
         Assert.Empty(Directory.EnumerateFileSystemEntries(_root));
     }
 
@@ -34,6 +35,7 @@ public sealed class JsonSettingsStoreTests : IDisposable
         var settings = new JsonSettingsStore(path).Read();
 
         Assert.True(settings.AutoCheckUpdates);
+        Assert.False(settings.NewYearThemeEnabled);
         Assert.Equal(json, File.ReadAllText(path));
     }
 
@@ -57,6 +59,9 @@ public sealed class JsonSettingsStoreTests : IDisposable
     [InlineData("\"settings\"")]
     [InlineData("{\"autoCheckUpdates\":\"false\"}")]
     [InlineData("{\"autoCheckUpdates\":null}")]
+    [InlineData("{\"newYearThemeEnabled\":\"true\"}")]
+    [InlineData("{\"newYearThemeEnabled\":2026}")]
+    [InlineData("{\"newYearThemeEnabled\":null}")]
     public void InvalidSettingsReportFailureWithoutReplacingTheFile(string json)
     {
         var path = WriteSettings(json);
@@ -91,7 +96,7 @@ public sealed class JsonSettingsStoreTests : IDisposable
 
         using var json = JsonDocument.Parse(File.ReadAllText(path));
         Assert.Equal(enabled, json.RootElement.GetProperty("autoCheckUpdates").GetBoolean());
-        Assert.Single(json.RootElement.EnumerateObject());
+        Assert.False(json.RootElement.GetProperty("newYearThemeEnabled").GetBoolean());
         Assert.Equal(new AppSettings(enabled), store.Read());
         Assert.Equal(new[] { path }, Directory.EnumerateFileSystemEntries(_root));
     }
@@ -110,19 +115,21 @@ public sealed class JsonSettingsStoreTests : IDisposable
     [Fact]
     public void ThemeChoiceRoundTripsAlongsideExistingPreferences()
     {
-        var path = WriteSettings("""{"autoCheckUpdates":false,"future":42}""");
+        var path = WriteSettings("""{"autoCheckUpdates":false,"newYearThemeSeason":2026,"future":42}""");
         var store = new JsonSettingsStore(path);
         var settings = new SettingsService(store);
         var date = new DateOnly(2026, 12, 1);
-        settings.Load();
+        Assert.False(settings.Load().Settings.NewYearThemeEnabled);
 
         settings.ToggleNewYearTheme(date);
         settings.SetAutoCheckUpdates(true);
-        Assert.Equal(new AppSettings(true, 2026), store.Read());
+        Assert.Equal(new AppSettings(true, true), store.Read());
 
         settings.ToggleNewYearTheme(date);
         Assert.Equal(new AppSettings(true), store.Read());
         using var document = JsonDocument.Parse(File.ReadAllText(path));
+        Assert.False(document.RootElement.GetProperty("newYearThemeEnabled").GetBoolean());
+        Assert.False(document.RootElement.TryGetProperty("newYearThemeSeason", out _));
         Assert.Equal(42, document.RootElement.GetProperty("future").GetInt32());
     }
 
