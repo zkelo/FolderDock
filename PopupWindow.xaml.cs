@@ -57,7 +57,8 @@ public sealed partial class PopupWindow : Window
     private DateTime _shownAt;
 
     internal PopupWindow(FolderLoadSession folderLoads, FolderSearchSession folderSearch,
-        IFileDragDrop fileDragDrop, IFolderChangeSource folderChanges, FolderPreferencesService preferences)
+        IFileDragDrop fileDragDrop, IFolderChangeSource folderChanges, FolderPreferencesService preferences,
+        NewYearThemeController newYearTheme)
     {
         ArgumentNullException.ThrowIfNull(folderLoads);
         ArgumentNullException.ThrowIfNull(folderSearch);
@@ -82,7 +83,13 @@ public sealed partial class PopupWindow : Window
             RefreshContents, () => _chrome.IsVisible && !_dragInProgress && !_marquee.IsTracking);
         Closed += OnClosed;
         InitializeHeaderLabels();
+        newYearTheme.Attach(this, NewYearToggle, NewYearDecoration, OnThemeButtonVisibilityChanged);
         Activated += OnActivationChanged;
+    }
+
+    private void OnThemeButtonVisibilityChanged()
+    {
+        if (_chrome.IsVisible) ResizeToFit();
     }
 
     /// Prepare control templates while resident in the background. This never

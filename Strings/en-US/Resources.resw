@@ -31,6 +31,8 @@ After pinning, clicking the icon opens the folder as a popup.</value></data>
   <data name="Tooltip_UnpinPopup" xml:space="preserve"><value>Unpin popup</value></data>
   <data name="Tooltip_ClosePopup" xml:space="preserve"><value>Close popup (Esc)</value></data>
   <data name="Tooltip_ViewToggle" xml:space="preserve"><value>Grid / list</value></data>
+  <data name="Tooltip_EnableNewYearTheme" xml:space="preserve"><value>Turn on the New Year theme</value></data>
+  <data name="Tooltip_DisableNewYearTheme" xml:space="preserve"><value>Turn off the New Year theme</value></data>
   <data name="Tooltip_SortBy" xml:space="preserve"><value>Sort by</value></data>
   <data name="SortByName.Text" xml:space="preserve"><value>Name</value></data>
   <data name="SortByDateAdded.Text" xml:space="preserve"><value>Date added</value></data>

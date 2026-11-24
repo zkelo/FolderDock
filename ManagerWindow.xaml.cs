@@ -35,8 +35,8 @@ public sealed partial class ManagerWindow : Window
     private bool _isClosed;
     private bool _refreshingStartup;
 
-    public ManagerWindow(LoginStartupService loginStartup, SettingsService settings,
-        PinnedFolderService pinnedFolders, UpdateService updates)
+    internal ManagerWindow(LoginStartupService loginStartup, SettingsService settings,
+        PinnedFolderService pinnedFolders, UpdateService updates, NewYearThemeController newYearTheme)
     {
         ArgumentNullException.ThrowIfNull(loginStartup);
         ArgumentNullException.ThrowIfNull(settings);
@@ -48,6 +48,7 @@ public sealed partial class ManagerWindow : Window
         _updates = updates;
         _lifetimeToken = _lifetimeCancellation.Token;
         InitializeComponent();
+        newYearTheme.Attach(this, NewYearToggle, NewYearDecoration);
         Closed += OnClosed;
         // Настоящий desktop acrylic: Windows управляет размытием, темой,
         // активацией и непрозрачным фоном при отключённой прозрачности.

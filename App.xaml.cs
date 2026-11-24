@@ -18,6 +18,7 @@ public partial class App : Application
     private readonly string _dataDirectory = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "FolderDock");
     private readonly SettingsService _settings;
+    private readonly NewYearThemeController _newYearTheme;
     private readonly FolderPreferencesService _folderPreferences;
     // One client for the application's lifetime keeps pooled connections reusable.
     private HttpClient? _updateHttp;
@@ -37,6 +38,7 @@ public partial class App : Application
         ReportSettingsError(_settings.Load().Error);
         InitializeComponent();
         _uiQueue = DispatcherQueue.GetForCurrentThread();
+        _newYearTheme = new NewYearThemeController(_settings, _uiQueue);
     }
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
@@ -47,6 +49,7 @@ public partial class App : Application
 
     private void Route(string arguments)
     {
+        _newYearTheme.Refresh();
         var request = CommandLine.Parse(arguments);
         if (request.Kind == LaunchKind.Background)
         {
@@ -107,7 +110,7 @@ public partial class App : Application
     private PopupWindow CreatePopup() => new(
         new FolderLoadSession(new FileSystemFolderSnapshotReader()),
         new FolderSearchSession(new FileSystemFolderSearch()),
-        new ShellDragDrop(), new FileSystemFolderChangeSource(), _folderPreferences);
+        new ShellDragDrop(), new FileSystemFolderChangeSource(), _folderPreferences, _newYearTheme);
 
     private void TogglePopup(string folder)
     {
@@ -146,7 +149,7 @@ public partial class App : Application
                 Path.GetTempPath()),
             AppInfo.Version,
             RuntimeInformation.ProcessArchitecture == Architecture.Arm64 ? "arm64" : "x64");
-        return new ManagerWindow(_loginStartup, _settings, pinnedFolders, updates);
+        return new ManagerWindow(_loginStartup, _settings, pinnedFolders, updates, _newYearTheme);
     }
 
     internal static void ReportSettingsError(string? error)

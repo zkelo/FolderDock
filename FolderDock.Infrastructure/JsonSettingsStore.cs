@@ -17,7 +17,7 @@ public sealed class JsonSettingsStore : ISettingsStore
     public AppSettings Read()
     {
         var document = ReadDocument(recoverInvalid: false);
-        return new AppSettings(document.AutoCheckUpdates);
+        return new AppSettings(document.AutoCheckUpdates, document.NewYearThemeSeason);
     }
 
     public void Write(AppSettings settings)
@@ -25,6 +25,7 @@ public sealed class JsonSettingsStore : ISettingsStore
         ArgumentNullException.ThrowIfNull(settings);
         var document = ReadDocument(recoverInvalid: true);
         document.AutoCheckUpdates = settings.AutoCheckUpdates;
+        document.NewYearThemeSeason = settings.NewYearThemeSeason;
         AtomicJsonFile.Write(_filePath, document);
     }
 
@@ -55,6 +56,10 @@ public sealed class JsonSettingsStore : ISettingsStore
 
         [JsonPropertyName("autoCheckUpdates")]
         public bool AutoCheckUpdates { get; set; } = true;
+
+        [JsonPropertyName("newYearThemeSeason")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public int? NewYearThemeSeason { get; set; }
 
         [JsonExtensionData]
         public Dictionary<string, JsonElement>? OtherPreferences { get; set; }

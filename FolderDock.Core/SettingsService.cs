@@ -27,12 +27,18 @@ public sealed class SettingsService
         }
     }
 
-    public SettingsResult SetAutoCheckUpdates(bool enabled)
+    public SettingsResult SetAutoCheckUpdates(bool enabled) =>
+        Save(Current with { AutoCheckUpdates = enabled });
+
+    public SettingsResult ToggleNewYearTheme(DateOnly localDate) =>
+        Save(Current.ToggleNewYearTheme(localDate));
+
+    private SettingsResult Save(AppSettings settings)
     {
-        if (Current.AutoCheckUpdates == enabled)
+        if (Current == settings)
             return new(Current);
 
-        Current = Current with { AutoCheckUpdates = enabled };
+        Current = settings;
         try
         {
             _store.Write(Current);

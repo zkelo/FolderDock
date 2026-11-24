@@ -108,6 +108,25 @@ public sealed class JsonSettingsStoreTests : IDisposable
     }
 
     [Fact]
+    public void ThemeChoiceRoundTripsAlongsideExistingPreferences()
+    {
+        var path = WriteSettings("""{"autoCheckUpdates":false,"future":42}""");
+        var store = new JsonSettingsStore(path);
+        var settings = new SettingsService(store);
+        var date = new DateOnly(2026, 12, 1);
+        settings.Load();
+
+        settings.ToggleNewYearTheme(date);
+        settings.SetAutoCheckUpdates(true);
+        Assert.Equal(new AppSettings(true, 2026), store.Read());
+
+        settings.ToggleNewYearTheme(date);
+        Assert.Equal(new AppSettings(true), store.Read());
+        using var document = JsonDocument.Parse(File.ReadAllText(path));
+        Assert.Equal(42, document.RootElement.GetProperty("future").GetInt32());
+    }
+
+    [Fact]
     public void WriteCreatesTheSettingsDirectory()
     {
         var path = Path.Combine(_root, "nested", "FolderDock", "settings.json");

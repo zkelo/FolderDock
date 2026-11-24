@@ -7,6 +7,46 @@
             <ResourceDictionary.MergedDictionaries>
                 <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
             </ResourceDictionary.MergedDictionaries>
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Light">
+                    <x:Double x:Key="NewYearDecorationOpacity">0.85</x:Double>
+                    <SolidColorBrush x:Key="NewYearStarlightBrush" Color="#A7845F2C"/>
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="Default">
+                    <x:Double x:Key="NewYearDecorationOpacity">1</x:Double>
+                    <SolidColorBrush x:Key="NewYearStarlightBrush" Color="#ADFFDF9F"/>
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="HighContrast">
+                    <x:Double x:Key="NewYearDecorationOpacity">0</x:Double>
+                    <SolidColorBrush x:Key="NewYearStarlightBrush" Color="Transparent"/>
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
+
+            <Style x:Key="NewYearHeaderAccentStyle" TargetType="ContentControl">
+                <Setter Property="IsTabStop" Value="False"/>
+                <Setter Property="IsHitTestVisible" Value="False"/>
+                <Setter Property="AutomationProperties.AccessibilityView" Value="Raw"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="ContentControl">
+                            <Grid CornerRadius="8" Opacity="{ThemeResource NewYearDecorationOpacity}">
+                                <Grid.Background>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,0.7">
+                                        <GradientStop Offset="0" Color="#38549C89"/>
+                                        <GradientStop Offset="0.55" Color="#248ABDC9"/>
+                                        <GradientStop Offset="1" Color="#008ABDC9"/>
+                                    </LinearGradientBrush>
+                                </Grid.Background>
+                                <Path HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,2,0,0"
+                                      Fill="{ThemeResource NewYearStarlightBrush}"
+                                      Data="M0,5 L1,4 L2,5 L1,6 Z
+                                            M8,5 L11,4 L12,0 L13,4 L16,5 L13,6 L12,10 L11,6 Z
+                                            M22,3 L24,2.5 L24.5,1 L25,2.5 L27,3 L25,3.5 L24.5,5 L24,3.5 Z"/>
+                            </Grid>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

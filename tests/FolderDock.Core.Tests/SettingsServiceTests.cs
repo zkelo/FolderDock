@@ -89,6 +89,50 @@ public sealed class SettingsServiceTests
         Assert.Equal(2, store.Writes);
     }
 
+    [Theory]
+    [InlineData(2026, 11, 30, NewYearThemeState.Hidden)]
+    [InlineData(2026, 12, 1, NewYearThemeState.Enabled)]
+    [InlineData(2026, 12, 31, NewYearThemeState.Enabled)]
+    [InlineData(2027, 1, 1, NewYearThemeState.Enabled)]
+    [InlineData(2027, 1, 14, NewYearThemeState.Enabled)]
+    [InlineData(2027, 1, 15, NewYearThemeState.Hidden)]
+    [InlineData(2027, 12, 1, NewYearThemeState.Available)]
+    public void ThemeAppliesOnlyToTheSelectedSeason(int year, int month, int day, NewYearThemeState state)
+    {
+        var settings = new AppSettings(NewYearThemeSeason: 2026);
+
+        Assert.Equal(state, settings.GetNewYearThemeState(new DateOnly(year, month, day)));
+    }
+
+    [Fact]
+    public void ThemeCanBeEnabledAndDisabledInJanuaryWithoutChangingUpdateChecks()
+    {
+        var date = new DateOnly(2027, 1, 14);
+        var store = new FakeSettingsStore { Stored = new(false) };
+        var settings = new SettingsService(store);
+        Assert.Equal(NewYearThemeState.Available, settings.Load().Settings.GetNewYearThemeState(date));
+
+        settings.ToggleNewYearTheme(date);
+        Assert.Equal(new AppSettings(false, 2026), store.Stored);
+        Assert.Equal(NewYearThemeState.Enabled, settings.Load().Settings.GetNewYearThemeState(date));
+
+        settings.ToggleNewYearTheme(date);
+        Assert.Equal(new AppSettings(false), store.Stored);
+        Assert.Equal(NewYearThemeState.Available, settings.Current.GetNewYearThemeState(date));
+    }
+
+    [Fact]
+    public void OutOfSeasonToggleDoesNotWriteSettings()
+    {
+        var store = new FakeSettingsStore();
+        var settings = new SettingsService(store);
+
+        settings.ToggleNewYearTheme(new DateOnly(2027, 1, 15));
+
+        Assert.Equal(0, store.Writes);
+        Assert.Null(settings.Current.NewYearThemeSeason);
+    }
+
     private sealed class FakeSettingsStore : ISettingsStore
     {
         public AppSettings Stored { get; set; } = new();
