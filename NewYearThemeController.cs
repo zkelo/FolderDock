@@ -7,6 +7,7 @@ namespace FolderDock;
 
 internal sealed class NewYearThemeController
 {
+    private static readonly DateOnly PreviewDate = new(2026, 12, 1);
     private readonly SettingsService _settings;
     private readonly DispatcherQueueTimer _midnightTimer;
     private NewYearThemeState _state;
@@ -28,7 +29,7 @@ internal sealed class NewYearThemeController
         _midnightTimer.Interval = nextMidnight - now.UtcDateTime;
         _midnightTimer.Start();
 
-        var state = _settings.Current.GetNewYearThemeState(DateOnly.FromDateTime(now.Date));
+        var state = _settings.Current.GetNewYearThemeState(PreviewDate);
         if (_state == state) return;
         _state = state;
         StateChanged?.Invoke(state);
@@ -67,7 +68,7 @@ internal sealed class NewYearThemeController
 
     private void OnToggle(object sender, RoutedEventArgs args)
     {
-        App.ReportSettingsError(_settings.ToggleNewYearTheme(DateOnly.FromDateTime(DateTime.Today)).Error);
+        App.ReportSettingsError(_settings.ToggleNewYearTheme(PreviewDate).Error);
         Refresh();
     }
 }
