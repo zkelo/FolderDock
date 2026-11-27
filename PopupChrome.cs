@@ -34,7 +34,10 @@ public sealed class PopupChrome
     public void Show()
     {
         AppWindow.Show();
-        Native.SetForegroundWindow(Hwnd);
+        LogState("AppWindow.Show returned");
+        var foregroundSet = Native.SetForegroundWindow(Hwnd);
+        if (PopupDiagnostics.IsEnabled)
+            LogState("SetForegroundWindow returned", $"success={foregroundSet}");
     }
 
     public void Hide() => AppWindow.Hide();
@@ -50,22 +53,37 @@ public sealed class PopupChrome
         return new Point(cursor.X, cursor.Y);
     }
 
-    private static Anchor ReadAnchor(Point click, Anchor? previous = null)
+    private Anchor ReadAnchor(Point click, Anchor? previous = null)
     {
-        var display = DisplayArea.GetFromPoint(new Windows.Graphics.PointInt32(click.X, click.Y),
-            DisplayAreaFallback.Nearest);
-        var outer = display.OuterBounds;
-        var work = display.WorkArea;
-        var monitor = new Rectangle(outer.X, outer.Y, outer.Width, outer.Height);
-        // WorkArea is relative to this monitor. AppWindow uses desktop coordinates.
-        var workArea = new Rectangle(outer.X + work.X, outer.Y + work.Y, work.Width, work.Height);
+        var nativeBounds = WindowsTaskbar.ReadMonitor(click);
+        // During a display change, the native monitor handle can become invalid.
+        // Use the SDK's screen-space outer bounds and let taskbar detection trim them.
+        var fallbackDisplay = nativeBounds is null ? FindDisplay(click) : null;
+        var monitor = nativeBounds?.OuterBounds ?? ToRectangle(fallbackDisplay!.OuterBounds);
+        var workArea = nativeBounds?.WorkArea ?? monitor;
         // Keep the captured taskbar still while auto-hide animates. Refresh the
         // snapshot if a display is disconnected, resized or its work area changes.
         if (previous is not null && previous.Monitor == monitor && previous.WorkArea == workArea)
             return previous;
 
-        return new Anchor(click, monitor, workArea, WindowsTaskbar.Locate(monitor, workArea));
+        var taskbar = WindowsTaskbar.Locate(monitor, workArea);
+        if (PopupDiagnostics.IsEnabled)
+        {
+            var display = fallbackDisplay ?? FindDisplay(click);
+            var source = nativeBounds is null ? "DisplayArea" : "GetMonitorInfo";
+            LogState("Anchor", $"click={click} OuterBounds={ToRectangle(display.OuterBounds)} " +
+                $"WorkArea={ToRectangle(display.WorkArea)} monitorSource={source} " +
+                $"desktopOuterBounds={monitor} desktopWorkArea={workArea} " +
+                $"taskbarEdge={taskbar.Edge} taskbarWorkArea={taskbar.WorkArea}");
+        }
+        return new Anchor(click, monitor, workArea, taskbar);
     }
+
+    private static DisplayArea FindDisplay(Point point) =>
+        DisplayArea.GetFromPoint(new Windows.Graphics.PointInt32(point.X, point.Y), DisplayAreaFallback.Nearest);
+
+    private static Rectangle ToRectangle(Windows.Graphics.RectInt32 bounds) =>
+        new(bounds.X, bounds.Y, bounds.Width, bounds.Height);
 
     private Anchor CurrentAnchor() => _anchor = ReadAnchor(_anchor?.Click ?? CursorPoint(), _anchor);
 
@@ -77,6 +95,8 @@ public sealed class PopupChrome
         // Moving a window to another display can change both the DPI and the
         // bounds suggested by Windows. Remeasure the header at the new width.
         var targetDpi = Native.GetDpiForWindow(Hwnd);
+        if (PopupDiagnostics.IsEnabled)
+            LogState("FitToTaskbar after move", $"beforeDpi={dpi} afterDpi={targetDpi}");
         if (targetDpi != dpi)
             Arrange(anchor, targetDpi, layoutWidth, measureHeight);
     }
@@ -90,7 +110,23 @@ public sealed class PopupChrome
         var height = measureHeight(availableWidth);
         var requested = new Size((int)(width * scale), (int)(height * scale));
         var bounds = PopupPlacement.Calculate(taskbar.WorkArea, taskbar.Edge, anchor.Click, requested);
+        if (PopupDiagnostics.IsEnabled)
+            LogState("MoveAndResize target", $"layoutDpi={dpi} bounds={bounds}");
         MoveAndResize(bounds);
+        LogState("MoveAndResize completed");
+    }
+
+    internal void LogState(string stage, string details = "")
+    {
+        if (!PopupDiagnostics.IsEnabled) return;
+
+        Native.GetCursorPos(out var cursor);
+        var position = AppWindow.Position;
+        var size = AppWindow.Size;
+        PopupDiagnostics.Write(Hwnd, stage,
+            $"cursor=({cursor.X},{cursor.Y}) foreground=0x{Native.GetForegroundWindow():X} " +
+            $"dpi={Native.GetDpiForWindow(Hwnd)} visible={IsVisible} " +
+            $"position=({position.X},{position.Y}) size=({size.Width},{size.Height}) {details}");
     }
 
     private void MoveAndResize(Rectangle bounds)

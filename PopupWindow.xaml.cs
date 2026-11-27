@@ -133,6 +133,8 @@ public sealed partial class PopupWindow : Window
     public void ShowForFolder(string folder)
     {
         _popupGeneration++;
+        if (PopupDiagnostics.IsEnabled)
+            _chrome.LogState("ShowForFolder start", $"generation={_popupGeneration}");
         ResetDragGestures();
         _session.Begin();
         RenderPinState();
@@ -149,6 +151,8 @@ public sealed partial class PopupWindow : Window
         ShowPopup();
         UpdateFolderMonitor();
         StartContentsLoad();
+        if (PopupDiagnostics.IsEnabled)
+            _chrome.LogState("ShowForFolder end", $"generation={_popupGeneration}");
     }
 
     public void Dismiss() => RequestDismiss(PopupDismissalReason.Explicit);
@@ -163,12 +167,18 @@ public sealed partial class PopupWindow : Window
             TimeSinceShown: DateTime.UtcNow - _shownAt,
             IsDragInProgress: _dragInProgress);
 
-        if (_session.ShouldDismiss(reason, context))
-            HidePopup();
+        var shouldDismiss = _session.ShouldDismiss(reason, context);
+        if (PopupDiagnostics.IsEnabled)
+            _chrome.LogState("RequestDismiss", $"generation={_popupGeneration} reason={reason} " +
+                $"allowed={shouldDismiss} elapsedMs={context.TimeSinceShown.TotalMilliseconds:F0}");
+        if (shouldDismiss)
+            HidePopup(reason);
     }
 
-    private void HidePopup()
+    private void HidePopup(PopupDismissalReason reason)
     {
+        if (PopupDiagnostics.IsEnabled)
+            _chrome.LogState("HidePopup", $"generation={_popupGeneration} reason={reason}");
         _popupGeneration++;
         ResetDragGestures();
         _folderRefresh.Stop();
@@ -183,6 +193,7 @@ public sealed partial class PopupWindow : Window
         _folderLoads.Cancel();
         CancelThumbnails();
         _chrome.Hide();
+        _chrome.LogState("AppWindow.Hide returned");
     }
 
     private static bool PathsEqual(string? left, string right) =>
@@ -242,8 +253,11 @@ public sealed partial class PopupWindow : Window
         _shownAt = DateTime.UtcNow;
         _chrome.Show();
         Activate();
+        _chrome.LogState("Window.Activate returned");
         // Keyboard accelerators need a focused XAML control.
-        SearchBox.Focus(FocusState.Programmatic);
+        var searchFocused = SearchBox.Focus(FocusState.Programmatic);
+        if (PopupDiagnostics.IsEnabled)
+            _chrome.LogState("SearchBox.Focus returned", $"success={searchFocused}");
     }
 
     private void StartContentsLoad(bool preserveView = false)
@@ -461,6 +475,8 @@ public sealed partial class PopupWindow : Window
 
     private void OnActivationChanged(object sender, WindowActivatedEventArgs e)
     {
+        if (PopupDiagnostics.IsEnabled)
+            _chrome.LogState("Window.Activated", $"generation={_popupGeneration} state={e.WindowActivationState}");
         _isActive = e.WindowActivationState != WindowActivationState.Deactivated;
         if (_isActive)
         {
