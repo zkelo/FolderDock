@@ -8,8 +8,20 @@ namespace FolderDock;
 internal static class WindowsTaskbar
 {
     private const uint AbmGetAutoHideBarEx = 0x0000000b;
+    private const uint MonitorDefaultToNearest = 2;
     private static readonly TaskbarEdge[] AppBarEdges =
         [TaskbarEdge.Left, TaskbarEdge.Top, TaskbarEdge.Right, TaskbarEdge.Bottom];
+
+    internal static (Rectangle OuterBounds, Rectangle WorkArea)? ReadMonitor(Point point)
+    {
+        var monitor = MonitorFromPoint(new Native.POINT { X = point.X, Y = point.Y }, MonitorDefaultToNearest);
+        var info = new MonitorInfo { Size = (uint)Marshal.SizeOf<MonitorInfo>() };
+        if (monitor == 0 || !GetMonitorInfoW(monitor, ref info))
+            return null;
+
+        // Both rectangles are already in virtual-screen coordinates.
+        return (info.Monitor.ToRectangle(), info.WorkArea.ToRectangle());
+    }
 
     internal static TaskbarLayout Locate(Rectangle monitor, Rectangle workArea)
     {
@@ -64,14 +76,23 @@ internal static class WindowsTaskbar
     }
 
     private static Rectangle WindowBounds(nint window) =>
-        GetWindowRect(window, out var rect)
-            ? Rectangle.FromLTRB(rect.Left, rect.Top, rect.Right, rect.Bottom)
-            : Rectangle.Empty;
+        GetWindowRect(window, out var rect) ? rect.ToRectangle() : Rectangle.Empty;
 
     [StructLayout(LayoutKind.Sequential)]
     private struct ScreenRect(Rectangle bounds)
     {
         public int Left = bounds.Left, Top = bounds.Top, Right = bounds.Right, Bottom = bounds.Bottom;
+
+        public readonly Rectangle ToRectangle() => Rectangle.FromLTRB(Left, Top, Right, Bottom);
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct MonitorInfo
+    {
+        public uint Size;
+        public ScreenRect Monitor;
+        public ScreenRect WorkArea;
+        public uint Flags;
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -96,6 +117,12 @@ internal static class WindowsTaskbar
 
     [DllImport("user32.dll")]
     private static extern nint MonitorFromRect(ref ScreenRect bounds, uint flags);
+
+    [DllImport("user32.dll")]
+    private static extern nint MonitorFromPoint(Native.POINT point, uint flags);
+
+    [DllImport("user32.dll", ExactSpelling = true)]
+    private static extern bool GetMonitorInfoW(nint monitor, ref MonitorInfo info);
 
     [DllImport("user32.dll")]
     private static extern nint MonitorFromWindow(nint window, uint flags);

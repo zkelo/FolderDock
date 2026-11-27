@@ -9,6 +9,26 @@ public sealed class PopupPlacementTests
     private static readonly Point Anchor = new(-1000, -300);
 
     [Theory]
+    [InlineData(0, 0, 1920, 1200, 60, 144, 600, 1170, 345, 834)]
+    [InlineData(1920, -915, 1080, 1920, 40, 96, 2400, 985, 2230, 757)]
+    [InlineData(-1920, -2160, 3840, 2160, 80, 192, -1200, -40, -1540, -484)]
+    public void MixedDpiPopupStaysInItsMonitorUsingDesktopWorkAreaCoordinates(
+        int x, int y, int width, int height, int taskbarHeight, int dpi,
+        int clickX, int clickY, int expectedX, int expectedY)
+    {
+        var monitor = new Rectangle(x, y, width, height);
+        var workArea = new Rectangle(x, y, width, height - taskbarHeight);
+        var taskbarBounds = Rectangle.FromLTRB(x, workArea.Bottom, monitor.Right, monitor.Bottom);
+        var taskbar = TaskbarGeometry.Measure(monitor, workArea, TaskbarEdge.Bottom, taskbarBounds, true);
+        var desiredSize = new Size(340 * dpi / 96, 196 * dpi / 96);
+
+        var popup = PopupPlacement.Calculate(taskbar.WorkArea, taskbar.Edge, new Point(clickX, clickY), desiredSize);
+
+        Assert.Equal(new Rectangle(new Point(expectedX, expectedY), desiredSize), popup);
+        Assert.True(workArea.Contains(popup));
+    }
+
+    [Theory]
     [InlineData(TaskbarEdge.Left, -1488, -350, -1488, -400)]
     [InlineData(TaskbarEdge.Top, -1100, -688, -1150, -688)]
     [InlineData(TaskbarEdge.Right, -512, -350, -612, -400)]
